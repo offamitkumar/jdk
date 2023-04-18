@@ -2356,6 +2356,15 @@ void MacroAssembler::call_VM_leaf_static(address entry_point, Register arg_1, Re
   call_VM_leaf_static(entry_point);
 }
 
+void MacroAssembler::post_call_nop() {
+  // Make inline again when loom is always enabled.
+  if (!Continuations::enabled()) {
+    return;
+  }
+  InlineSkippedInstructionsCounter skipCounter(this);
+  z_nop();
+}
+
 // Don't use detour via call_c(reg).
 address MacroAssembler::call_c(address function_entry) {
   load_const(Z_R1, function_entry);
@@ -2711,6 +2720,28 @@ void MacroAssembler::reserved_stack_check(Register return_pc) {
 
   bind(no_reserved_zone_enabling);
   BLOCK_COMMENT("} reserved_stack_check");
+}
+
+void MacroAssembler::push_cont_fastpath() {
+  if (!Continuations::enabled()) return;
+  Label done;
+  z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  // FIXME:: should we go for z_cgrj ?? performace issue...
+  compare64_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
+  z_stg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
+}
+
+void MacroAssembler::pop_cont_fastpath() {
+  if (!Continuations::enabled()) return;
+  Label done;
+  z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  // FIXME:: there could be <=, < error here ??
+  // FIXME:: should we go for z_cgrj ??
+  compare64_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
+  z_lgfi(Z_R1_scratch, (int64_t)0);
+  z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
 }
 
 // Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.

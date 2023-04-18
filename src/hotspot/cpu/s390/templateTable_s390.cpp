@@ -2323,7 +2323,9 @@ void TemplateTable::_return(TosState state) {
     __ z_tm(poll_byte_addr, SafepointMechanism::poll_bit());
     __ z_braz(no_safepoint);
     __ push(state);
+    __ push_cont_fastpath();
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint));
+    __ pop_cont_fastpath();
     __ pop(state);
     __ bind(no_safepoint);
   }

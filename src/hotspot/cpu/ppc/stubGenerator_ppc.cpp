@@ -4571,8 +4571,8 @@ class StubGenerator: public StubCodeGenerator {
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, Continuation::prepare_thaw), R16_thread, R4_ARG2);
 
 #ifdef ASSERT
-    DEBUG_ONLY(__ ld_ptr(tmp1, JavaThread::cont_entry_offset(), R16_thread));
-    DEBUG_ONLY(__ cmpd(CCR0, R1_SP, tmp1));
+    __ ld_ptr(tmp1, JavaThread::cont_entry_offset(), R16_thread);
+    __ cmpd(CCR0, R1_SP, tmp1);
     __ asm_assert_eq(FILE_AND_LINE ": incorrect R1_SP");
 #endif
 
@@ -4588,7 +4588,7 @@ class StubGenerator: public StubCodeGenerator {
     __ neg(R3_RET, R3_RET);
     // align down resulting in a smaller negative offset
     __ clrrdi(R3_RET, R3_RET, exact_log2(frame::alignment_in_bytes));
-    DEBUG_ONLY(__ mr(tmp1, R1_SP);)
+    DEBUG_ONLY(__ mr(tmp1, R1_SP));
     __ resize_frame(R3_RET, tmp2);  // make room for the thawed frames
 
     __ li(R4_ARG2, kind);
