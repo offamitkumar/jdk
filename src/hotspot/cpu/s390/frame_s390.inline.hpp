@@ -79,9 +79,27 @@ inline void frame::setup() {
 inline frame::frame() : _sp(nullptr), _pc(nullptr), _cb(nullptr), _oop_map(nullptr), _deopt_state(unknown),
                         _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(nullptr), _fp(nullptr) {}
 
+inline frame::frame(intptr_t* sp, intptr_t* fp, address pc)
+  : _sp(sp), _pc(pc), _cb(nullptr), _oop_map(nullptr), _deopt_state(unknown),
+    _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(nullptr), _fp(fp) {
+  setup();
+}
+
 inline frame::frame(intptr_t* sp, address pc, intptr_t* unextended_sp, intptr_t* fp, CodeBlob* cb)
   : _sp(sp), _pc(pc), _cb(cb), _oop_map(nullptr),
     _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
+  setup();
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map)
+  :_sp(sp), _pc(pc), _cb(cb), _oop_map(oop_map),
+    _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
+  setup();
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map, bool on_heap)
+  :_sp(sp), _pc(pc), _cb(cb), _oop_map(oop_map),
+        _on_heap(on_heap), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
   setup();
 }
 
@@ -145,9 +163,10 @@ inline int frame::frame_size() const {
 }
 
 // Ignore c2i adapter frames.
-inline intptr_t* frame::unextended_sp() const {
-  return _unextended_sp;
-}
+inline intptr_t* frame::unextended_sp() const          { assert_absolute(); return _unextended_sp; }
+inline void frame::set_unextended_sp(intptr_t* value)  { _unextended_sp = value; }
+inline int  frame::offset_unextended_sp() const        { assert_offset();   return _offset_unextended_sp; }
+inline void frame::set_offset_unextended_sp(int value) { assert_on_heap();  _offset_unextended_sp = value; }
 
 inline address frame::sender_pc() const {
   return (address) callers_abi()->return_pc;
@@ -293,6 +312,10 @@ inline oop frame::saved_oop_result(RegisterMap* map) const {
   return *((oop*) map->location(Z_R2->as_VMReg(), nullptr));  // R2 is return register.
 }
 
+inline bool frame::is_interpreted_frame() const {
+  return Interpreter::contains(pc());
+}
+
 inline void frame::set_saved_oop_result(RegisterMap* map, oop obj) {
   *((oop*) map->location(Z_R2->as_VMReg(), nullptr)) = obj;  // R2 is return register.
 }
@@ -316,30 +339,20 @@ inline const ImmutableOopMap* frame::get_oop_map() const {
 }
 
 inline int frame::compiled_frame_stack_argsize() const {
-  Unimplemented();
-  return 0;
+  assert(cb()->is_compiled(), "");
+  return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 
 inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
-  Unimplemented();
+  assert(mask != nullptr, "");
+  Method* m = interpreter_frame_method();
+  int   bci = interpreter_frame_bci();
+  m->mask_for(bci, mask); // OopMapCache::compute_one_oop_map(m, bci, mask);
 }
 
 inline int frame::sender_sp_ret_address_offset() {
   Unimplemented();
   return 0;
-}
-
-inline void frame::set_unextended_sp(intptr_t* value) {
-  Unimplemented();
-}
-
-inline int frame::offset_unextended_sp() const {
-  Unimplemented();
-  return 0;
-}
-
-inline void frame::set_offset_unextended_sp(int value) {
-  Unimplemented();
 }
 
 //------------------------------------------------------------------------------
@@ -384,7 +397,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
 
 template <typename RegisterMapT>
 void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) {
-  Unimplemented();
+  // Nothing to do.
 }
 
 #endif // CPU_S390_FRAME_S390_INLINE_HPP

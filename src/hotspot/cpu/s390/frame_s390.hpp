@@ -327,8 +327,13 @@
   };
 #endif
 
+// Byte offset relative to fp
 #define _z_ijava_state_neg(_component) \
          (int) (-frame::z_ijava_state_size + offset_of(frame::z_ijava_state, _component))
+
+// Frame slot index relative to fp
+#define _z_ijava_idx(_component) \
+         (_z_ijava_state_neg(_component) >> LogBytesPerWord)
 
   // ENTRY_FRAME
 
@@ -447,11 +452,15 @@
 
   // NOTE: Stack pointer is now held in the base class, so remove it from here.
 
-  // Needed by deoptimization.
-  intptr_t* _unextended_sp;
+  union {
+    intptr_t* _unextended_sp;
+    int _offset_unextended_sp; // for use in stack-chunk frames
+  };
 
-  // Frame pointer for this frame.
-  intptr_t* _fp;
+  union {
+    intptr_t* _fp;  // frame pointer
+    int _offset_fp; // relative frame pointer for use in stack-chunk frames
+  };
 
  public:
 
@@ -459,19 +468,26 @@
 
   // Accessors
 
-  inline intptr_t* fp() const { return _fp; }
+  inline intptr_t* fp() const { assert_absolute(); return _fp; }
+  void set_fp(intptr_t* newfp)  { _fp = newfp; }
+  int offset_fp() const         { assert_offset();  return _offset_fp; }
+  void set_offset_fp(int value) { assert_on_heap(); _offset_fp = value; }
 
  private:
 
   // Initialize frame members (_pc and _sp must be given)
   inline void setup();
-  const ImmutableOopMap* get_oop_map() const;
-
- // Constructors
 
  public:
+
+  const ImmutableOopMap* get_oop_map() const;
+
+  // Constructors
+  inline frame(intptr_t* sp, intptr_t* fp, address pc);
   // To be used, if sp was not extended to match callee's calling convention.
   inline frame(intptr_t* sp, address pc, intptr_t* unextended_sp = nullptr, intptr_t* fp = nullptr, CodeBlob* cb = nullptr);
+  inline frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map);
+  inline frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map, bool on_heap);
 
   // Access frame via stack pointer.
   inline intptr_t* sp_addr_at(int index) const  { return &sp()[index]; }
@@ -551,10 +567,12 @@
     //
     // Normal return address is the instruction following the branch.
     pc_return_offset         = 0,
-    metadata_words           = 0,
+    // size, in words, of frame metadata (e.g. pc and link)
+    metadata_words           = sizeof(z_java_abi) >> LogBytesPerWord,
     metadata_words_at_bottom = 0,
-    metadata_words_at_top    = 0,
+    metadata_words_at_top    = metadata_words,
     frame_alignment          = 16,
+    frame_alignment_in_words = frame_alignment >> LogBytesPerWord,
     // size, in words, of maximum shift in frame position due to alignment
     align_wiggle             =  1
   };
