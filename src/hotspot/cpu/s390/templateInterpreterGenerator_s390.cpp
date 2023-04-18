@@ -716,7 +716,10 @@ address TemplateInterpreterGenerator::generate_safept_entry_for (TosState state,
                                                                 address runtime_entry) {
   address entry = __ pc();
   __ push(state);
+  // FIXME:: do we need pop_cont_fastpath like ppc, It doesn't seem so to me :-)
+  __ push_cont_fastpath();
   __ call_VM(noreg, runtime_entry);
+  __ pop_cont_fastpath();
   __ dispatch_via(vtos, Interpreter::_normal_table.table_for (vtos));
   return entry;
 }

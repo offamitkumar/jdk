@@ -25,6 +25,7 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
@@ -39,6 +40,8 @@
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "registerSaver_s390.hpp"
+#include "runtime/continuation.hpp"
+#include "runtime/continuationEntry.inline.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -668,6 +671,9 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
   const int z_num_iarg_registers = sizeof(z_iarg_reg) / sizeof(z_iarg_reg[0]);
   const int z_num_farg_registers = sizeof(z_farg_reg) / sizeof(z_farg_reg[0]);
 
+  STATIC_ASSERT(z_num_iarg_registers == Argument::n_int_register_parameters_j);
+  STATIC_ASSERT(z_num_farg_registers == Argument::n_float_register_parameters_j);
+
   assert(Register::number_of_arg_registers == z_num_iarg_registers, "iarg reg count mismatch");
   assert(FloatRegister::number_of_arg_registers == z_num_farg_registers, "farg reg count mismatch");
 
@@ -1291,6 +1297,304 @@ static void move32_64(MacroAssembler *masm,
   }
 }
 
+// on exit, sp points to the ContinuationEntry
+static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_words) {
+  assert(ContinuationEntry::size() % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::cont_offset()) % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::chunk_offset()) % VMRegImpl::stack_slot_size == 0, "");
+
+  const int frame_size_in_bytes = (int) ContinuationEntry::size();
+  assert(is_aligned(frame_size_in_bytes, frame::alignment_in_bytes), "alignment error");
+
+  framesize_words = frame_size_in_bytes / wordSize;
+
+  DEBUG_ONLY(__ block_comment("setup {"));
+  // Save return pc and push entry frame
+
+  // FIXME:: not sure if Z_R14 is the one used for Z_R14, found inconsistency
+  const Register return_pc = Z_R14;
+  __ save_return_pc(return_pc);
+  // FIXME:: PPC did an store instruction here ??
+  __ push_frame(frame_size_in_bytes, return_pc);
+
+  OopMap *map = new OopMap((int) frame_size_in_bytes / VMRegImpl::stack_slot_size, 0 /* arg_slots*/);
+  // FIXME: are we sure that whoever call this method expect Z_R1_scratch to store the result
+  __ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ z_stg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ z_stg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
+  DEBUG_ONLY(__ block_comment("} setup"));
+  return map;
+}
+
+//---------------------------- fill_continuation_entry ---------------------------
+//
+// Initialize the new ContinuationEntry.
+//
+// Arguments:
+//   Z_SP: pointer to blank Continuation entry
+//   reg_cont_obj: pointer to the continuation
+//   reg_flags: flags
+//
+// Results:
+//   Z_SP: pointer to filled out ContinuationEntry
+//
+// Kills:
+//   Z_R1_scratch
+//
+static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj, Register reg_flags) {
+  assert_different_registers(reg_cont_obj, reg_flags);
+  const Register zero = Z_R1_scratch;
+  const Register sp   = Z_SP;
+
+  DEBUG_ONLY(__ block_comment("fill {"));
+
+#ifdef ASSERT
+  // FIXME: are we good with Z_R1_scratch ?
+  __ load_const_optimized(Z_R1_scratch, ContinuationEntry::cookie_value());
+  // FIXME: cookie(int) so let's go with z_sty ?
+  __ z_sty(Z_R1_scratch, Address(Z_SP, ContinuationEntry::cookie_offset()));
+#endif //ASSERT
+
+  __ z_lgfi(zero, 0);
+  __ z_stg(reg_cont_obj, Address(sp, ContinuationEntry::cont_offset()));
+  __ z_sty(reg_flags,    Address(sp, ContinuationEntry::flags_offset()));
+  __ z_stg(zero,         Address(sp, ContinuationEntry::chunk_offset()));
+  __ z_sty(zero,         Address(sp, ContinuationEntry::argsize_offset()));
+  __ z_sty(zero,         Address(sp, ContinuationEntry::pin_count_offset()));
+
+  __ z_lg(Z_R1_scratch,  Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  __ z_stg(Z_R1_scratch, Address(sp, ContinuationEntry::parent_cont_fastpath_offset()));
+  __ z_lg(Z_R1_scratch,  Address(Z_thread, JavaThread::held_monitor_count_offset()));
+  __ z_stg(Z_R1_scratch, Address(sp, ContinuationEntry::parent_held_monitor_count_offset()));
+
+  __ z_lgfi(zero, 0);
+  __ z_stg(zero, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  __ z_stg(zero, Address(Z_thread, JavaThread::held_monitor_count_offset()));
+
+  DEBUG_ONLY(__ block_comment("} fill"));
+}
+
+
+static void check_continuation_enter_argument(VMReg actual_vmreg,
+                                              Register expected_reg,
+                                              const char* name) {
+  assert(!actual_vmreg->is_stack(), "%s cannot be on stack", name);
+  assert(actual_vmreg->as_Register() == expected_reg,
+         "%s is in unexpected register: %s instead of %s",
+         name, actual_vmreg->as_Register()->name(), expected_reg->name());
+}
+
+//---------------------------- continuation_enter_cleanup ---------------------------
+//
+// Copy corresponding attributes from the top ContinuationEntry to the JavaThread
+// before deleting it.
+//
+// Arguments:
+//   Z_SP: pointer to the ContinuationEntry
+//
+// Results:
+//   None.
+//
+// Kills:
+//
+//
+void static continuation_enter_cleanup(MacroAssembler* masm) {
+#ifdef ASSERT
+  __ block_comment("clean {");
+  __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ asm_assert(Assembler::bcondEqual, FILE_AND_LINE ": incorrect Z_SP", 0x1bb);
+#endif // ASSERT
+
+  __ z_lg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_cont_fastpath_offset()));
+  __ z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  __ z_lg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_held_monitor_count_offset()));
+  __ z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::held_monitor_count_offset()));
+
+  __ z_lg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
+  __ z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
+
+  DEBUG_ONLY(__ block_comment("} clean"));
+}
+
+
+static void gen_continuation_enter(MacroAssembler* masm,
+                                   const VMRegPair* regs,
+                                   int& exception_offset,
+                                   OopMapSet* oop_maps,
+                                   int& frame_complete,
+                                   int& framesize_words,
+                                   int& interpreted_entry_offset,
+                                   int& compiled_entry_offset) {
+  // enterSpecial(Continuation c, boolean isContinue, boolean isVirtualThread)
+  int pos_cont_obj   = 0;
+  int pos_is_cont    = 1;
+  int pos_is_virtual = 2;
+
+  // The platform-specific calling convention may present the arguments in various registers.
+  // To simplify the rest of the code, we expect the arguments to reside at these known
+  // registers, and we additionally check the placement here in case calling convention ever
+  // changes.
+  Register reg_cont_obj   = Z_ARG1;
+  Register reg_is_cont    = Z_ARG2;
+  Register reg_is_virtual = Z_ARG3;
+
+  check_continuation_enter_argument(regs[pos_cont_obj].first(),   reg_cont_obj,   "Continuation object");
+  check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
+  check_continuation_enter_argument(regs[pos_is_virtual].first(), reg_is_virtual, "isVirtualThread");
+
+  address resolve_static_call = SharedRuntime::get_resolve_static_call_stub();
+
+  address start = __ pc();
+
+  Label L_thaw, L_exit;
+
+  // i2i entry used at interp_only_mode only
+  interpreted_entry_offset = __ pc() - start;
+  {
+#ifdef ASSERT
+    Label is_interp_only;
+    // FIXME: hope CC is resetted here :-)
+    __ load_and_test_int(Z_R1_scratch, Address(Z_thread, JavaThread::interp_only_mode_offset()));
+    // FIXME: Intention -> if (Z_R1_scratch != 0 ) Jump to is_interp_only
+    __ z_brnz(is_interp_only);
+    __ stop("enterSpecial interpreter entry called when not in interp_only_mode");
+    __ bind(is_interp_only);
+#endif
+
+    // Read interpreter arguments into registers (this is an ad-hoc i2c adapter)
+    __ load_address(reg_cont_obj,   Address(Z_esp, Interpreter::stackElementSize*3));
+    __ load_address(reg_is_cont,    Address(Z_esp, Interpreter::stackElementSize*2));
+    __ load_address(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*1));
+
+    __ push_cont_fastpath();
+
+    OopMap* map = continuation_enter_setup(masm, framesize_words);
+
+    // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
+    // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
+
+
+    fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
+    // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+    __ z_cij(reg_is_cont, 0, Assembler::bcondNotZero, L_thaw);
+
+    // --- Resolve path
+
+    // Make sure the call is patchable
+    //FIXME, do we need:  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
+
+    __ load_const_optimized(Z_R1_scratch, CAST_FROM_FN_PTR(address, SharedRuntime::get_resolve_static_call_stub));
+    __ call(Z_R1_scratch);
+
+    oop_maps->add_gc_map(__ pc() - start, map);
+    __ post_call_nop();
+
+    // FIXME:: are we good with z_brul ??
+    __ z_brul(L_exit);
+
+    // Emit stub for static call
+    CodeBuffer* cbuf = masm->code_section()->outer();
+    address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
+    guarantee(stub != nullptr, "CodeCache is full at gen_continuation_enter");
+
+  }
+
+  // compiled entry
+  __ align(CodeEntryAlignment);
+  compiled_entry_offset = __ pc() - start;
+
+  // FIXME: trust this method ?? Nope :-(
+  OopMap* map = continuation_enter_setup(masm, framesize_words);
+
+  // Frame is now completed as far as size and linkage.
+  frame_complete =__ pc() - start;
+
+  // FIXME: another crash-program site
+  fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
+  // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+  __ z_cij(reg_is_cont, 0, Assembler::bcondNotZero, L_thaw);
+
+  // Make sure the call is patchable
+  //FIXME, do we need:  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
+
+  // Emit stub for static call
+  CodeBuffer* cbuf = masm->code_section()->outer();
+  address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
+  guarantee(stub != nullptr, "CodeCache is full at gen_continuation_enter");
+
+  __ load_const_optimized(Z_R1_scratch, SharedRuntime::get_resolve_static_call_stub());
+  __ call(Z_R1_scratch);
+
+  oop_maps->add_gc_map(__ pc() - start, map);
+  __ post_call_nop();
+
+  // FIXME:: are we good with z_brul ??
+  __ z_brul(L_exit);
+
+  // --- Thawing path
+
+  __ bind(L_thaw);
+
+  __ load_const_optimized(Z_R1_scratch, StubRoutines::cont_thaw());
+  __ z_br(Z_R1_scratch);
+
+  ContinuationEntry::_return_pc_offset = __ pc() - start;
+  oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
+  __ post_call_nop();
+
+  // --- Normal exit (resolve/thawing)
+
+  __ bind(L_exit);
+  continuation_enter_cleanup(masm);
+
+  // Pop frame and return
+  __ add2reg(Z_SP, framesize_words * wordSize);
+  __ restore_return_pc();
+  __ z_br(Z_R14);
+
+  // --- Exception handling path
+
+  exception_offset = __ pc() - start;
+
+  continuation_enter_cleanup(masm);
+  // FIXME: taken from stubGenerator, grep for exception_handler_for_return_address
+  __ z_lgr(Z_ARG2, Z_R14); // Copy exception pc into Z_ARG2.
+  __ save_return_pc();
+  __ push_frame_abi160(0);
+  // Find exception handler.
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address),
+                  Z_thread,
+                  Z_ARG2);
+  // Copy handler's address.
+  __ z_lgr(Z_R1, Z_RET);
+  __ pop_frame();
+  __ restore_return_pc();
+  // Set up the arguments for the exception handler:
+  // - Z_ARG1: exception oop
+  // - Z_ARG2: exception pc
+  // Load pending exception oop.
+  __ z_lg(Z_ARG1, in_bytes(Thread::pending_exception_offset()), Z_thread);
+
+  // The exception pc is the return address in the caller,
+  // must load it into Z_ARG2
+  __ z_lgr(Z_ARG2, Z_R14);
+  // Clear the pending exception.
+  __ clear_mem(Address(Z_thread, in_bytes(Thread::pending_exception_offset())), sizeof(void *));
+  // Jump to exception handler
+  __ z_br(Z_R1 /*handler address*/);
+}
+
+static void gen_continuation_yield(MacroAssembler* masm,
+                                   const VMRegPair* regs,
+                                   OopMapSet* oop_maps,
+                                   int& frame_complete,
+                                   int& framesize_words,
+                                   int& compiled_entry_offset) {
+  assert(false, "cont_yield not yet implemented :(");
+}
+
 //----------------------------------------------------------------------
 // Wrap a JNI call.
 //----------------------------------------------------------------------
@@ -1301,6 +1605,65 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 BasicType *in_sig_bt,
                                                 VMRegPair *in_regs,
                                                 BasicType ret_type) {
+  if (method->is_continuation_native_intrinsic()) {
+    int exception_offset = -1;
+    OopMapSet* oop_maps = new OopMapSet();
+    int frame_complete = -1;
+    int stack_slots = -1;
+    int interpreted_entry_offset = -1;
+    int vep_offset = -1;
+    if (method->is_continuation_enter_intrinsic()) {
+      gen_continuation_enter(masm,
+                             in_regs,
+                             exception_offset,
+                             oop_maps,
+                             frame_complete,
+                             stack_slots,
+                             interpreted_entry_offset,
+                             vep_offset);
+    } else if (method->is_continuation_yield_intrinsic()) {
+      gen_continuation_yield(masm,
+                             in_regs,
+                             oop_maps,
+                             frame_complete,
+                             stack_slots,
+                             vep_offset);
+    } else {
+      guarantee(false, "Unknown Continuation native intrinsic");
+    }
+
+#ifdef ASSERT
+    if (method->is_continuation_enter_intrinsic()) {
+      assert(interpreted_entry_offset != -1, "Must be set");
+      assert(exception_offset != -1,         "Must be set");
+    } else {
+      assert(interpreted_entry_offset == -1, "Must be unset");
+      assert(exception_offset == -1,         "Must be unset");
+    }
+    assert(frame_complete != -1,    "Must be set");
+    assert(stack_slots != -1,       "Must be set");
+    assert(vep_offset != -1,        "Must be set");
+#endif
+
+    __ flush();
+    nmethod* nm = nmethod::new_native_nmethod(method,
+                                              compile_id,
+                                              masm->code(),
+                                              vep_offset,
+                                              frame_complete,
+                                              stack_slots,
+                                              in_ByteSize(-1),
+                                              in_ByteSize(-1),
+                                              oop_maps,
+                                              exception_offset);
+    if (method->is_continuation_enter_intrinsic()) {
+      ContinuationEntry::set_enter_code(nm, interpreted_entry_offset);
+    } else if (method->is_continuation_yield_intrinsic()) {
+      _cont_doYield_stub = nm;
+    }
+    return nm;
+  }
+
   int total_in_args = method->size_of_parameters();
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
@@ -2286,6 +2649,9 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // Jump to the compiled code just as if compiled code was doing it.
   // load target address from method:
   __ z_lg(Z_R1_scratch, Address(Z_method, Method::from_compiled_offset()));
+
+  // FIXME:: build failure on way if uncommented line below. :-(
+  // __ push_cont_fastpath(); // Set JavaThread::_cont_fastpath to the sp of the oldest interpreted frame we know about
 
   // Store method into thread->callee_target.
   // 6243940: We might end up in handle_wrong_method if

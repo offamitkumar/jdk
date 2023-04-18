@@ -3203,6 +3203,9 @@ class Assembler : public AbstractAssembler {
   static bool is_z_nop(address x) {
     return is_z_nop(* (short *) x);
   }
+  static bool is_z_illtrap(address x) {
+    return *(uint8_t*)x == 0u;
+  }
   static bool is_z_br(long x) {
     return is_z_bcr(x) && ((x & 0x00f0) == 0x00f0);
   }
