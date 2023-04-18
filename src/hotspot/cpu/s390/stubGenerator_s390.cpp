@@ -335,6 +335,8 @@ class StubGenerator: public StubCodeGenerator {
       __ z_lg(r_arg_result_addr, result_address_offset, r_entryframe_fp);
       __ z_lg(r_arg_result_type, result_type_offset, r_entryframe_fp);
 
+      // FIXME:: probably move after z_lmg()
+      __ pop_cont_fastpath();
       // Restore non-volatiles.
       __ z_lmg(Z_R6, Z_R14, 16, Z_SP);
       __ z_ld(Z_F8, 96, Z_SP);
@@ -3055,37 +3057,169 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_cont_thaw(bool return_barrier, bool exception) {
+  address generate_cont_thaw(const char* label, Continuation::thaw_kind kind) {
     if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    bool return_barrier = Continuation::is_thaw_return_barrier(kind);
+    bool return_barrier_exception = Continuation::is_thaw_return_barrier_exception(kind);
+
+    StubCodeMark mark(this, "StubRoutines", label);
+    address start = __ pc();
+    if (return_barrier) {
+      // preserve possible return value from a method returning to the return barrier
+      __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+    }
+
+#ifdef ASSERT
+    {
+      Label OK;
+      __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+      __ z_bre(OK);
+      __ stop(FILE_AND_LINE ": callers sp is corrupt");
+      __ bind(OK);
+    }
+#endif // ASSERT
+
+    if (return_barrier) {
+      // preserve possible return value from a method returning to the return barrier
+      __ z_stg(Z_RET, _z_abi(carg_1), Z_SP);
+      __ z_std(Z_FRET, _z_abi(cfarg_1), Z_SP);
+    }
+
+    __ z_lhi(Z_ARG2, return_barrier ? 1 : 0);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, Continuation::prepare_thaw), Z_thread, Z_ARG2);
+    __ z_llgfr(Z_R1_scratch, Z_RET); // Z_RET contains the size of the frames to thaw, 0 if overflow or no more frames
+
+    if (return_barrier) {
+      // Restore return value from a method returning to the return barrier.
+      // No safepoint in the call to thaw, so even an oop return value should be OK.
+      __ z_ld(Z_FRET, _z_abi(cfarg_1), Z_SP);
+      __ z_lg(Z_RET, _z_abi(carg_1), Z_SP);
+    }
+
+#ifdef ASSERT
+    {
+      Label OK;
+      __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+      __ z_bre(OK);
+      __ stop(FILE_AND_LINE ": callers sp is corrupt");
+      __ bind(OK);
+    }
+#endif // ASSERT
+
+    // Z_R1_scratch contains the size of the frames to thaw, 0 if overflow or no more frames
+    Label thaw_success;
+    __ z_cij(Z_R1_scratch, 0, Assembler::bcondNotEqual, thaw_success);
+    __ z_lgr(Z_R0_scratch, Z_R1_scratch);
+    __ load_const_optimized(Z_R1_scratch, (address)StubRoutines::throw_StackOverflowError_entry());
+    __ z_br(Z_R1_scratch);
+    __ z_lgr(Z_R1_scratch, Z_R0_scratch);
+    __ bind(thaw_success);
+
+    // FIXME: this implementation needs a STRONG re-check
+    __ add2reg(Z_R1_scratch, ~(frame::z_abi_160_size-1)); // Large abi required for C++ calls.
+    __ z_lcgr(Z_R1_scratch, Z_R1_scratch);
+    // align down resulting in a smaller negative offset
+    __ z_nilf(Z_R1_scratch, exact_log2(frame::alignment_in_bytes));
+    __ resize_frame(Z_RET, Z_R1_scratch);  // make room for the thawed frames
+
+    if (return_barrier) {
+      // Preserve possible return value from a method returning to the return barrier. (Again.)
+      __ z_stg(Z_RET, _z_abi(carg_1), Z_SP);
+      __ z_std(Z_FRET, _z_abi(cfarg_1), Z_SP);
+    }
+
+    __ z_lhi(Z_ARG2, kind);
+    __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG2);
+    __ z_lgr(Z_R1_scratch, Z_RET); // Z_RET contains the SP of the thawed top frame
+
+    if (return_barrier) {
+      // we're now in the caller of the frame that returned to the barrier
+      // Restore return value from a method returning to the return barrier.
+      // No safepoint in the call to thaw, so even an oop return value should be OK.
+      __ z_ld(Z_FRET, _z_abi(cfarg_1), Z_SP);
+      __ z_lg(Z_RET, _z_abi(carg_1), Z_SP);
+    } else {
+      // we're now on the yield frame (which is in an address above us b/c rsp has been pushed down)
+      __ z_lhi(Z_RET, 0); // return 0 (success) from doYield
+    }
+
+    if (return_barrier_exception) {
+      // FIXME: register usages need to be checked again
+      __ z_lg(Z_ARG2, _z_common_abi(return_pc), Z_R1_scratch);
+      __ save_return_pc();
+      __ push_frame_abi160(0);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), Z_thread, Z_ARG2);
+      // Copy handler's address.
+      __ z_lgr(Z_R1, Z_RET);
+      __ pop_frame();
+      __ restore_return_pc();
+      // Set up the arguments for the exception handler:
+      // - Z_ARG1: exception oop
+      // - Z_ARG2: exception pc
+      __ z_lg(Z_ARG1, in_bytes(Thread::pending_exception_offset()), Z_thread); // save return value containing the exception oop
+      __ z_lgr(Z_ARG2, Z_R14);
+      __ z_br(Z_R1);
+    } else {
+      // We're "returning" into the topmost thawed frame; see Thaw::push_return_frame
+      __ z_lg(Z_R1_scratch, _z_common_abi(return_pc), Z_R1_scratch);
+      __ z_br(Z_R1_scratch);
+    }
+    return start;
   }
 
   address generate_cont_thaw() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    return generate_cont_thaw("Cont thaw", Continuation::thaw_top);
   }
 
   address generate_cont_returnBarrier() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    return generate_cont_thaw("Cont thaw return barrier", Continuation::thaw_return_barrier);
   }
 
   address generate_cont_returnBarrier_exception() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    return generate_cont_thaw("Cont thaw return barrier exception", Continuation::thaw_return_barrier_exception);
   }
 
-  #if INCLUDE_JFR
+#if INCLUDE_JFR
+
+  // For c2: c_rarg0 is junk, call to runtime to write a checkpoint.
+  // It returns a jobject handle to the event writer.
+  // The handle is dereferenced and the return value is the event writer oop.
   RuntimeStub* generate_jfr_write_checkpoint() {
     if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+
+    CodeBuffer code("jfr_write_checkpoint", 512, 64);
+    MacroAssembler* _masm = new MacroAssembler(&code);
+
+    int framesize = frame::z_abi_160_size / VMRegImpl::stack_slot_size;
+    address start = __ pc();
+    // FIXME: maybe PPC did a test before storing ?
+    __ z_stg(Z_R1_scratch, _z_common_abi(return_pc), Z_SP); // save return PC
+    // FIXME: probably that's a way equivalent to PPC's push_frame_reg_args
+    __ push_frame(0 + frame::z_abi_160_size, Z_R1_scratch);
+    int frame_complete = __ pc() - start;
+    __ set_last_Java_frame(Z_SP, noreg);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, JfrIntrinsicSupport::write_checkpoint), Z_thread);
+    address calls_return_pc = __ last_calls_return_pc();
+    __ reset_last_Java_frame();
+    // The handle is dereferenced through a load barrier.
+    __ resolve_jobject(Z_RET, Z_R13, Z_R7);
+    __ pop_frame();
+    __ z_lg(Z_R1_scratch, _z_common_abi(return_pc), Z_SP);
+    // FIXME: maybe a test needed before the branch, do we need to branch ?
+    __ z_br(Z_R1_scratch);
+
+    OopMapSet* oop_maps = new OopMapSet();
+    OopMap* map = new OopMap(framesize, 0);
+    oop_maps->add_gc_map(calls_return_pc - start, map);
+
+    RuntimeStub* stub = // codeBlob framesize is in words (not VMRegImpl::slot_size)
+      RuntimeStub::new_runtime_stub(code.name(),
+                                    &code, frame_complete,
+                                    (framesize >> (LogBytesPerWord - LogBytesPerInt)),
+                                    oop_maps, false);
+    return stub;
   }
-  #endif // INCLUD_JFR
+#endif // INCLUD_JFR
 
   void generate_initial_stubs() {
     // Generates all stubs and initializes the entry points.
