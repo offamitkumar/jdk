@@ -44,12 +44,20 @@ inline void frame::setup() {
     _cb = CodeCache::find_blob(_pc);
   }
 
-  if (_fp == nullptr) {
-    _fp = (intptr_t*)own_abi()->callers_sp;
-  }
-
   if (_unextended_sp == nullptr) {
     _unextended_sp = _sp;
+  }
+
+  if (_fp == nullptr) {
+    // The back link for compiled frames on the heap is not valid
+    if (is_heap_frame()) {
+      // fp for interpreted frames should have been derelativized and passed to the constructor
+      assert(is_compiled_frame(), "");
+      // The back link for compiled frames on the heap is invalid.
+      _fp = _unextended_sp + _cb->frame_size();
+    } else {
+      _fp = (intptr_t*)own_abi()->callers_sp;
+    }
   }
 
   address original_pc = CompiledMethod::get_deopt_original_pc(this);
