@@ -52,10 +52,6 @@ inline void frame::setup() {
     _unextended_sp = _sp;
   }
 
-  // When thawing continuation frames the _unextended_sp passed to the constructor is not aligend
-  assert(_on_heap || (is_aligned(_sp, alignment_in_bytes) && is_aligned(_fp, alignment_in_bytes)),
-         "invalid alignment sp:" PTR_FORMAT " unextended_sp:" PTR_FORMAT " fp:" PTR_FORMAT, p2i(_sp), p2i(_unextended_sp), p2i(_fp));
-
   address original_pc = CompiledMethod::get_deopt_original_pc(this);
   if (original_pc != nullptr) {
     _pc = original_pc;
@@ -70,7 +66,10 @@ inline void frame::setup() {
     }
   }
 
-  // assert(_on_heap || is_aligned(_sp, frame::frame_alignment), "SP must be 8-byte aligned");
+  // Continuation frames on the java heap are not aligned.
+  // When thawing interpreted frames the sp can be unaligned (see new_stack_frame()).
+  assert(_on_heap || (is_aligned(_sp, alignment_in_bytes) || is_interpreted_frame()) && is_aligned(_fp, alignment_in_bytes),
+         "invalid alignment sp:" PTR_FORMAT " unextended_sp:" PTR_FORMAT " fp:" PTR_FORMAT, p2i(_sp), p2i(_unextended_sp), p2i(_fp));
 }
 
 // Constructors
