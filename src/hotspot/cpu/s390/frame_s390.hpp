@@ -104,7 +104,7 @@
   // long as we do not provide extra infrastructure, one should use
   // either z_abi_160_size, or _z_abi(remaining_cargs) instead of
   // sizeof(...).
-  struct z_abi_160 : z_native_abi {
+  struct z_abi_160_base : z_native_abi {
     uint64_t carg_1;
     uint64_t carg_2;
     uint64_t carg_3;
@@ -123,12 +123,15 @@
     uint64_t cfarg_2;
     uint64_t cfarg_3;
     uint64_t cfarg_4;
+  };
+
+  struct z_abi_160 : z_abi_160_base {
     uint64_t remaining_cargs;
   };
 
   enum {
     z_native_abi_size = sizeof(z_native_abi),
-    z_abi_160_size = 160
+    z_abi_160_size = sizeof(z_abi_160_base)
   };
 
   #define _z_abi(_component) \
@@ -569,7 +572,7 @@
     metadata_words           = sizeof(z_java_abi) >> LogBytesPerWord,
     metadata_words_at_bottom = 0,
     metadata_words_at_top    = metadata_words,
-    frame_alignment          = 16,
+    frame_alignment          = 8,
     frame_alignment_in_words = frame_alignment >> LogBytesPerWord,
     // size, in words, of maximum shift in frame position due to alignment
     align_wiggle             =  1
