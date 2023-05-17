@@ -1442,7 +1442,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
   check_continuation_enter_argument(regs[pos_is_virtual].first(), reg_is_virtual, "isVirtualThread");
 
-  address resolve_static_call = SharedRuntime::get_resolve_static_call_stub();
+  AddressLiteral resolve(SharedRuntime::get_resolve_static_call_stub(), relocInfo::static_call_type);
 
   address start = __ pc();
 
@@ -1484,9 +1484,11 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // Make sure the call is patchable
     //FIXME, do we need:  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
 
-    __ load_const_optimized(Z_R1_scratch, CAST_FROM_FN_PTR(address, SharedRuntime::get_resolve_static_call_stub));
-    __ call(Z_R1_scratch);
-
+    assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
+           "must be aligned (offset=%d)", __ offset());
+    __ relocate(resolve.rspec());
+    __ z_nop();
+    __ z_brasl(Z_R14, __ pc());
     oop_maps->add_gc_map(__ pc() - start, map);
     __ post_call_nop();
 
@@ -1524,9 +1526,11 @@ static void gen_continuation_enter(MacroAssembler* masm,
   address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, __ pc());
   guarantee(stub != nullptr, "CodeCache is full at gen_continuation_enter");
 
-  __ load_const_optimized(Z_R1_scratch, SharedRuntime::get_resolve_static_call_stub());
-  __ call(Z_R1_scratch);
-
+  assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
+         "must be aligned (offset=%d)", __ offset());
+  __ relocate(resolve.rspec());
+  __ z_nop();
+  __ z_brasl(Z_R14, __ pc());
   oop_maps->add_gc_map(__ pc() - start, map);
   __ post_call_nop();
 
