@@ -1486,6 +1486,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
     assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
            "must be aligned (offset=%d)", __ offset());
+    // FIXME:: this call can be optimized see other Archs
     __ relocate(relocInfo::static_call_type);
     __ z_nop();
     __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
@@ -1528,6 +1529,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
   assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
          "must be aligned (offset=%d)", __ offset());
+  // FIXME:: this call can be optimized see other Archs
   __ relocate(relocInfo::static_call_type);
   __ z_nop();
   __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
