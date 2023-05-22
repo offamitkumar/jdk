@@ -131,6 +131,7 @@
 
   enum {
     z_native_abi_size = sizeof(z_native_abi),
+    z_abi_160_base_size = sizeof(z_abi_160_base),
     z_abi_160_size = sizeof(z_abi_160_base)
   };
 

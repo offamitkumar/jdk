@@ -1598,7 +1598,61 @@ static void gen_continuation_yield(MacroAssembler* masm,
                                    int& frame_complete,
                                    int& framesize_words,
                                    int& compiled_entry_offset) {
-  assert(false, "cont_yield not yet implemented :(");
+  const int framesize_bytes = (int)align_up((int)frame::z_abi_160_base_size, frame::alignment_in_bytes);
+  framesize_words = framesize_bytes / wordSize;
+
+  address start = __ pc();
+  compiled_entry_offset = __ pc() - start;
+
+  // fixME:: save return PC and push entry frame
+  // not sure what to do with __ enter(), Other places where this was
+  // used s390x seems doing nothing.
+  __ save_return_pc(Z_R14);
+  __ push_frame(framesize_bytes, Z_SP);
+
+  DEBUG_ONLY(__ block_comment("Frame Complete"));
+  frame_complete = __ pc() - start;
+  address last_java_pc = __ pc();
+  __ get_PC(Z_ARG1);
+
+  // This nop must be exactly at the PC we push into the frame info.
+  // We use this nop for fast CodeBlob lookup, associate the OopMap
+  // with it right away.
+  __ post_call_nop();
+  OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
+  oop_maps->add_gc_map(last_java_pc - start, map);
+
+  __ set_last_Java_frame(Z_SP, Z_ARG1);
+  __ call_VM_leaf(Continuation::freeze_entry(), Z_thread); // FIXME: this is problematic
+  __ reset_last_Java_frame();
+
+  Label L_pinned;
+
+  __ z_cij(Z_RET, 0, Assembler::bcondNotEqual, L_pinned);
+
+  // yield succeeded
+
+  // set sp to the ContinuationEntry
+  __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  // The frame pushed by gen_continuation_enter is on top now again
+  continuation_enter_cleanup(masm);
+
+  // Pop frame and return
+  Label L_return;
+  __ bind(L_return);
+  __ pop_frame();
+  __ restore_return_pc();
+  __ z_br(Z_R14);
+
+  __ bind(L_pinned); // pinned -- return to caller
+
+  // handle pending exception thrown by freeze
+  __ z_lg(Z_R1_scratch, Address(Z_thread, in_bytes(Thread::pending_exception_offset())));
+  __ z_cij(Z_R1_scratch, 0, Assembler::bcondEqual, L_return); // return if no exception is pending
+  __ pop_frame();
+  __ load_const_optimized(Z_R1_scratch, StubRoutines::forward_exception_entry());
+  __ restore_return_pc();
+  __ z_br(Z_R1_scratch);
 }
 
 //----------------------------------------------------------------------
