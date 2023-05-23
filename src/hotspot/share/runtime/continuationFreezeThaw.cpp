@@ -228,7 +228,8 @@ template<typename ConfigT> static inline intptr_t* thaw_internal(JavaThread* thr
 // Called from gen_continuation_yield() in sharedRuntime_<cpu>.cpp through Continuation::freeze_entry();
 template<typename ConfigT>
 static JRT_BLOCK_ENTRY(int, freeze(JavaThread* current, intptr_t* sp))
-  assert(sp == current->frame_anchor()->last_Java_sp(), "");
+  assert(sp == current->frame_anchor()->last_Java_sp(),
+  "Expected stack pointer (" INTPTR_FORMAT ") to equal last_Java_sp (" INTPTR_FORMAT ").", (long unsigned int)sp, (long unsigned int)current->frame_anchor()->last_Java_sp());
 
   if (current->raw_cont_fastpath() > current->last_continuation()->entry_sp() || current->raw_cont_fastpath() < sp) {
     current->set_cont_fastpath(nullptr);
