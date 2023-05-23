@@ -1598,6 +1598,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
                                    int& frame_complete,
                                    int& framesize_words,
                                    int& compiled_entry_offset) {
+  Register Rtmp = Z_R0_scratch;
   const int framesize_bytes = (int)align_up((int)frame::z_abi_160_base_size, frame::alignment_in_bytes);
   framesize_words = framesize_bytes / wordSize;
 
@@ -1621,8 +1622,8 @@ static void gen_continuation_yield(MacroAssembler* masm,
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
   oop_maps->add_gc_map(last_java_pc - start, map);
 
-  __ load_const_optimized(Z_ARG1, last_java_pc);
-  __ set_last_Java_frame(Z_SP, Z_ARG1);
+  __ load_const_optimized(Rtmp, last_java_pc);
+  __ set_last_Java_frame(Z_SP, Rtmp);
   __ call_VM_leaf(Continuation::freeze_entry(), Z_thread); // FIXME: this is problematic
   __ reset_last_Java_frame();
 
