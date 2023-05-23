@@ -1624,7 +1624,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
   __ load_const_optimized(Rtmp, last_java_pc);
   __ set_last_Java_frame(Z_SP, Rtmp);
-  __ call_VM_leaf(Continuation::freeze_entry(), Z_thread); // FIXME: this is problematic
+  __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP); // FIXME: this is problematic
   __ reset_last_Java_frame();
 
   Label L_pinned;
