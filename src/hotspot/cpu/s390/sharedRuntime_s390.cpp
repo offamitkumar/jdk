@@ -1613,7 +1613,6 @@ static void gen_continuation_yield(MacroAssembler* masm,
   DEBUG_ONLY(__ block_comment("Frame Complete"));
   frame_complete = __ pc() - start;
   address last_java_pc = __ pc();
-  __ get_PC(Z_ARG1);
 
   // This nop must be exactly at the PC we push into the frame info.
   // We use this nop for fast CodeBlob lookup, associate the OopMap
@@ -1622,6 +1621,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
   oop_maps->add_gc_map(last_java_pc - start, map);
 
+  __ load_const_optimized(Z_ARG1, last_java_pc);
   __ set_last_Java_frame(Z_SP, Z_ARG1);
   __ call_VM_leaf(Continuation::freeze_entry(), Z_thread); // FIXME: this is problematic
   __ reset_last_Java_frame();
