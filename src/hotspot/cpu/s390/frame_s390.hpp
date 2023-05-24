@@ -130,6 +130,7 @@
 
   enum {
     z_native_abi_size = sizeof(z_native_abi),
+    z_abi_160_base_size = sizeof(z_abi_160_base),
     z_abi_160_size = sizeof(z_abi_160_base)
   };
 
@@ -571,7 +572,7 @@
     metadata_words           = sizeof(z_java_abi) >> LogBytesPerWord,
     metadata_words_at_bottom = 0,
     metadata_words_at_top    = metadata_words,
-    frame_alignment          = 16,
+    frame_alignment          = 8,
     frame_alignment_in_words = frame_alignment >> LogBytesPerWord,
     // size, in words, of maximum shift in frame position due to alignment
     align_wiggle             =  1
