@@ -3062,7 +3062,7 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       struct { double data[20]; } locs_buf;
       struct { double data[20]; } stubs_locs_buf;
       buffer.insts()->initialize_shared_locs((relocInfo*)&locs_buf, sizeof(locs_buf) / sizeof(relocInfo));
-#if defined(AARCH64) || defined(PPC64) || defined (S390)
+#if defined(AARCH64) || defined(PPC64) || defined(S390)
       // On AArch64 with ZGC and nmethod entry barriers, we need all oops to be
       // in the constant pool to ensure ordering between the barrier and oops
       // accesses. For native_wrappers we need a constant.
