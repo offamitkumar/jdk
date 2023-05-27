@@ -1599,8 +1599,6 @@ static void gen_continuation_yield(MacroAssembler* masm,
                                    int& framesize_words,
                                    int& compiled_entry_offset) {
   Register Rtmp = Z_R0_scratch;
-  const int framesize_bytes = (int)align_up((int)frame::z_abi_160_base_size, frame::alignment_in_bytes);
-  framesize_words = framesize_bytes / wordSize;
 
   address start = __ pc();
   compiled_entry_offset = __ pc() - start;
@@ -1609,7 +1607,8 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // not sure what to do with __ enter(), Other places where this was
   // used s390x seems doing nothing.
   __ save_return_pc(Z_R14);
-  __ push_frame(framesize_bytes, Z_SP);
+  const int framesize_bytes = __ push_frame_abi160(0);
+  framesize_words = framesize_bytes / wordSize;
 
   DEBUG_ONLY(__ block_comment("Frame Complete"));
   frame_complete = __ pc() - start;

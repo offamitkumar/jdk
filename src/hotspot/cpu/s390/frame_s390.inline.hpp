@@ -360,8 +360,7 @@ inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
 }
 
 inline int frame::sender_sp_ret_address_offset() {
-  Unimplemented();
-  return 0;
+  return -(int)(_z_abi(return_pc) >> LogBytesPerWord); // offset in words
 }
 
 //------------------------------------------------------------------------------
