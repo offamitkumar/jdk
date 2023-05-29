@@ -714,7 +714,7 @@ const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) con
   }
 
   if (!last) {
-    fprintf(2, "[ImmutableOopMapSet::find_map_at_offset] offset: %x to map : " INTPTR_FORMAT ".\n", pc_offset, p2i(this));
+    fprintf(stderr, "[ImmutableOopMapSet::find_map_at_offset] offset: %x to map : " INTPTR_FORMAT ".\n", pc_offset, p2i(this));
   }
   // Heal Coverity issue: potential index out of bounds access.
   guarantee(last != nullptr, "last may not be null");

@@ -1620,7 +1620,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   __ post_call_nop();
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
   oop_maps->add_gc_map(last_java_pc - start, map);
-  fprintf(2, "[Cont Yield] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", last_java_pc - start, p2i(map));
+  fprintf(stderr, "[Cont Yield] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", last_java_pc - start, p2i(map));
 
   __ load_const_optimized(Rtmp, last_java_pc);
   __ set_last_Java_frame(Z_SP, Rtmp);
