@@ -713,7 +713,7 @@ const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) con
     }
   }
 
-  printf("[ImmutableOopMapSet::find_map_at_offset] offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", pc_offset, p2i(this));
+  printf("[ImmutableOopMapSet::find_map_at_offset] offset: %x to map : " INTPTR_FORMAT ".\n", pc_offset, p2i(this));
   // Heal Coverity issue: potential index out of bounds access.
   guarantee(last != nullptr, "last may not be null");
   assert(last->pc_offset() == pc_offset, "oopmap not found");
