@@ -392,9 +392,27 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
   // Now adjust the map.
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != nullptr) {
-      OopMapSet::update_register_map(this, map);
+    // For C1, the runtime stub might not have oop maps, so set this flag
+    // outside of update_register_map.
+    if (!_cb->is_compiled()) { // compiled frames do not use callee-saved registers
+      map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+      if (_cb->oop_maps() != nullptr) {
+        OopMapSet::update_register_map(this, map);
+      }
+    } else {
+      assert(!_cb->caller_must_gc_arguments(map->thread()), "");
+      assert(!map->include_argument_oops(), "");
+      assert(oop_map() == nullptr || !oop_map()->has_any(OopMapValue::callee_saved_value), "callee-saved value in compiled frame");
+    }
+  }
+
+  assert(sender_sp != sp(), "must have changed");
+
+  if (Continuation::is_return_barrier_entry(sender_pc)) {
+    if (map->walk_cont()) { // about to walk into an h-stack
+      return Continuation::top_frame(*this, map);
+    } else {
+      return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp);
     }
   }
 
