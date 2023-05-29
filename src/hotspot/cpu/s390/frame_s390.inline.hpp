@@ -414,10 +414,10 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
     // For C1, the runtime stub might not have oop maps, so set this flag
     // outside of update_register_map.
     if (!_cb->is_compiled()) { // compiled frames do not use callee-saved registers
-        map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-        if (oop_map() != nullptr) {
-          _oop_map->update_register_map(this, map);
-        }
+      map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+      if (oop_map() != nullptr) {
+        _oop_map->update_register_map(this, map);
+      }
     } else {
       assert(!_cb->caller_must_gc_arguments(map->thread()), "");
       assert(!map->include_argument_oops(), "");
