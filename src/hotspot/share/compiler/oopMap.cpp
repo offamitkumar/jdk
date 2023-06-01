@@ -713,11 +713,8 @@ const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) con
     }
   }
 
-  if (!last) {
-    // fprintf(stderr, "[ImmutableOopMapSet::find_map_at_offset] offset: %x to map : " INTPTR_FORMAT ".\n", pc_offset, p2i(this));
-  }
   // Heal Coverity issue: potential index out of bounds access.
-  guarantee(last != nullptr, "last may not be null");
+  guarantee(last != nullptr, "last may not be null (pc_offset: %d, this: " INTPTR_FORMAT ")", pc_offset, p2i(this));
   assert(last->pc_offset() == pc_offset, "oopmap not found");
   return last->get_from(this);
 }
