@@ -1500,7 +1500,10 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ relocate(relocInfo::static_call_type);
     __ z_nop();
     __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
-    oop_maps->add_gc_map(__ pc() - start, map);
+
+    address pc = __ pc(); // FIXME: Remove this handle (for logging purposes only)
+    fprintf(stderr, "[Cont Yield] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", pc - start, p2i(map));
+    oop_maps->add_gc_map(pc - start, map);
     __ post_call_nop();
 
     // FIXME:: are we good with z_brul ??
