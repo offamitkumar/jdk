@@ -1633,7 +1633,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // yield succeeded
 
   // Pop frames of continuation including this stub's frame
-  __ z_la(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
   // The frame pushed by gen_continuation_enter is on top now again
   continuation_enter_cleanup(masm);
 
