@@ -1502,7 +1502,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
 
     address pc = __ pc(); // FIXME: Remove this handle (for logging purposes only)
-    fprintf(stderr, "[Cont Yield] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", pc - start, p2i(map));
+    fprintf(stderr, "[Cont Entry] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", pc - start, p2i(map));
     oop_maps->add_gc_map(pc - start, map);
     __ post_call_nop();
 
