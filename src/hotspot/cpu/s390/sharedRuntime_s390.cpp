@@ -1297,7 +1297,19 @@ static void move32_64(MacroAssembler *masm,
   }
 }
 
-// on exit, sp points to the ContinuationEntry
+//---------------------------- continuation_enter_setup ---------------------------
+//
+// Frame setup.
+//
+// Arguments:
+//   None.
+//
+// Results:
+//   Z_SP: pointer to blank ContinuationEntry in the pushed frame.
+//
+// Kills:
+//   R1, R14
+//
 static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_words) {
   assert(ContinuationEntry::size() % VMRegImpl::stack_slot_size == 0, "");
   assert(in_bytes(ContinuationEntry::cont_offset()) % VMRegImpl::stack_slot_size == 0, "");
@@ -1310,19 +1322,17 @@ static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_wor
 
   DEBUG_ONLY(__ block_comment("setup {"));
   // Save return pc and push entry frame
-
-  // FIXME:: not sure if Z_R14 is the one used for Z_R14, found inconsistency
   const Register return_pc = Z_R14;
   __ save_return_pc(return_pc);
-  // FIXME:: PPC did an store instruction here ??
   __ push_frame(frame_size_in_bytes, return_pc);
 
   OopMap *map = new OopMap((int) frame_size_in_bytes / VMRegImpl::stack_slot_size, 0 /* arg_slots*/);
-  // FIXME: are we sure that whoever call this method expect Z_R1_scratch to store the result
+
   __ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
   __ z_stg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
   __ z_stg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
   DEBUG_ONLY(__ block_comment("} setup"));
+
   return map;
 }
 

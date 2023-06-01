@@ -714,7 +714,7 @@ const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) con
   }
 
   // Heal Coverity issue: potential index out of bounds access.
-  guarantee(last != nullptr, "last may not be null (pc_offset: %d, this: " INTPTR_FORMAT ")", pc_offset, p2i(this));
+  guarantee(last != nullptr, "last may not be null (pc_offset: 0x%x, this: " INTPTR_FORMAT ")", pc_offset, p2i(this));
   assert(last->pc_offset() == pc_offset, "oopmap not found");
   return last->get_from(this);
 }
