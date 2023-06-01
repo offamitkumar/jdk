@@ -1618,7 +1618,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // We use this nop for fast CodeBlob lookup, associate the OopMap
   // with it right away.
   __ post_call_nop();
-  OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
+  OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
   oop_maps->add_gc_map(last_java_pc - start, map);
   fprintf(stderr, "[Cont Yield] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", last_java_pc - start, p2i(map));
 
