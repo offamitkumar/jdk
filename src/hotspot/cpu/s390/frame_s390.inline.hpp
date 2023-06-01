@@ -369,18 +369,6 @@ inline int frame::sender_sp_ret_address_offset() {
 inline frame frame::sender(RegisterMap* map) const {
   // Default is we don't have to follow them. The sender_for_xxx will
   // update it accordingly.
-
-  /*
-   * FIXME: (maybe this is not our concern, but still a thought)
-   *  Design for s390x is different for frames
-   *  for three types of frame native, interpreted, java we store the
-   *  return_pc at different location. check:
-   *  1. frame::native_sender_pc()
-   *  2. frame::callstub_sender_pc()
-   *  3. frame::sender_pc_addr()
-   *  So maybe for each each kind of sender we need to integrate the
-   *  continuation-changes ?
-   */
   map->set_include_argument_oops(false);
 
   if (map->in_cont()) { // already in an h-stack
