@@ -493,7 +493,10 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 #else
   static const int doYield_stub_frame_size = frame::native_abi_reg_args_size >> LogBytesPerWord;
 #endif
-  assert(SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size, "");
+  assert(SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size,
+      "Expected: SharedRuntime::cont_doYield_stub()->frame_size() 0x%x\n to equal: doYield_stub_frame_size 0x%x",
+      SharedRuntime::cont_doYield_stub()->frame_size(),
+      doYield_stub_frame_size);
 
   // properties of the continuation on the stack; all sizes are in words
   _cont_stack_top    = frame_sp + doYield_stub_frame_size; // we don't freeze the doYield stub frame
