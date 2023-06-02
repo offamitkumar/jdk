@@ -488,10 +488,12 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   assert(_cont.chunk_invariant(), "");
   assert(!Interpreter::contains(_cont.entryPC()), "");
-#if !defined(PPC64) || defined(ZERO)
-  static const int doYield_stub_frame_size = frame::metadata_words;
-#else
+# if defined(S390)
+  static const int doYield_stub_frame_size = frame::z_abi_160_base_size >> LogBytesPerWord;
+# elif defined(PPC64) && !defined(ZERO)
   static const int doYield_stub_frame_size = frame::native_abi_reg_args_size >> LogBytesPerWord;
+# else
+  static const int doYield_stub_frame_size = frame::metadata_words;
 #endif
   assert(SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size,
       "Expected: SharedRuntime::cont_doYield_stub()->frame_size() 0x%x\n to equal: doYield_stub_frame_size 0x%x",
