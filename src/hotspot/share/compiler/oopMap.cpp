@@ -537,6 +537,8 @@ const ImmutableOopMap* OopMapSet::find_map(const frame *fr) {
 }
 
 const ImmutableOopMap* OopMapSet::find_map(const CodeBlob* cb, address pc) {
+  fprintf(stderr, "[OopMapSet::find_map] Finding offset: 0x%x in map: " INTPTR_FORMAT "\n", pc, p2i(cb));
+
   assert(cb != nullptr, "no codeblob");
   const ImmutableOopMap* map = cb->oop_map_for_return_address(pc);
   assert(map != nullptr, "no ptr map found");

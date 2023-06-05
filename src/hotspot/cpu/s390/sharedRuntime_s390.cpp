@@ -1502,7 +1502,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
 
     address pc = __ pc(); // FIXME: Remove this handle (for logging purposes only)
-    fprintf(stderr, "[Cont Entry] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", pc - start, p2i(map));
+    fprintf(stderr, "[Cont Entry] gen_cont_entry add gc map\n");
     oop_maps->add_gc_map(pc - start, map);
     __ post_call_nop();
 
@@ -1633,7 +1633,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   __ post_call_nop();
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
   oop_maps->add_gc_map(last_java_pc - start, map);
-  fprintf(stderr, "[Cont Yield] Adding offset: " INTPTR_FORMAT " to map : " INTPTR_FORMAT ".\n", last_java_pc - start, p2i(map));
+  fprintf(stderr, "[Cont Yield] Added gc map\n");
 
   __ load_const_optimized(Rtmp, last_java_pc);
   __ set_last_Java_frame(Z_SP, Rtmp);
