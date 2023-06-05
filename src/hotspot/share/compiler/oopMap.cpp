@@ -366,7 +366,7 @@ void OopMap::set_derived_oop(VMReg reg, VMReg derived_from_local_register ) {
 OopMapSet::OopMapSet() : _list(MinOopMapAllocation) {}
 
 int OopMapSet::add_gc_map(int pc_offset, OopMap *map ) {
-  fprintf(stderr, "Adding offset: 0x%x to map: " INTPTR_FORMAT "\n", pc_offset, map);
+  fprintf(stderr, "Adding offset: 0x%x to map: " INTPTR_FORMAT "\n", pc_offset, p2i(map));
   map->set_offset(pc_offset);
 
 #ifdef ASSERT
