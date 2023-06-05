@@ -1600,15 +1600,14 @@ static void gen_continuation_yield(MacroAssembler* masm,
                                    int& framesize_words,
                                    int& compiled_entry_offset) {
   Register Rtmp = Z_R0_scratch;
-  const int framesize_bytes = frame::z_abi_160_size;
-  framesize_words = framesize_bytes / wordSize;
 
   address start = __ pc();
   compiled_entry_offset = __ pc() - start;
 
   // save return pc and push entry frame
   __ save_return_pc();
-  __ push_frame_abi160(framesize_bytes);
+  const int framesize_bytes = __ push_frame_abi160(0);
+  framesize_words = framesize_bytes / wordSize;
 
   DEBUG_ONLY(__ block_comment("Frame Complete"));
   frame_complete = __ pc() - start;
