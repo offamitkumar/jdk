@@ -2722,24 +2722,22 @@ void MacroAssembler::reserved_stack_check(Register return_pc) {
   BLOCK_COMMENT("} reserved_stack_check");
 }
 
+// kills Z_R1_scratch
 void MacroAssembler::push_cont_fastpath() {
-  if (!Continuations::enabled()) return;
   Label done;
-  z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
-  // FIXME:: should we go for z_cgrj ?? performace issue...
-  compare64_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
+  // cont_fastpath_offset is 4 bytes
+  z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  compare32_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done); // bcondNotHigh -> less than equal
   z_stg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   bind(done);
 }
 
+// kills Z_R1_scratch
 void MacroAssembler::pop_cont_fastpath() {
-  if (!Continuations::enabled()) return;
   Label done;
-  z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
-  // FIXME:: there could be <=, < error here ??
-  // FIXME:: should we go for z_cgrj ??
-  compare64_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
-  z_lgfi(Z_R1_scratch, (int64_t)0);
+  z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  compare32_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
+  z_lghi(Z_R1_scratch, 0);
   z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   bind(done);
 }
