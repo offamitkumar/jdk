@@ -1482,8 +1482,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // --- Resolve path
 
     // Make sure the call is patchable
-    //FIXME, do we need:  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
-
     assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
            "must be aligned (offset=%d)", __ offset());
     // FIXME:: this call can be optimized see other Archs
@@ -1599,7 +1597,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
                                    int& frame_complete,
                                    int& framesize_words,
                                    int& compiled_entry_offset) {
-  Register Rtmp = Z_R0_scratch;
+  Register Rtmp = Z_R1_scratch;
 
   address start = __ pc();
   compiled_entry_offset = __ pc() - start;
