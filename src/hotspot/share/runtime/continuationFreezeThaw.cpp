@@ -1558,7 +1558,7 @@ static inline int freeze_internal(JavaThread* current, intptr_t* const sp) {
 
   Freeze<ConfigT> freeze(current, cont, sp);
 
-  // There are no interpreted frames if we're not called from the interpreter and we haven't ancountered an i2c
+  // There are no interpreted frames if we're not called from the interpreter and we haven't encountered an i2c
   // adapter or called Deoptimization::unpack_frames. Calls from native frames also go through the interpreter
   // (see JavaCalls::call_helper).
   assert(!current->cont_fastpath()
