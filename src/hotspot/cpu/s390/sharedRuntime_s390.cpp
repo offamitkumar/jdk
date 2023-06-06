@@ -1482,8 +1482,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // --- Resolve path
 
     // Make sure the call is patchable
-    //FIXME, do we need:  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
-
     assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
            "must be aligned (offset=%d)", __ offset());
     // FIXME:: this call can be optimized see other Archs

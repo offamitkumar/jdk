@@ -2728,7 +2728,7 @@ void MacroAssembler::push_cont_fastpath() {
   // cont_fastpath_offset is 4 bytes
   z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   compare32_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done); // bcondNotHigh -> less than equal
-  z_stg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  z_st(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   bind(done);
 }
 
@@ -2738,7 +2738,7 @@ void MacroAssembler::pop_cont_fastpath() {
   z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   compare32_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
   z_lghi(Z_R1_scratch, 0);
-  z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  z_st(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   bind(done);
 }
 
