@@ -593,6 +593,7 @@ private:
   // Continuation support
   ContinuationEntry* last_continuation() const { return _cont_entry; }
   void set_cont_fastpath(intptr_t* x)          { _cont_fastpath = x; }
+  // FIXME: we have push_continuation_fastpath available in macroAssembler_s390, maybe related
   void push_cont_fastpath(intptr_t* sp)        { if (sp > _cont_fastpath) _cont_fastpath = sp; }
   void set_cont_fastpath_thread_state(bool x)  { _cont_fastpath_thread_state = (int)x; }
   intptr_t* raw_cont_fastpath() const          { return _cont_fastpath; }

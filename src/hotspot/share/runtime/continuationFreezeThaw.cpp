@@ -1468,21 +1468,21 @@ static void jvmti_yield_cleanup(JavaThread* thread, ContinuationWrapper& cont) {
 #endif // INCLUDE_JVMTI
 
 #ifdef ASSERT
-static bool monitors_on_stack(JavaThread* thread) {
-  ContinuationEntry* ce = thread->last_continuation();
-  RegisterMap map(thread,
-                  RegisterMap::UpdateMap::include,
-                  RegisterMap::ProcessFrames::include,
-                  RegisterMap::WalkContinuation::skip);
-  map.set_include_argument_oops(false);
-  for (frame f = thread->last_frame(); Continuation::is_frame_in_continuation(ce, f); f = f.sender(&map)) {
-    if ((f.is_interpreted_frame() && ContinuationHelper::InterpretedFrame::is_owning_locks(f)) ||
-        (f.is_compiled_frame() && ContinuationHelper::CompiledFrame::is_owning_locks(map.thread(), &map, f))) {
-      return true;
-    }
-  }
-  return false;
-}
+// static bool monitors_on_stack(JavaThread* thread) {
+//   ContinuationEntry* ce = thread->last_continuation();
+//   RegisterMap map(thread,
+//                   RegisterMap::UpdateMap::include,
+//                   RegisterMap::ProcessFrames::include,
+//                   RegisterMap::WalkContinuation::skip);
+//   map.set_include_argument_oops(false);
+//   for (frame f = thread->last_frame(); Continuation::is_frame_in_continuation(ce, f); f = f.sender(&map)) {
+//     if ((f.is_interpreted_frame() && ContinuationHelper::InterpretedFrame::is_owning_locks(f)) ||
+//         (f.is_compiled_frame() && ContinuationHelper::CompiledFrame::is_owning_locks(map.thread(), &map, f))) {
+//       return true;
+//     }
+//   }
+//   return false;
+// }
 
 bool FreezeBase::interpreted_native_or_deoptimized_on_stack() {
   ContinuationEntry* ce = _thread->last_continuation();
@@ -1561,6 +1561,9 @@ static inline int freeze_internal(JavaThread* current, intptr_t* const sp) {
   // There are no interpreted frames if we're not called from the interpreter and we haven't encountered an i2c
   // adapter or called Deoptimization::unpack_frames. Calls from native frames also go through the interpreter
   // (see JavaCalls::call_helper).
+  fprintf(stderr, "cont_fast_path: %d\n", current->cont_fastpath());
+  fprintf(stderr, "cont_fastpath_thread_state: %d\n", current->cont_fastpath_thread_state());
+  fprintf(stderr, "interpreted_native_or_deopt: %d\n", freeze.interpreted_native_or_deoptimized_on_stack());
   assert(!current->cont_fastpath()
          || (current->cont_fastpath_thread_state() && !freeze.interpreted_native_or_deoptimized_on_stack()), "");
   bool fast = UseContinuationFastPath && current->cont_fastpath();
