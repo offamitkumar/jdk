@@ -1629,10 +1629,9 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // with it right away.
   __ post_call_nop();
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
-  oop_maps->add_gc_map(last_java_pc - start, map);
-  fprintf(stderr, "[Cont Yield] Added gc map\n");
+  oop_maps->add_gc_map(frame_complete, map);
 
-  __ load_const_optimized(Rtmp, last_java_pc);
+  __ load_const_optimized(Rtmp, __ pc());
   __ set_last_Java_frame(Z_SP, Rtmp);
   __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
   __ reset_last_Java_frame();
