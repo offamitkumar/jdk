@@ -1613,7 +1613,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   Register Rtmp = Z_R0_scratch;
 
   address start = __ pc();
-  compiled_entry_offset = (int)start;
+  compiled_entry_offset = __pc() - start; // Always 0?
 
   // save return pc and push entry frame
   __ save_return_pc();
