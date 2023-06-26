@@ -1613,8 +1613,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
   Register Rtmp = Z_R0_scratch;
 
   address start = __ pc();
-  compiled_entry_offset = __ pc() - start;
-  assert(false, "BANG!");
+  compiled_entry_offset = start;
 
   // save return pc and push entry frame
   __ save_return_pc();
@@ -1623,12 +1622,11 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
   DEBUG_ONLY(__ block_comment("Frame Complete"));
   frame_complete = __ pc() - start;
-  address last_java_pc = __ pc();
+  // address last_java_pc = __ pc();
 
   // This nop must be exactly at the PC we push into the frame info.
   // We use this nop for fast CodeBlob lookup, associate the OopMap
   // with it right away.
-  __ get_PC(Rtmp);
   __ post_call_nop();
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
   oop_maps->add_gc_map(frame_complete, map);
@@ -1636,10 +1634,12 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // As per discussion with MD, the lco instruction may not be sensitive to relocations.
   // As a test, use get_PC (above).
   // __ load_const_optimized(Rtmp, __ pc());
+  __ get_PC(Rtmp);
   __ set_last_Java_frame(Z_SP, Rtmp);
   __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
   __ reset_last_Java_frame();
 
+  assert(false, "BANG!");
   Label L_pinned;
 
   __ z_cij(Z_RET, 0, Assembler::bcondNotEqual, L_pinned);
