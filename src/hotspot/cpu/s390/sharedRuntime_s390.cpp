@@ -1639,7 +1639,6 @@ static void gen_continuation_yield(MacroAssembler* masm,
   __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
   __ reset_last_Java_frame();
 
-  assert(false, "BANG!");
   Label L_pinned;
 
   __ z_cij(Z_RET, 0, Assembler::bcondNotEqual, L_pinned);
