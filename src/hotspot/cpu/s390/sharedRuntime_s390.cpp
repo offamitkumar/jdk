@@ -1614,6 +1614,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
   address start = __ pc();
   compiled_entry_offset = __ pc() - start;
+  assert(false, "BANG!");
 
   // save return pc and push entry frame
   __ save_return_pc();
