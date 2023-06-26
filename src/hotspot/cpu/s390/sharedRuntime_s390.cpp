@@ -1627,11 +1627,14 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // This nop must be exactly at the PC we push into the frame info.
   // We use this nop for fast CodeBlob lookup, associate the OopMap
   // with it right away.
+  __ get_PC(Rtmp);
   __ post_call_nop();
   OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
   oop_maps->add_gc_map(frame_complete, map);
 
-  __ load_const_optimized(Rtmp, __ pc());
+  // As per discussion with MD, the lco instruction may not be sensitive to relocations.
+  // As a test, use get_PC (above).
+  // __ load_const_optimized(Rtmp, __ pc());
   __ set_last_Java_frame(Z_SP, Rtmp);
   __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
   __ reset_last_Java_frame();
