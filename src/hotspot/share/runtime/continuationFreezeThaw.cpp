@@ -1476,6 +1476,7 @@ static bool monitors_on_stack(JavaThread* thread) {
                   RegisterMap::WalkContinuation::skip);
   map.set_include_argument_oops(false);
   for (frame f = thread->last_frame(); Continuation::is_frame_in_continuation(ce, f); f = f.sender(&map)) {
+    fprintf(stderr, "[monitors_on_stack] Checking frame " INTPTR_FORMAT " in map: " INTPTR_FORMAT "\n", p2i(f), p2i(map));
     if ((f.is_interpreted_frame() && ContinuationHelper::InterpretedFrame::is_owning_locks(f)) ||
         (f.is_compiled_frame() && ContinuationHelper::CompiledFrame::is_owning_locks(map.thread(), &map, f))) {
       return true;
