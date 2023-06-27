@@ -366,7 +366,6 @@ void OopMap::set_derived_oop(VMReg reg, VMReg derived_from_local_register ) {
 OopMapSet::OopMapSet() : _list(MinOopMapAllocation) {}
 
 int OopMapSet::add_gc_map(int pc_offset, OopMap *map ) {
-  fprintf(stderr, "Adding offset: 0x%x to map: " INTPTR_FORMAT "\n", pc_offset, p2i(map));
   map->set_offset(pc_offset);
 
 #ifdef ASSERT
@@ -537,7 +536,7 @@ const ImmutableOopMap* OopMapSet::find_map(const frame *fr) {
 }
 
 const ImmutableOopMap* OopMapSet::find_map(const CodeBlob* cb, address pc) {
-  fprintf(stderr, "[OopMapSet::find_map] Finding offset: 0x%x in map: " INTPTR_FORMAT "\n", *pc, p2i(cb));
+  fprintf(stderr, "[OopMapSet::find_map] Searching for offset: 0x%x in map: " INTPTR_FORMAT "\n", *pc, p2i(cb));
 
   assert(cb != nullptr, "no codeblob");
   const ImmutableOopMap* map = cb->oop_map_for_return_address(pc);
