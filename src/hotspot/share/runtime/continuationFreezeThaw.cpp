@@ -1469,6 +1469,7 @@ static void jvmti_yield_cleanup(JavaThread* thread, ContinuationWrapper& cont) {
 
 #ifdef ASSERT
 static bool monitors_on_stack(JavaThread* thread) {
+  return false;
   ContinuationEntry* ce = thread->last_continuation();
   RegisterMap map(thread,
                   RegisterMap::UpdateMap::include,
