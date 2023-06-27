@@ -1499,9 +1499,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ z_nop();
     __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
 
-    address pc = __ pc(); // FIXME: Remove this handle (for logging purposes only)
-    fprintf(stderr, "[Cont Entry] gen_cont_entry add gc map\n");
-    oop_maps->add_gc_map(pc - start, map);
+    oop_maps->add_gc_map(__ pc() - start, map);
     __ post_call_nop();
 
     // FIXME:: are we good with z_brul ??
@@ -1628,8 +1626,8 @@ static void gen_continuation_yield(MacroAssembler* masm,
   // We use this nop for fast CodeBlob lookup, associate the OopMap
   // with it right away.
   __ post_call_nop();
-  OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
-  oop_maps->add_gc_map(frame_complete, map);
+  // OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 0);
+  // oop_maps->add_gc_map(frame_complete, map);
 
   // As per discussion with MD, the lco instruction may not be sensitive to relocations.
   // As a test, use get_PC (above).
