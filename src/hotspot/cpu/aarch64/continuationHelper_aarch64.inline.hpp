@@ -94,7 +94,7 @@ inline bool ContinuationHelper::Frame::assert_frame_laid_out(frame f) {
   address pc = ContinuationHelper::return_address_at(
                  sp - frame::sender_sp_ret_address_offset());
   intptr_t* fp = *(intptr_t**)(sp - frame::sender_sp_offset);
-  assert(f.raw_pc() == pc, "f.ra_pc: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.raw_pc()), p2i(pc));
+  assert(f.raw_pc() == pc, "f.raw_pc: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.raw_pc()), p2i(pc));
   assert(f.fp() == fp, "f.fp: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.fp()), p2i(fp));
   return f.raw_pc() == pc && f.fp() == fp;
 }

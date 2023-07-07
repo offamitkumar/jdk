@@ -29,14 +29,49 @@
 #include "runtime/frame.hpp"
 #include "runtime/frame.inline.hpp"
 
+inline void patch_callee_link(const frame& f, intptr_t* fp) {
+  *ContinuationHelper::Frame::callee_link_address(f) = fp;
+}
+
+inline void patch_callee_link_relative(const frame& f, intptr_t* fp) {
+  intptr_t* la = (intptr_t*)ContinuationHelper::Frame::callee_link_address(f);
+  intptr_t new_value = fp - la;
+  *la = new_value;
+}
+
 inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
-  Unimplemented();
+  stackChunkOop chunk = _cont.tail();
+  assert(chunk->is_in_chunk(hf.sp()), "hf.sp()=" PTR_FORMAT, p2i(hf.sp()));
+
+  hf.own_abi()->return_pc = (uint64_t)hf.pc();
+  if (hf.is_interpreted_frame()) {
+    patch_callee_link_relative(hf, hf.fp());
+  }
+#ifdef ASSERT
+  else {
+    // See also FreezeBase::patch_pd()
+    patch_callee_link(hf, (intptr_t*)badAddress);
+  }
+#endif
 }
 
 template<typename FKind>
 inline frame FreezeBase::sender(const frame& f) {
-  Unimplemented();
-  return frame();
+  assert(FKind::is_instance(f), "");
+  if (FKind::interpreted) {
+    return frame(f.sender_sp(), f.sender_pc(), f.interpreter_frame_sender_sp());
+  }
+
+
+  intptr_t* sender_sp = f.sender_sp();
+  address sender_pc = f.sender_pc();
+  assert(sender_sp != f.sp(), "must have changed");
+
+  int slot = 0;
+  CodeBlob* sender_cb = CodeCache::find_blob_and_oopmap(sender_pc, slot);
+  return sender_cb != nullptr
+         ? frame(sender_sp, sender_sp, nullptr, sender_pc, sender_cb, slot == -1 ? nullptr : sender_cb->oop_map_for_slot(slot, sender_pc))
+         : frame(sender_sp, sender_pc, sender_sp);
 }
 
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
@@ -45,7 +80,7 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
 }
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
-  Unimplemented();
+  // nothing to do;
 }
 
 inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, const frame& hf) {
@@ -57,12 +92,15 @@ inline void FreezeBase::patch_pd(frame& hf, const frame& caller) {
 }
 
 inline void FreezeBase::patch_stack_pd(intptr_t* frame_sp, intptr_t* heap_sp) {
-  Unimplemented();
+  // FIXME, please
+  // Nothing to do. The backchain is reconstructed when thawing (see Thaw<ConfigT>::patch_caller_links())
 }
 
+// Slow path
+
 inline frame ThawBase::new_entry_frame() {
-  Unimplemented();
-  return frame();
+  intptr_t* sp = _cont.entrySP();
+  return frame(sp, _cont.entryPC(), sp, _cont.entryFP());
 }
 
 template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame& caller, bool bottom) {
@@ -75,12 +113,12 @@ inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, c
 }
 
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
-  Unimplemented();
+  //FIXME: need to visit this one again.
   return nullptr;
 }
 
 inline void ThawBase::patch_pd(frame& f, const frame& caller) {
-  Unimplemented();
+  patch_callee_link(caller, caller.fp());
 }
 
 template <typename ConfigT>

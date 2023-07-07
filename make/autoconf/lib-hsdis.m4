@@ -188,7 +188,7 @@ AC_DEFUN([LIB_BUILD_BINUTILS],
         binutils_target=""
       fi
     fi
-    binutils_cflags="$binutils_cflags $MACHINE_FLAG $JVM_PICFLAG $C_O_FLAG_NORM"
+    binutils_cflags="-g $binutils_cflags $MACHINE_FLAG $JVM_PICFLAG $C_O_FLAG_NORM"
 
     AC_MSG_NOTICE([Running binutils configure])
     AC_MSG_NOTICE([configure command line: cd $BINUTILS_BUILD_DIR && $BINUTILS_SRC/configure --disable-werror --prefix=$BINUTILS_INSTALL_DIR --enable-install-libiberty --with-system-zlib --without-zstd --disable-nls CFLAGS="$binutils_cflags" CC="$binutils_cc" AR="$AR" $binutils_target])

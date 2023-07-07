@@ -62,6 +62,7 @@ enum class DerivedPointerIterationMode {
 // frames because of inlining.
 
 class frame {
+  friend class ContinuationHelper;
  private:
   // Instance variables:
   union {

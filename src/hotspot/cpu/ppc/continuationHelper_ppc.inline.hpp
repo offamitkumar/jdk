@@ -68,7 +68,7 @@ inline bool ContinuationHelper::Frame::assert_frame_laid_out(frame f) {
   intptr_t* sp = f.sp();
   address pc = *(address*)(sp - frame::sender_sp_ret_address_offset());
   intptr_t* fp = (intptr_t*)f.own_abi()->callers_sp;
-  assert(f.raw_pc() == pc, "f.ra_pc: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.raw_pc()), p2i(pc));
+  assert(f.raw_pc() == pc, "f.raw_pc: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.raw_pc()), p2i(pc));
   assert(f.fp() == fp, "f.fp: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.fp()), p2i(fp));
   return f.raw_pc() == pc && f.fp() == fp;
 }
@@ -182,4 +182,4 @@ inline intptr_t* ContinuationHelper::InterpretedFrame::callers_sp(const frame& f
   return f.fp();
 }
 
-#endif // CPU_PPC_CONTINUATIONFRAMEHELPERS_PPC_INLINE_HPP
+#endif // CPU_PPC_CONTINUATIONHELPER_PPC_INLINE_HPP

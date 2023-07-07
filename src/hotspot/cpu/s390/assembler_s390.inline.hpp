@@ -1373,7 +1373,7 @@ inline void Assembler::z_exrl(Register r1, Label& L) { z_exrl(r1, target(L)); } 
 inline void Assembler::z_larl(Register r1, Label& L) { z_larl(r1, target(L)); }
 inline void Assembler::z_bru(   Label& L) { z_brc(bcondAlways, target(L)); }
 inline void Assembler::z_brul(  Label& L) { z_brcl(bcondAlways, target(L)); }
-inline void Assembler::z_brul( address a) { z_brcl(bcondAlways,a ); }
+inline void Assembler::z_brul( address a) { z_brcl(bcondAlways, a); }
 inline void Assembler::z_brh(   Label& L) { z_brc(bcondHigh, target(L)); }
 inline void Assembler::z_brl(   Label& L) { z_brc(bcondLow, target(L)); }
 inline void Assembler::z_bre(   Label& L) { z_brc(bcondEqual, target(L)); }

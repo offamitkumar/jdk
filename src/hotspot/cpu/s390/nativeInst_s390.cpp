@@ -665,3 +665,37 @@ void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer)
   *(intptr_t*)instr_addr = load_const_bytes | bytes_after_jump;
   ICache::invalidate_range(instr_addr, 6);
 }
+
+void NativePostCallNop::make_deopt() {
+  NativeDeoptInstruction::insert(addr_at(0));
+}
+
+void NativePostCallNop::patch(jint diff) {
+  // FIXME:unsupported for now
+}
+
+void NativeDeoptInstruction::verify() {
+}
+
+bool NativeDeoptInstruction::is_deopt_at(address instr){
+  // if instr is not an illtrap, than there will not be any deopt ??? maybe because we don't need to invalidate anything (see comment in insert())
+  if (!Assembler::is_z_illtrap(instr)) return false;
+  // instr is an illtrap here
+  CodeBlob* cb = CodeCache::find_blob(instr);
+  if (cb == nullptr || !cb->is_compiled()) {
+    return false;
+  }
+  nmethod *nm = (nmethod *)cb;
+  // if verified_entry_point is not equal to illtrap then there is no deopt at that instruction.
+  return nm->verified_entry_point() != instr;
+}
+
+void NativeDeoptInstruction::insert(address code_pos) {
+  ResourceMark rm;
+  int code_size = 2; // z_illtrap is of 2 bytes
+  CodeBuffer cb(code_pos, code_size + 1);
+  MacroAssembler* a = new MacroAssembler(&cb);
+  a->z_illtrap();
+  // forcing CPU to reload these 2 bytes of instruction by setting current range invalid
+  ICache::invalidate_range(code_pos, code_size);
+}

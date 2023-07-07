@@ -563,6 +563,9 @@ class MacroAssembler: public Assembler {
   inline address call_stub(Register function_entry);
   inline address call_stub(address  function_entry);
 
+  // nop
+  void post_call_nop();
+
   // Get the pc where the last call will return to. Returns _last_calls_return_pc.
   inline address last_calls_return_pc();
 
@@ -646,6 +649,9 @@ class MacroAssembler: public Assembler {
 
   // Atomics
   // -- none?
+
+  void push_cont_fastpath();
+  void pop_cont_fastpath();
 
   void tlab_allocate(Register obj,                // Result: pointer to object after successful allocation
                      Register var_size_in_bytes,  // Object size in bytes if unknown at compile time; invalid otherwise.
