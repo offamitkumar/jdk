@@ -1561,9 +1561,6 @@ static inline int freeze_internal(JavaThread* current, intptr_t* const sp) {
   // There are no interpreted frames if we're not called from the interpreter and we haven't encountered an i2c
   // adapter or called Deoptimization::unpack_frames. Calls from native frames also go through the interpreter
   // (see JavaCalls::call_helper).
-  fprintf(stderr, "cont_fast_path: %d\n", current->cont_fastpath());
-  fprintf(stderr, "cont_fastpath_thread_state: %d\n", current->cont_fastpath_thread_state());
-  fprintf(stderr, "interpreted_native_or_deopt: %d\n", freeze.interpreted_native_or_deoptimized_on_stack());
   assert(!current->cont_fastpath()
          || (current->cont_fastpath_thread_state() && !freeze.interpreted_native_or_deoptimized_on_stack()), "");
   bool fast = UseContinuationFastPath && current->cont_fastpath();
