@@ -2356,6 +2356,15 @@ void MacroAssembler::call_VM_leaf_static(address entry_point, Register arg_1, Re
   call_VM_leaf_static(entry_point);
 }
 
+void MacroAssembler::post_call_nop() {
+  // Make inline again when loom is always enabled.
+  if (!Continuations::enabled()) {
+    return;
+  }
+  InlineSkippedInstructionsCounter skipCounter(this);
+  z_nop();
+}
+
 // Don't use detour via call_c(reg).
 address MacroAssembler::call_c(address function_entry) {
   load_const(Z_R1, function_entry);
@@ -2711,6 +2720,26 @@ void MacroAssembler::reserved_stack_check(Register return_pc) {
 
   bind(no_reserved_zone_enabling);
   BLOCK_COMMENT("} reserved_stack_check");
+}
+
+// kills Z_R1_scratch
+void MacroAssembler::push_cont_fastpath() {
+  Label done;
+  // cont_fastpath_offset is 4 bytes
+  z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  compare32_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done); // bcondNotHigh -> less than equal
+  z_st(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
+}
+
+// kills Z_R1_scratch
+void MacroAssembler::pop_cont_fastpath() {
+  Label done;
+  z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  compare32_and_branch(Z_SP, Z_R1_scratch, bcondNotHigh, done);
+  z_lghi(Z_R1_scratch, 0);
+  z_st(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
 }
 
 // Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.
