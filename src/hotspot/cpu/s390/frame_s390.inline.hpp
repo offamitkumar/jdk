@@ -44,17 +44,21 @@ inline void frame::setup() {
     _cb = CodeCache::find_blob(_pc);
   }
 
-  if (_fp == nullptr) {
-    _fp = (intptr_t*)own_abi()->callers_sp;
-  }
-
   if (_unextended_sp == nullptr) {
     _unextended_sp = _sp;
   }
 
-  // When thawing continuation frames the _unextended_sp passed to the constructor is not aligend
-  assert(_on_heap || (is_aligned(_sp, alignment_in_bytes) && is_aligned(_fp, alignment_in_bytes)),
-         "invalid alignment sp:" PTR_FORMAT " unextended_sp:" PTR_FORMAT " fp:" PTR_FORMAT, p2i(_sp), p2i(_unextended_sp), p2i(_fp));
+  if (_fp == nullptr) {
+    // The back link for compiled frames on the heap is not valid
+    if (is_heap_frame()) {
+      // fp for interpreted frames should have been derelativized and passed to the constructor
+      assert(is_compiled_frame(), "");
+      // The back link for compiled frames on the heap is invalid.
+      _fp = _unextended_sp + _cb->frame_size();
+    } else {
+      _fp = (intptr_t*)own_abi()->callers_sp;
+    }
+  }
 
   address original_pc = CompiledMethod::get_deopt_original_pc(this);
   if (original_pc != nullptr) {
@@ -70,7 +74,10 @@ inline void frame::setup() {
     }
   }
 
-  // assert(_on_heap || is_aligned(_sp, frame::frame_alignment), "SP must be 8-byte aligned");
+  // Continuation frames on the java heap are not aligned.
+  // When thawing interpreted frames the sp can be unaligned (see new_stack_frame()).
+  assert(_on_heap || (is_aligned(_sp, alignment_in_bytes) || is_interpreted_frame()) && is_aligned(_fp, alignment_in_bytes),
+         "invalid alignment sp:" PTR_FORMAT " unextended_sp:" PTR_FORMAT " fp:" PTR_FORMAT, p2i(_sp), p2i(_unextended_sp), p2i(_fp));
 }
 
 // Constructors
@@ -79,9 +86,27 @@ inline void frame::setup() {
 inline frame::frame() : _sp(nullptr), _pc(nullptr), _cb(nullptr), _oop_map(nullptr), _deopt_state(unknown),
                         _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(nullptr), _fp(nullptr) {}
 
+inline frame::frame(intptr_t* sp, intptr_t* fp, address pc)
+  : _sp(sp), _pc(pc), _cb(nullptr), _oop_map(nullptr), _deopt_state(unknown),
+    _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(nullptr), _fp(fp) {
+  setup();
+}
+
 inline frame::frame(intptr_t* sp, address pc, intptr_t* unextended_sp, intptr_t* fp, CodeBlob* cb)
   : _sp(sp), _pc(pc), _cb(cb), _oop_map(nullptr),
     _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
+  setup();
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map)
+  :_sp(sp), _pc(pc), _cb(cb), _oop_map(oop_map),
+    _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
+  setup();
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map, bool on_heap)
+  :_sp(sp), _pc(pc), _cb(cb), _oop_map(oop_map),
+        _on_heap(on_heap), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
   setup();
 }
 
@@ -145,9 +170,10 @@ inline int frame::frame_size() const {
 }
 
 // Ignore c2i adapter frames.
-inline intptr_t* frame::unextended_sp() const {
-  return _unextended_sp;
-}
+inline intptr_t* frame::unextended_sp() const          { assert_absolute(); return _unextended_sp; }
+inline void frame::set_unextended_sp(intptr_t* value)  { _unextended_sp = value; }
+inline int  frame::offset_unextended_sp() const        { assert_offset();   return _offset_unextended_sp; }
+inline void frame::set_offset_unextended_sp(int value) { assert_on_heap();  _offset_unextended_sp = value; }
 
 inline address frame::sender_pc() const {
   return (address) callers_abi()->return_pc;
@@ -293,6 +319,10 @@ inline oop frame::saved_oop_result(RegisterMap* map) const {
   return *((oop*) map->location(Z_R2->as_VMReg(), nullptr));  // R2 is return register.
 }
 
+inline bool frame::is_interpreted_frame() const {
+  return Interpreter::contains(pc());
+}
+
 inline void frame::set_saved_oop_result(RegisterMap* map, oop obj) {
   *((oop*) map->location(Z_R2->as_VMReg(), nullptr)) = obj;  // R2 is return register.
 }
@@ -316,30 +346,19 @@ inline const ImmutableOopMap* frame::get_oop_map() const {
 }
 
 inline int frame::compiled_frame_stack_argsize() const {
-  Unimplemented();
-  return 0;
+  assert(cb()->is_compiled(), "");
+  return (cb()->as_compiled_method()->method()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 
 inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
-  Unimplemented();
+  assert(mask != nullptr, "");
+  Method* m = interpreter_frame_method();
+  int   bci = interpreter_frame_bci();
+  m->mask_for(bci, mask); // OopMapCache::compute_one_oop_map(m, bci, mask);
 }
 
 inline int frame::sender_sp_ret_address_offset() {
-  Unimplemented();
-  return 0;
-}
-
-inline void frame::set_unextended_sp(intptr_t* value) {
-  Unimplemented();
-}
-
-inline int frame::offset_unextended_sp() const {
-  Unimplemented();
-  return 0;
-}
-
-inline void frame::set_offset_unextended_sp(int value) {
-  Unimplemented();
+  return -(int)(_z_abi(return_pc) >> LogBytesPerWord); // offset in words
 }
 
 //------------------------------------------------------------------------------
@@ -350,13 +369,18 @@ inline frame frame::sender(RegisterMap* map) const {
   // update it accordingly.
   map->set_include_argument_oops(false);
 
+  if (map->in_cont()) { // already in an h-stack
+    return map->stack_chunk()->sender(*this, map);
+  }
+
   if (is_entry_frame()) {
     return sender_for_entry_frame(map);
   }
   if (is_interpreted_frame()) {
     return sender_for_interpreter_frame(map);
   }
-  assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
+
+  assert(_cb == CodeCache::find_blob(pc()), "Must be the same");
   if (_cb != nullptr) return sender_for_compiled_frame(map);
 
   // Must be native-compiled frame, i.e. the marshaling code for native
@@ -373,9 +397,27 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
   // Now adjust the map.
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != nullptr) {
-      OopMapSet::update_register_map(this, map);
+    // For C1, the runtime stub might not have oop maps, so set this flag
+    // outside of update_register_map.
+    if (!_cb->is_compiled()) { // compiled frames do not use callee-saved registers
+      map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+      if (oop_map() != nullptr) {
+        _oop_map->update_register_map(this, map);
+      }
+    } else {
+      assert(!_cb->caller_must_gc_arguments(map->thread()), "");
+      assert(!map->include_argument_oops(), "");
+      assert(oop_map() == nullptr || !oop_map()->has_any(OopMapValue::callee_saved_value), "callee-saved value in compiled frame");
+    }
+  }
+
+  assert(sender_sp != sp(), "must have changed");
+
+  if (Continuation::is_return_barrier_entry(sender_pc)) {
+    if (map->walk_cont()) { // about to walk into an h-stack
+      return Continuation::top_frame(*this, map);
+    } else {
+      return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp);
     }
   }
 
@@ -384,7 +426,7 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
 
 template <typename RegisterMapT>
 void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) {
-  Unimplemented();
+  // Nothing to do.
 }
 
 #endif // CPU_S390_FRAME_S390_INLINE_HPP

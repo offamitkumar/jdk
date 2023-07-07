@@ -82,6 +82,10 @@ class NativeInstruction {
 
   bool is_illegal();
 
+  bool is_nop() const {
+    return Assembler::is_z_nop(addr_at(0));
+  }
+
   // Bcrl is currently the only accepted instruction here.
   bool is_jump();
 
@@ -656,33 +660,40 @@ class NativeGeneralJump: public NativeInstruction {
 
 class NativePostCallNop: public NativeInstruction {
 public:
-  bool check() const { Unimplemented(); return false; }
+  bool check() const {
+    return is_nop();
+  }
   int displacement() const { return 0; }
-  void patch(jint diff) { Unimplemented(); }
-  void make_deopt() { Unimplemented(); }
+  void patch(jint diff);
+  void make_deopt();
 };
 
 inline NativePostCallNop* nativePostCallNop_at(address address) {
-  // Unimplemented();
+  // this is probably last instruction (( address pc = ic->end_of_call(); )) So this expected/should be NOP
+  NativePostCallNop* nop = (NativePostCallNop*) address;
+  if (nop->check()) {
+    // this is NOP instruction then we can insert a illtrap here, and invalidate the 2 byte, making sure for deopt
+    return nop;
+  }
+  // current address is not a NOP and can't be marked for deopt, though we expect that it is already deotimized becuase there is an assert
   return nullptr;
 }
 
 class NativeDeoptInstruction: public NativeInstruction {
 public:
-  address instruction_address() const       { Unimplemented(); return nullptr; }
-  address next_instruction_address() const  { Unimplemented(); return nullptr; }
+  enum {
+    instruction_offset          =    0
+  };
 
-  void  verify() { Unimplemented(); }
+  address instruction_address() const       { return addr_at(instruction_offset); }
+  address next_instruction_address() const  { return instruction_address() + Assembler::instr_len(addr_at(0)); }
 
-  static bool is_deopt_at(address instr) {
-    // Unimplemented();
-    return false;
-  }
+  void  verify();
+
+  static bool is_deopt_at(address instr);
 
   // MT-safe patching
-  static void insert(address code_pos) {
-    Unimplemented();
-  }
+  static void insert(address code_pos);
 };
 
 #endif // CPU_S390_NATIVEINST_S390_HPP
