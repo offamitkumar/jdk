@@ -124,7 +124,7 @@ inline void ThawBase::patch_pd(frame& f, const frame& caller) {
 template <typename ConfigT>
 inline void Thaw<ConfigT>::patch_caller_links(intptr_t* sp, intptr_t* bottom) {
   for (intptr_t* callers_sp; sp < bottom; sp = callers_sp) {
-    adderss pc = (address) ((frame::z_java_abi*) sp) -> return_pc;
+    address pc = (address) ((frame::z_java_abi*) sp) -> return_pc;
     assert(pc != nullptr, "");
     bool is_entry_frame = pc == StubRoutines::cont_returnBarrier() || pc == _cont.entryPC();
     if (is_entry_frame) {
@@ -134,8 +134,9 @@ inline void Thaw<ConfigT>::patch_caller_links(intptr_t* sp, intptr_t* bottom) {
       callers_sp = sp + cb->frame_size();
     }
     // set the back link
-    ((frame::java_abi*) sp)->callers_sp = (intptr_t) callers_sp;
+    ((frame::z_java_abi*) sp)->callers_sp = (intptr_t) callers_sp;
   }
+  Unimplemented(); // not properly implemented
 }
 
 inline void ThawBase::prefetch_chunk_pd(void* start, int size) {
