@@ -127,7 +127,8 @@ inline void Thaw<ConfigT>::patch_caller_links(intptr_t* sp, intptr_t* bottom) {
 }
 
 inline void ThawBase::prefetch_chunk_pd(void* start, int size) {
-  Unimplemented();
-}
+  size <<= LogBytesPerWord;
+  Prefetch::read(start, size);
+  Prefetch::read(start, size - 64);}
 
 #endif // CPU_S390_CONTINUATION_S390_INLINE_HPP
