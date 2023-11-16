@@ -103,8 +103,17 @@ inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
 }
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f, InterpreterOopMap* mask) { // inclusive; this will be copied with the frame
-  Unimplemented();
-  return nullptr;
+  // interpreter_frame_last_sp_offset, points to unextended_sp includes arguments in the frame
+  // interpreter_frame_initial_sp_offset excludes expression stack slots
+  int expression_stack_sz = expression_stack_size(f, mask);
+  intptr_t* res = (intptr_t*)f.interpreter_frame_monitor_end() - expression_stack_sz;
+  assert(res <= (intptr_t*)f.ijava_state_unchecked() - expression_stack_sz,
+         "res=" PTR_FORMAT " f.ijava_state_unchecked()=" PTR_FORMAT " expression_stack_sz=%d",
+          p2i(res), p2i(f.ijava_state_unchecked()), expression_stack_sz);
+  assert(res >= f.unextended_sp(),
+         "res: " INTPTR_FORMAT " ijava_state: " INTPTR_FORMAT " esp: " INTPTR_FORMAT " unextended_sp: " INTPTR_FORMAT " expression_stack_size: %d",
+          p2i(res), p2i(f.ijava_state_unchecked()), f.ijava_state_unchecked()->esp, p2i(f.unextended_sp()), expression_stack_sz);
+  return res;
 }
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_bottom(const frame& f) { // exclusive; this will not be copied with the frame
