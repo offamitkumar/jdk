@@ -3056,28 +3056,117 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_cont_thaw(bool return_barrier, bool exception) {
+  address generate_cont_thaw(const char* label, Continuation::thaw_kind kind) {
     if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+
+    bool return_barrier = Continuation::is_thaw_return_barrier(kind);
+    bool return_barrier_exception = Continuation::is_thaw_return_barrier_exception(kind);
+
+    StubCodeMark mark(this, "StubRoutines", label);
+
+    address start = __ pc();
+
+    if (return_barrier) {
+      __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+    }
+
+#ifdef ASSERT
+    {
+      NearLabel Ok;
+      __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+      __ z_bre(Ok);
+      __ stop(FILE_AND_LINE ": callers sp is corrupt");
+      __ BIND(Ok);
+    }
+#endif // ASSERT
+
+    if (return_barrier) {
+      // preserve possible return value from a method returning to the return barrier
+      const int frame_size = 2 * BytesPerWord + frame::z_abi_160_size;
+      __ push_frame(frame_size); // TODO: frame could be resized
+      int i = 0;
+      __ z_stg(Z_RET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      __ z_std(Z_FRET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      assert(i*BytesPerWord + frame::z_abi_160_size == frame_size, "check");
+    }
+
+    __ z_lghi(Z_ARG2, return_barrier ? 1 : 0);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, Continuation::prepare_thaw), Z_thread, Z_ARG2);
+    __ z_lgr(Z_R0_scratch, Z_RET); // Z_RET contains the size of the frames to thaw, 0 if overflow or no more frames
+
+    if (return_barrier) {
+      // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
+      const int frame_size = 2 * BytesPerWord + frame::z_abi_160_size;
+      int i = 0;
+      __ z_lg(Z_RET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      __ z_ld(Z_FRET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      assert(i*BytesPerWord + frame::z_abi_160_size == frame_size, "check");
+      __ pop_frame();
+    }
+
+#ifdef ASSERT
+    {
+      NearLabel Ok;
+      __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+      __ z_bre(Ok);
+      __ stop(FILE_AND_LINE ": callers sp is corrupt");
+      __ BIND(Ok);
+    }
+#endif // ASSERT
+
+    // Z_R0_scratch contains the size of the frames to thaw, 0 if overflow or no more frames
+    NearLabel L_thaw_success;
+    __ z_ltgr(Z_R0_scratch, Z_R0_scratch);
+    __ z_brnz(L_thaw_success);
+    __ load_const_optimized(Z_R1_scratch, (address)StubRoutines::throw_StackOverflowError_entry());
+    __ z_br(Z_R1_scratch);
+    __ bind(L_thaw_success);
+
+
+    __ resize_frame(Z_R0, Z_R0, false);
+    __ z_nilf(Z_SP, -StackAlignmentInBytes);
+
+    if (return_barrier) {
+      // preserve possible return value from a method returning to the return barrier
+      const int frame_size = 2 * BytesPerWord + frame::z_abi_160_size;
+      __ push_frame(frame_size); // TODO: frame could be resized instead of pushing new frame.
+      int i = 0;
+      __ z_stg(Z_RET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      __ z_std(Z_FRET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      assert(i*BytesPerWord + frame::z_abi_160_size == frame_size, "check");
+    }
+
+    // If we want, we can templatize thaw by kind, and have three different entries
+    __ z_lghi(Z_ARG2, kind);
+
+    __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG2);
+    __ z_lgr(Z_R0_scratch, Z_RET); // Z_RET is the sp of the yielding frame
+
+    if (return_barrier) {
+      // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
+      const int frame_size = 2 * BytesPerWord + frame::z_abi_160_size;
+      int i = 0;
+      __ z_lg(Z_RET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      __ z_ld(Z_FRET, (i++) * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      assert(i*BytesPerWord + frame::z_abi_160_size == frame_size, "check");
+      __ pop_frame();
+    } else {
+      __ z_xr(Z_RET, Z_RET); // return 0 (success) from doYield
+    }
+
+    return start;
   }
 
   address generate_cont_thaw() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    return generate_cont_thaw("Cont thaw", Continuation::thaw_top);
   }
 
   address generate_cont_returnBarrier() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    return generate_cont_thaw("Cont thaw return barrier", Continuation::thaw_return_barrier);
   }
 
   address generate_cont_returnBarrier_exception() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    return nullptr;
+    return generate_cont_thaw("Cont thaw return barrier exception", Continuation::thaw_return_barrier_exception);
   }
 
   #if INCLUDE_JFR
