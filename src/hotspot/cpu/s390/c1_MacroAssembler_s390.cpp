@@ -141,11 +141,6 @@ void C1_MacroAssembler::unlock_object(Register Rmark, Register Roop, Register Rb
   verify_oop(Roop, FILE_AND_LINE);
 
   if (LockingMode == LM_LIGHTWEIGHT) {
-    const Register tmp = Z_R1_scratch;
-    z_lg(Rmark, Address(Roop, hdr_offset));
-    z_lgr(tmp, Rmark);
-    z_nill(tmp, markWord::monitor_value);
-    branch_optimized(Assembler::bcondNotZero, slow_case);
     lightweight_unlock(Roop, Rmark, tmp, slow_case);
   } else if (LockingMode == LM_LEGACY) {
     // Test if object header is pointing to the displaced header, and if so, restore
