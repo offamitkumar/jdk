@@ -141,7 +141,7 @@ void C1_MacroAssembler::unlock_object(Register Rmark, Register Roop, Register Rb
   verify_oop(Roop, FILE_AND_LINE);
 
   if (LockingMode == LM_LIGHTWEIGHT) {
-    lightweight_unlock(Roop, Rmark, tmp, slow_case);
+    lightweight_unlock(Roop, Rmark, Z_R1_scratch, slow_case);
   } else if (LockingMode == LM_LEGACY) {
     // Test if object header is pointing to the displaced header, and if so, restore
     // the displaced header in the object. If the object header is not pointing to

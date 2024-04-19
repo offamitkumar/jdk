@@ -1160,7 +1160,7 @@ void InterpreterMacroAssembler::unlock_object(Register monitor, Register object)
   // If we still have a lightweight lock, unlock the object and be done.
   if (LockingMode == LM_LIGHTWEIGHT) {
 
-    lightweight_unlock(object, header, tmp, slow_case);
+    lightweight_unlock(object, header, current_header, slow_case);
 
     z_bru(done); // TODO: (AMIT) should we remove this ?
   } else {
