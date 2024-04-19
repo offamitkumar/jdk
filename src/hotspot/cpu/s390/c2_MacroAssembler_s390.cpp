@@ -33,6 +33,15 @@
 #define BLOCK_COMMENT(str) block_comment(str)
 #define BIND(label)        bind(label); BLOCK_COMMENT(#label ":")
 
+void fast_lock_lightweight(Register oop, Register box, Register temp1, Register temp2) {
+  compiler_fast_lock_lightweight_object(oop, temp1, temp2);
+}
+
+
+void fast_unlock_lightweight(Register oop, Register box, Register temp1, Register temp2) {
+  compiler_fast_unlock_lightweight_object(oop, temp1, temp2);
+}
+
 //------------------------------------------------------
 //   Special String Intrinsics. Implementation
 //------------------------------------------------------
