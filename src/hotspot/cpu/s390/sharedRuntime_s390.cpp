@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1711,10 +1711,15 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     __ add2reg(r_box, lock_offset, Z_SP);
 
     // Try fastpath for locking.
-    // Fast_lock kills r_temp_1, r_temp_2.
+    // Fast_lock kills r_tmp1, r_tmp2.
     // in case of DiagnoseSyncOnValueBasedClasses content for Z_R1_scratch
     // will be destroyed, So avoid using Z_R1 as temp here.
-    __ compiler_fast_lock_object(r_oop, r_box, r_tmp1, r_tmp2);
+    if (LockingMode == LM_LIGHTWEIGHT) {
+      __ compiler_fast_lock_lightweight_object(r_oop, r_tmp1, r_tmp2);
+    } else {
+      __ compiler_fast_lock_object(r_oop, r_box, r_tmp1, r_tmp2);
+
+    }
     __ z_bre(done);
 
     //-------------------------------------------------------------------------
@@ -1913,7 +1918,11 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
 
     // Try fastpath for unlocking.
     // Fast_unlock kills r_tmp1, r_tmp2.
-    __ compiler_fast_unlock_object(r_oop, r_box, r_tmp1, r_tmp2);
+    if (LockingMode == LM_LIGHTWEIGHT) {
+      __ compiler_fast_unlock_lightweight_object(r_oop, r_tmp1, r_tmp2);
+    } else {
+      __ compiler_fast_unlock_object(r_oop, r_box, r_tmp1, r_tmp2);
+    }
     __ z_bre(done);
 
     // Slow path for unlocking.
