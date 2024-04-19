@@ -9579,6 +9579,7 @@ instruct partialSubtypeCheck_vs_zero(flagsReg pcc, rarg2RegP sub, rarg3RegP supe
 // inlined locking and unlocking
 
 instruct cmpFastLock(flagsReg pcc, iRegP_N2P oop, iRegP_N2P box, iRegP tmp1, iRegP tmp2) %{
+  predicate(LockingMode != LM_LIGHTWEIGHT);
   match(Set pcc (FastLock oop box));
   effect(TEMP tmp1, TEMP tmp2);
   ins_cost(100);
@@ -9589,6 +9590,7 @@ instruct cmpFastLock(flagsReg pcc, iRegP_N2P oop, iRegP_N2P box, iRegP tmp1, iRe
 %}
 
 instruct cmpFastUnlock(flagsReg pcc, iRegP_N2P oop, iRegP_N2P box, iRegP tmp1, iRegP tmp2) %{
+  predicate(LockingMode != LM_LIGHTWEIGHT);
   match(Set pcc (FastUnlock oop box));
   effect(TEMP tmp1, TEMP tmp2);
   ins_cost(100);
