@@ -3191,14 +3191,16 @@ void MacroAssembler::increment_counter_eq(address counter_address, Register tmp1
 }
 
 void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Register temp1, Register temp2) {
+
+  assert(LockingMode != LM_LIGHTWEIGHT, "uses fast_lock_lightweight");
+  assert_different_registers(temp1, temp2, oop, box);
+
   Register displacedHeader = temp1;
   Register currentHeader = temp1;
   Register temp = temp2;
   NearLabel done, object_has_monitor;
 
   const int hdr_offset = oopDesc::mark_offset_in_bytes();
-
-  assert_different_registers(temp1, temp2, oop, box);
 
   BLOCK_COMMENT("compiler_fast_lock_object {");
 
@@ -3224,7 +3226,8 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
     // From loading the markWord, we know that oop != nullptr
     z_ltgr(oop, oop);
     z_bru(done);
-  } else if (LockingMode == LM_LEGACY) {
+  } else {
+    assert(LockingMode == LM_LEGACY, "must be");
     // Set mark to markWord | markWord::unlocked_value.
     z_oill(displacedHeader, markWord::unlocked_value);
 
@@ -3254,10 +3257,6 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
     z_stg(currentHeader/*==0 or not 0*/, BasicLock::displaced_header_offset_in_bytes(), box);
 
     z_bru(done);
-  } else {
-    assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-    lightweight_lock(oop, displacedHeader, temp, done);
-    z_bru(done);
   }
 
   bind(object_has_monitor);
@@ -3272,10 +3271,9 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
   // Otherwise, register zero is filled with the current owner.
   z_lghi(zero, 0);
   z_csg(zero, Z_thread, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), monitor_tagged);
-  if (LockingMode != LM_LIGHTWEIGHT) {
-    // Store a non-null value into the box.
-    z_stg(box, BasicLock::displaced_header_offset_in_bytes(), box);
-  }
+
+  // Store a non-null value into the box.
+  z_stg(box, BasicLock::displaced_header_offset_in_bytes(), box);
 
   z_bre(done); // acquired the lock for the first time.
 
@@ -3297,13 +3295,15 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
 }
 
 void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Register temp1, Register temp2) {
+
+  assert(LockingMode != LM_LIGHTWEIGHT, "uses fast_unlock_lightweight");
+  assert_different_registers(temp1, temp2, oop, box);
+
   Register displacedHeader = temp1;
   Register currentHeader = temp2;
   Register temp = temp1;
 
   const int hdr_offset = oopDesc::mark_offset_in_bytes();
-
-  assert_different_registers(temp1, temp2, oop, box);
 
   Label done, object_has_monitor, not_recursive;
 
@@ -3328,18 +3328,14 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
     // Set NE to indicate 'failure' -> take slow-path
     z_ltgr(oop, oop);
     z_bru(done);
-  } else if (LockingMode == LM_LEGACY) {
+  } else {
+    assert(LockingMode == LM_LEGACY, "must be");
     // Check if it is still a lightweight lock, this is true if we see
     // the stack address of the basicLock in the markWord of the object
     // copy box to currentHeader such that csg does not kill it.
     z_lgr(currentHeader, box);
     z_csg(currentHeader, displacedHeader, hdr_offset, oop);
     z_bru(done); // csg sets CR as desired.
-  } else {
-    assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-
-    lightweight_unlock(oop, currentHeader, displacedHeader, done);
-    z_bru(done);
   }
 
   // In case of LM_LIGHTWEIGHT, we may reach here with (temp & ObjectMonitor::ANONYMOUS_OWNER) != 0.
@@ -5807,4 +5803,12 @@ void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp
 #endif
   z_alsi(in_bytes(JavaThread::lock_stack_top_offset()), Z_thread, -oopSize);  // pop object
   z_cr(tmp, tmp); // set CC to EQ
+}
+
+void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Register tmp1, Register tmp2) {
+  Unimplemented();
+}
+
+void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Register tmp1, Register tmp2) {
+  Unimplemented();
 }
