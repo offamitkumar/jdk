@@ -5706,42 +5706,68 @@ SkipIfEqual::~SkipIfEqual() {
 }
 
 // Implements lightweight-locking.
-// Branches to slow upon failure to lock the object.
-// Falls through upon success.
 //
 //  - obj: the object to be locked, contents preserved.
-//  - hdr: the header, already loaded from obj, contents destroyed.
+//  - temp1, temp2: temporary registers, contents destroyed.
 //  Note: make sure Z_R1 is not manipulated here when C2 compiler is in play
-void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register temp, Label& slow_case) {
+void MacroAssembler::lightweight_lock(Register obj, Register t1, Register t2, Label& slow_case) {
 
+  Label push;
+  const Register top = t1;
+  const Register mark = t2;
+  const Register t = Z_R1_scratch; // TODO: what about the comment above
+  /*
+   * hdr -> top
+   * temp -> mark
+   */
   assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
   assert_different_registers(obj, hdr, temp);
 
+  // Preload the markWord. It is important that this is the first
+  // instruction emitted as it is part of C1's null check semantics.
+  z_lg(mark, Address(obj, oopDesc::mark_offset_in_bytes()));
+
+
   // First we need to check if the lock-stack has room for pushing the object reference.
-  z_lgf(temp, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+  z_lgf(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
 
-  compareU32_and_branch(temp, (unsigned)LockStack::end_offset()-1, bcondHigh, slow_case);
+  compareU32_and_branch(top, (unsigned)LockStack::end_offset(), bcondNotLow, slow_case);
 
-  // attempting a lightweight_lock
-  // Load (object->mark() | 1) into hdr
-  z_oill(hdr, markWord::unlocked_value);
+  // The underflow check is elided. The recursive check will always fail
+  // when the lock stack is empty because of the _bad_oop_sentinel field.
 
-  z_lgr(temp, hdr);
+  // Check for recursion:
+  z_aghi(top, -oopSize);
+  z_lg(top, Address(Z_thread, top));
+  compareU64_and_branch(top, obj, bcondEqual, push);
+
+  // Check header for monitor (0b10).
+  z_tmll(obj, markWord::monitor_value);
+  z_brnaz(slow_case);
+
+  // Try to lock. Transition lock-bits 0b01 => 0b00
+  z_oill(mark, markWord::unlocked_value);
+
+  z_lgr(top, mark);
 
   // Clear lock-bits from hdr (locked state)
-  z_xilf(temp, markWord::unlocked_value);
+  z_xilf(top, markWord::unlocked_value);
 
-  z_csg(hdr, temp, oopDesc::mark_offset_in_bytes(), obj);
+  z_csg(mark, top, oopDesc::mark_offset_in_bytes(), obj);
   branch_optimized(Assembler::bcondNotEqual, slow_case);
 
+  BIND(push);
+
   // After successful lock, push object on lock-stack
-  z_lgf(temp, Address(Z_thread, JavaThread::lock_stack_top_offset()));
-  z_stg(obj, Address(Z_thread, temp));
-  z_ahi(temp, oopSize);
-  z_st(temp, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+  // TODO: below load operation required,
+  //  top lost the content while doing recursion check
+  z_lgf(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+  z_stg(obj, Address(Z_thread, top));
+  z_ahi(top, oopSize);
+  z_st(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
 
   // as locking was successful, set CC to EQ
-  z_cr(temp, temp);
+  z_cr(temp, temp); // TODO: maybe remove this ?
 }
 
 // Implements lightweight-unlocking.
