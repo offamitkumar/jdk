@@ -5710,18 +5710,19 @@ SkipIfEqual::~SkipIfEqual() {
 //  - obj: the object to be locked, contents preserved.
 //  - temp1, temp2: temporary registers, contents destroyed.
 //  Note: make sure Z_R1 is not manipulated here when C2 compiler is in play
-void MacroAssembler::lightweight_lock(Register obj, Register t1, Register t2, Label& slow_case) {
+void MacroAssembler::lightweight_lock(Register obj, Register temp1, Register temp2, Label& slow_case) {
+
+  assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
+  assert_different_registers(obj, temp1, temp2);
 
   Label push;
-  const Register top = t1;
-  const Register mark = t2;
+  const Register top = temp1;
+  const Register mark = temp2;
   const Register t = Z_R1_scratch; // TODO: what about the comment above
   /*
    * hdr -> top
    * temp -> mark
    */
-  assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
-  assert_different_registers(obj, hdr, temp);
 
   // Preload the markWord. It is important that this is the first
   // instruction emitted as it is part of C1's null check semantics.
@@ -5756,7 +5757,7 @@ void MacroAssembler::lightweight_lock(Register obj, Register t1, Register t2, La
   z_csg(mark, top, oopDesc::mark_offset_in_bytes(), obj);
   branch_optimized(Assembler::bcondNotEqual, slow_case);
 
-  BIND(push);
+  bind(push);
 
   // After successful lock, push object on lock-stack
   // TODO: below load operation required,
