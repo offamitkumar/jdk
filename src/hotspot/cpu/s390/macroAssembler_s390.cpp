@@ -5768,7 +5768,7 @@ void MacroAssembler::lightweight_lock(Register obj, Register temp1, Register tem
   z_st(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
 
   // as locking was successful, set CC to EQ
-  z_cr(temp, temp); // TODO: maybe remove this ?
+  z_cr(top, top); // z_ahi instruction above can change the cc, so we need this
 }
 
 // Implements lightweight-unlocking.
