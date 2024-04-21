@@ -5846,7 +5846,7 @@ void MacroAssembler::lightweight_unlock(Register obj, Register temp1, Register t
 #ifdef ASSERT
   // Check header not unlocked (0b01).
   NearLabel not_unlocked;
-  z_lg(top, Address(obj, oopDesc::mark_offset_in_bytes()));
+  z_lgr(top, mark);
   if (UseNewCode2) {
     z_nill(top, markWord::monitor_value);
     z_bre(not_unlocked);
@@ -5890,6 +5890,7 @@ void MacroAssembler::lightweight_unlock(Register obj, Register temp1, Register t
 void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Register tmp1, Register tmp2) {
   assert_different_registers(obj, tmp1, tmp2);
 
+  // TODO: do these labels need to be "label" or they can be "NearLabel" ??
   // Handle inflated monitor.
   Label inflated;
   // Finish fast lock successfully. MUST reach to with flag == NE
@@ -5909,6 +5910,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
   { // lightweight locking
 
     // Push lock to the lock stack and finish successfully. MUST reach to with flag == EQ
+    // TODO: do this label need to be "Label" or it can be "NearLabel" ??
     Label push;
 
     const Register top = tmp2;
@@ -5934,7 +5936,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
 
     // Try to lock. Transition lock bits 0b00 => 0b01
     assert(oopDesc::mark_offset_in_bytes() == 0, "required to avoid a lea");
-    const Register locked_obj = tmp2;
+    const Register locked_obj = mark;
     z_oill(mark, markWord::unlocked_value); // TODO: aren't we sure that object is unlocked here ?
     z_lgr(locked_obj, mark);
     // Clear lock-bits from hdr (locked state)
@@ -5990,6 +5992,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
   bind(slow_path);
 
 #ifdef ASSERT
+  // Check that slow_path label is reached with flag == NE.
   z_brne(flag_correct);
   stop("CC is not set to NE, it should be");
   bind(flag_correct);
@@ -5999,5 +6002,180 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
 }
 
 void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Register tmp1, Register tmp2) {
-  Unimplemented();
+  assert_different_registers(obj, tmp1, tmp2);
+
+  // TODO: do these labels need to be "label" or they can be "NearLabel" ??
+  // Handle inflated monitor.
+  Label inflated, inflated_load_monitor;
+  // Finish fast unlock successfully. MUST reach to with flag == EQ.
+  Label unlocked;
+  // Finish fast unlock unsuccessfully. MUST branch to with flag == NE.
+  Label slow_path;
+
+  const Register mark = tmp1;
+  const Register top  = tmp2;
+
+  BLOCK_COMMENT("compiler_fast_lightweight_unlock {");
+  { // Lightweight Unlock
+    Label push_and_slow;
+
+    // Check if obj is top of lock-stack.
+    z_lgf(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+    z_aghi(top, -oopSize);
+    z_lgr(mark, top); // NOTE: mark will be used below for recursive check(make sure to update that, if you remove this load)
+    z_lg(top, Address(Z_thread, top));
+    compare64_and_branch(top, obj, bcondNotEqual, inflated_load_monitor);
+
+    // Pop lock-stack.
+#ifdef ASSERT
+    z_lgf(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+    z_aghi(top, -oopSize);
+    z_agr(top, Z_thread);
+    z_xc(0, oopSize-1, top, 0, top);  // wipe out lock-stack entry
+#endif
+    z_alsi(in_bytes(JavaThread::lock_stack_top_offset()), Z_thread, -oopSize);  // pop object
+
+    // The underflow check is elided. The recursive check will always fail
+    // when the lock stack is empty because of the _bad_oop_sentinel field.
+
+    // Check if recursive.
+    z_aghi(mark, -oopSize);
+    z_lg(mark, Address(Z_thread, mark));
+    compare64_and_branch(mark, obj, bcondEqual, unlocked);
+
+    // Not recursive
+
+    // Check for monitor (0b10).
+    z_lg(mark, Address(Z_thread, oopDesc::mark_offset_in_bytes()));
+    z_tmll(mark, markWord::monitor_value);
+    z_brnaz(inflated);
+
+#ifdef ASSERT
+    // Check header not unlocked (0b01).
+    NearLabel not_unlocked;
+    z_lgr(top, mark);
+    if (UseNewCode2) {
+      z_nill(top, markWord::monitor_value);
+      z_bre(not_unlocked);
+    } else {
+      z_tmll(top, markWord::unlocked_value);
+      //  TODO: could it be z_braz ??? Need to check
+      z_brz(not_unlocked);
+    }
+    stop("lightweight_unlock already unlocked");
+    bind(not_unlocked);
+#endif // ASSERT
+
+    // Try to unlock. Transition lock bits 0b00 => 0b01
+    {
+      Register unlocked_obj = top;
+      z_lgr(unlocked_obj, mark);
+      z_oill(unlocked_obj, markWord::unlocked_value);
+      z_csg(mark, unlocked_obj, oopDesc::mark_offset_in_bytes(), obj);
+      branch_optimized(Assembler::bcondEqual, unlocked);
+    }
+
+    bind(push_and_slow);
+
+    // Restore lock-stack and handle the unlock in runtime.
+    z_lgf(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+    DEBUG_ONLY(z_stg(obj, Address(Z_thread, top));)
+    // TODO: need to keep only one of these
+    if (UseNewCode) {
+      z_aghi(top, oopSize);
+      z_st(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+    } else {
+      z_alsi(in_bytes(JavaThread::lock_stack_top_offset()), Z_thread, oopSize);
+    }
+    // maybe CC is gone :( , need to set it back to NE
+    z_ltgr(obj, obj); // object shouldn't be null at this point
+    z_bru(slow);
+  }
+  BLOCK_COMMENT("} compiler_fast_lightweight_unlock");
+
+  { // Handle inflated monitor.
+
+    bind(inflated_load_monitor);
+
+    z_lg(mark, Address(obj, oopDesc::mark_offset_in_bytes()));
+
+#ifdef ASSERT
+    z_tmll(mark, markWord::monitor_value);
+    z_branz(inflated);
+    stop("Fast Unlock not monitor");
+#endif // ASSERT
+
+    bind(inflated);
+
+#ifdef ASSERT
+    NearLabel check_done;
+    // TODO: maybe below load is not required ?
+    z_lgf(top, Address(Z_thread, JavaThread::lock_stack_top_offset()));
+    z_aghi(top, -oopSize);
+    compareU32_and_branch(top, (unsigned)in_bytes(JavaThread::lock_stack_base_offset()),
+                          bcondLow, check_done);
+    z_lg(top, Address(Z_thread, top));
+    compare64_and_branch(top, obj, bcondNotEqual, inflated);
+    stop("Fast Unlock lock on stack");
+    bind(check_done);
+#endif // ASSERT
+
+    // mark contains the tagged ObjectMonitor*.
+    const Register monitor = mark;
+
+    NearLabel not_recursive;
+    const Register recursions = tmp2;
+
+    // Check if recursive.
+    load_and_test_long(recursions, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
+    z_bre(not_recursive); // if 0 then jump, it's not recursive locking
+
+    // Recursive unlock
+    z_agsi(Address(monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), -1ll);
+    z_cgr(monitor, monitor); // set the CC to EQUAL
+    z_bru(unlocked);
+
+    bind(not_recursive);
+
+    NearLabel release_;
+
+    // Check if the entry lists are empty.
+    load_and_test_long(tmp2, Address(monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
+    z_bre(release_); // if equal to 0, jump
+    load_and_test_long(tmp2, Address(monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
+    z_bre(release_); // if equal to 0, jump
+
+    // The owner may be anonymous, and we removed the last obj entry in
+    // the lock-stack. This loses the information about the owner.
+    // Write the thread to the owner field so the runtime knows the owner.
+    // TODO: was below store necessary ??
+    z_stg(Z_thread, Address(monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+    b(slow_path); // We reached here with CC=NE
+
+    bind(release_);
+    // Set owner to null.
+    z_release();
+    // tmp2 contains 0
+    z_stg(tmp2, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner), monitor);
+  }
+
+  bind(unlocked);
+
+#ifdef ASSERT
+  // Check that unlocked label is reached with flag == EQ.
+  NearLabel flag_correct;
+  z_bre(flag_correct);
+  stop("CC is not set to EQ, it should be");
+#endif // ASSERT
+
+  bind(slow_path);
+
+#ifdef ASSERT
+  // Check that slow_path label is reached with flag == NE.
+  z_brne(flag_correct);
+  stop("CC is not set to NE, it should be");
+  bind(flag_correct);
+#endif // ASSERT
+
+  // C2 uses the value of flag (NE vs EQ) to determine the continuation.
 }
