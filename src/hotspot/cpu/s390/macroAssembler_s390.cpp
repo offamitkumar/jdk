@@ -5746,7 +5746,7 @@ void MacroAssembler::lightweight_lock(Register obj, Register temp1, Register tem
 
   // Check header for monitor (0b10).
   z_tmll(obj, markWord::monitor_value);
-  z_brnaz(slow_case);
+  z_brnaz(slow);
 
   // Try to lock. Transition lock-bits 0b01 => 0b00
   z_oill(mark, markWord::unlocked_value);
@@ -5783,7 +5783,7 @@ void MacroAssembler::lightweight_lock(Register obj, Register temp1, Register tem
 void MacroAssembler::lightweight_unlock(Register obj, Register temp1, Register temp2, Label& slow) {
 
   assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
-  assert_different_registers(obj, hdr, tmp);
+  assert_different_registers(obj, temp1, temp2);
 
   Label unlocked, push_and_slow;
   const Register mark = temp1;
@@ -5880,7 +5880,7 @@ void MacroAssembler::lightweight_unlock(Register obj, Register temp1, Register t
   } else {
     z_alsi(in_bytes(JavaThread::lock_stack_top_offset()), Z_thread, oopSize);
   }
-  // CC is gone at point of let's set it to NE
+  // maybe CC is gone :( , need to set it back to NE
   z_ltgr(obj, obj); // object shouldn't be null at this point
   z_bru(slow);
 
