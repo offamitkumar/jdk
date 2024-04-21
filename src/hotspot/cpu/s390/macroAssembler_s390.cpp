@@ -5982,7 +5982,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
 
 #ifdef ASSERT
   // Check that locked label is reached with flag == EQ.
-  Label flag_correct;
+  NearLabel flag_correct;
   z_bre(flag_correct);
   stop("CC is not set to EQ, it should be");
 #endif // ASSERT
