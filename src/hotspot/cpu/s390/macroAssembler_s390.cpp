@@ -6089,7 +6089,7 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
     }
     // maybe CC is gone :( , need to set it back to NE
     z_ltgr(obj, obj); // object shouldn't be null at this point
-    z_bru(slow);
+    z_bru(slow_path);
   }
   BLOCK_COMMENT("} compiler_fast_lightweight_unlock");
 
@@ -6101,7 +6101,7 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
 
 #ifdef ASSERT
     z_tmll(mark, markWord::monitor_value);
-    z_branz(inflated);
+    z_brnaz(inflated);
     stop("Fast Unlock not monitor");
 #endif // ASSERT
 
@@ -6127,7 +6127,7 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
     const Register recursions = tmp2;
 
     // Check if recursive.
-    load_and_test_long(recursions, Address(currentHeader, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
+    load_and_test_long(recursions, Address(monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
     z_bre(not_recursive); // if 0 then jump, it's not recursive locking
 
     // Recursive unlock
@@ -6148,9 +6148,9 @@ void MacroAssembler::compiler_fast_unlock_lightweight_object(Register obj, Regis
     // The owner may be anonymous, and we removed the last obj entry in
     // the lock-stack. This loses the information about the owner.
     // Write the thread to the owner field so the runtime knows the owner.
-    // TODO: was below store necessary ??
+    // TODO: is below store necessary ??
     z_stg(Z_thread, Address(monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-    b(slow_path); // We reached here with CC=NE
+    z_bru(slow_path); // We reached here with CC=NE, no need to change the CC again
 
     bind(release_);
     // Set owner to null.
