@@ -5898,7 +5898,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
   Label slow_path;
 
   if (DiagnoseSyncOnValueBasedClasses != 0) {
-    load_klass(tmp1, oop);
+    load_klass(tmp1, obj);
     testbit(Address(tmp1, Klass::access_flags_offset()), exact_log2(JVM_ACC_IS_VALUE_BASED_CLASS));
     z_btrue(slow_path);
   }
