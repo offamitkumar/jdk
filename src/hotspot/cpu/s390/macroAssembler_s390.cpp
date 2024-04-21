@@ -5898,8 +5898,8 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
   Label slow_path;
 
   if (DiagnoseSyncOnValueBasedClasses != 0) {
-    load_klass(temp, oop);
-    testbit(Address(temp, Klass::access_flags_offset()), exact_log2(JVM_ACC_IS_VALUE_BASED_CLASS));
+    load_klass(tmp1, oop);
+    testbit(Address(tmp1, Klass::access_flags_offset()), exact_log2(JVM_ACC_IS_VALUE_BASED_CLASS));
     z_btrue(slow_path);
   }
 
@@ -5960,7 +5960,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
 
     // mark contains the tagged ObjectMonitor*.
     const Register tagged_monitor = mark;
-    const zero = tmp2;
+    const Register zero = tmp2;
 
     // Try to CAS m->owner from null to current thread.
     // If m->owner is null, then csg succeeds and sets m->owner=THREAD and CR=EQ.
@@ -5974,7 +5974,7 @@ void MacroAssembler::compiler_fast_lock_lightweight_object(Register obj, Registe
     z_brne(slow_path);
 
     // Recursive
-    z_agsi(Address(monitor_tagged, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), 1ll);
+    z_agsi(Address(tagged_monitor, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), 1ll);
     z_ltgr(zero, zero); // zero contains the owner, so it wouldn't be null
   }
 
