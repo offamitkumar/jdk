@@ -1299,6 +1299,74 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 VMRegPair *in_regs,
                                                 BasicType ret_type) {
   int total_in_args = method->size_of_parameters();
+
+  if (method->is_continuation_native_intrinsic()) {
+    int exception_offset = -1;
+    OopMapSet* oop_maps = new OopMapSet();
+    int frame_complete = -1;
+    int stack_slots = -1;
+    int interpreted_entry_offset = -1;
+    int vep_offset = -1;
+    if (method->is_continuation_enter_intrinsic()) {
+          gen_continuation_enter(masm,
+                                method, /* TODO: this isn't required by ppc, can we remove it as well ? */
+                                in_sig_bt,
+                                in_regs,
+                                exception_offset,
+                                oop_maps,
+                                frame_complete,
+                                stack_slots,
+                                interpreted_entry_offset,
+                                vep_offset);
+    } else if (method->is_continuation_yield_intrinsic()) {
+          gen_continuation_yield(masm,
+                                 method,
+                                 in_sig_bt,
+                                 in_regs,
+                                 oop_maps,
+                                 frame_complete,
+                                 stack_slots,
+                                vep_offset);
+    } else {
+      guarantee(false, "Unknown Continuation native intrinsic");
+    }
+
+#ifdef ASSERT
+    if (method->is_continuation_enter_intrinsic()) {
+      assert(interpreted_entry_offset != -1, "Must be set");
+      assert(exception_offset != -1,         "Must be set");
+    } else {
+      assert(interpreted_entry_offset == -1, "Must be unset");
+      assert(exception_offset == -1,         "Must be unset");
+    }
+    assert(frame_complete != -1,    "Must be set");
+    assert(stack_slots != -1,       "Must be set");
+    assert(vep_offset != -1,        "Must be set");
+#endif
+
+    __ flush();
+    nmethod* nm = nmethod::new_native_nmethod(method,
+                                              compile_id,
+                                              masm->code(),
+                                              vep_offset,
+                                              frame_complete,
+                                              stack_slots,
+                                              in_ByteSize(-1),
+                                              in_ByteSize(-1),
+                                              oop_maps,
+                                              exception_offset);
+    if (nm == nullptr) return nm;
+
+    if (method->is_continuation_enter_intrinsic()) {
+        ContinuationEntry::set_enter_code(nm, interpreted_entry_offset);
+    } else if (method->is_continuation_yield_intrinsic()) {
+        _cont_doYield_stub = nm;
+    } else {
+        guarantee(false, "Unknown Continuation native intrinsic");
+    }
+    return nm;
+  }
+
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t) __ pc();
