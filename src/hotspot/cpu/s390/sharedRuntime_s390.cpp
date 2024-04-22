@@ -900,6 +900,107 @@ static void verify_oop_args(MacroAssembler *masm,
   }
 }
 
+static void check_continuation_enter_argument(VMReg actual_vmreg,
+                                              Register expected_reg,
+                                              const char* name) {
+    assert(!actual_vmreg->is_stack(), "%s cannot be on stack", name);
+    assert(actual_vmreg->as_Register() == expected_reg,
+           "%s is in unexpected register: %s instead of %s",
+           name, actual_vmreg->as_Register()->name(), expected_reg->name());
+}
+
+// enterSpecial(Continuation c, boolean isContinue, boolean isVirtualThread)
+// On entry: Z_ARG1 -- the continuation object
+//           Z_ARG2 -- isContinue
+//           Z_ARG3 -- isVirtualThread
+static void gen_continuation_enter(MacroAssembler* masm,
+                                   const methodHandle& method,
+                                   const BasicType* sig_bt,
+                                   const VMRegPair* regs,
+                                   int& exception_offset,
+                                   OopMapSet*oop_maps,
+                                   int& frame_complete,
+                                   int& framesize_words,
+                                   int& interpreted_entry_offset,
+                                   int& compiled_entry_offset) {
+  int pos_cont_obj   = 0;
+  int pos_is_cont    = 1;
+  int pos_is_virtual = 2;
+
+  // The platform-specific calling convention may present the arguments in various registers.
+  // To simplify the rest of the code, we expect the arguments to reside at these known
+  // registers, and we additionally check the placement here in case calling convention ever
+  // changes.
+  Register reg_cont_obj   = R3_ARG1;
+  Register reg_is_cont    = R4_ARG2;
+  Register reg_is_virtual = R5_ARG3;
+
+  check_continuation_enter_argument(regs[pos_cont_obj].first(),   reg_cont_obj,   "Continuation object");
+  check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
+  check_continuation_enter_argument(regs[pos_is_virtual].first(), reg_is_virtual, "isVirtualThread");
+
+  Label L_thaw; // FIXME: check if it could be NearLabel
+
+  AddressLiteral resolve(SharedRuntime::get_resolve_static_call_stub(), relocInfo::static_call_type);
+
+  // i2i entry used at interp_only_mode only
+  {
+#ifdef ASSERT
+    NearLabel is_interp_only;
+    __ load_and_test(Z_R0_scratch, Address(Z_thread, JavaThread::interp_only_mode_offset()));
+    __ z_brne(is_interp_only); // if != 0, do a jump or you will crash ;)
+    __ stop("enterSpecial interpreter entry called when not in interp_only_mode");
+    __ bind(is_interp_only);
+#endif // ASSERT
+
+
+    // Read interpreter arguments into registers (this is an ad-hoc i2c adapter)
+    // TODO: need to make sure number is right here ? is it [0,1,2] or [1,2,3] ????
+    __ load_address(reg_cont_obj,   Address(Z_esp, Interpreter::stackElementSize*3));
+    __ load_address(reg_is_cont,    Address(Z_esp, Interpreter::stackElementSize*2));
+    __ load_address(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*1));
+
+    // TODO: push_cont_fastpath() is not implemented yet, uncomment below line once it's done.
+    // __ push_cont_fastpath();
+
+    OopMap* map = continuation_enter_setup(masm, framesize_words); // TODO: implement it.
+
+    // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
+    // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
+
+    fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
+    // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+    __ load_and_test(reg_is_cont, reg_is_cont);
+    __ z_brne(L_thaw);
+
+    // --- call Continuation.enter(Continuation c, boolean isContinue)
+
+    // Emit compiled static call. The call will always be resolved to the c2i
+    // entry of Continuation.enter(Continuation c, boolean isContinue).
+    // There are special cases in SharedRuntime::resolve_static_call_C() and
+    // SharedRuntime::resolve_sub_helper_internal() to achieve this
+    // See also corresponding call below.
+
+    // Make sure the call is patchable
+    assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
+           "must be aligned (offset=%d)", __ offset());
+    address stub = CompiledDirectCall::emit_to_interp_stub(masm, __ pc());
+    if (stub == nullptr) {
+      fatal("CodeCache is full at gen_continuation_enter");
+    }
+    __ relocate(relocInfo::static_call_type); // FIXME: is the order correct for relocation after emit_to_interp_stub ?
+    __ z_nop();
+    __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
+
+    oop_maps->add_gc_map(__ pc() - start, map);
+
+//    __ post_call_nop(); TODO: implement if required
+    __ z_bru(L_exit);
+
+  }
+}
+
 static void gen_special_dispatch(MacroAssembler *masm,
                                  int total_args_passed,
                                  vmIntrinsics::ID special_dispatch,
