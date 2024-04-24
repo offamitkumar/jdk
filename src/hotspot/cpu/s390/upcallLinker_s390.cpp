@@ -223,8 +223,12 @@ address UpcallLinker::make_upcall_stub(jobject receiver, Method* entry,
   __ load_const_optimized(Z_method, (intptr_t)entry);
   __ z_stg(Z_method, Address(Z_thread, in_bytes(JavaThread::callee_target_offset())));
 
+  __ push_cont_fastpath();
+
   __ z_lg(call_target_address, Address(Z_method, in_bytes(Method::from_compiled_offset())));
   __ call(call_target_address);
+
+  __ pop_cont_fastpath();
 
   // return value shuffle
   assert(!needs_return_buffer, "unexpected needs_return_buffer");

@@ -955,20 +955,20 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
 
     // Read interpreter arguments into registers (this is an ad-hoc i2c adapter)
-    // TODO: need to make sure number is right here ? is it [0,1,2] or [1,2,3] ????
     __ load_address(reg_cont_obj,   Address(Z_esp, Interpreter::stackElementSize*3));
     __ load_address(reg_is_cont,    Address(Z_esp, Interpreter::stackElementSize*2));
     __ load_address(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*1));
 
-    // TODO: push_cont_fastpath() is not implemented yet, uncomment below line once it's done.
-    // __ push_cont_fastpath();
+    __ push_cont_fastpath();
 
+
+    //========================================================================// check again
     OopMap* map = continuation_enter_setup(masm, framesize_words); // TODO: implement it.
 
     // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
     // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
 
-    fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+    fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual); // TODO: implement it.
 
     // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
     __ load_and_test(reg_is_cont, reg_is_cont);

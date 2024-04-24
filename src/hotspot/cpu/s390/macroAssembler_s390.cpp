@@ -5808,3 +5808,23 @@ void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp
   z_alsi(in_bytes(JavaThread::lock_stack_top_offset()), Z_thread, -oopSize);  // pop object
   z_cr(tmp, tmp); // set CC to EQ
 }
+
+// kills Z_R1
+void MacroAssembler::push_cont_fastpath() {
+  NearLabel done;
+  z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  compare64_and_branch(Z_SP, Z_R1_scratch, bcondLow, done);
+  z_stg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
+}
+
+// kills Z_R1
+void MacroAssembler::pop_cont_fastpath() {
+  NearLabel done;
+  z_lgf(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  compare64_and_branch(Z_SP, Z_R1_scratch, bcondLow, done);
+  // FIXME: maybe use Z_XC instruction here ?
+  z_lghi(Z_R1_scratch, 0);
+  z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
+}

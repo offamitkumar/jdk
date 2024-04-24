@@ -724,6 +724,8 @@ class MacroAssembler: public Assembler {
   // Kills registers tmp1_reg and tmp2_reg and preserves the condition code.
   void increment_counter_eq(address counter_address, Register tmp1_reg, Register tmp2_reg);
 
+  void push_cont_fastpath();
+  void pop_cont_fastpath();
   void compiler_fast_lock_object(Register oop, Register box, Register temp1, Register temp2);
   void compiler_fast_unlock_object(Register oop, Register box, Register temp1, Register temp2);
   void lightweight_lock(Register obj, Register hdr, Register tmp, Label& slow);
