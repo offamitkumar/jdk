@@ -993,10 +993,48 @@ static void gen_continuation_enter(MacroAssembler* masm,
     oop_maps->add_gc_map(__ pc() - start, map);
     __ post_call_nop();
 
-    __ jmp(L_exit);
+    __ branch_optimized(Assembler::bcondAlways, L_exit);
   }
 
   // compiled entry
+  __ align(CodeEntryAlignment);
+  compiled_entry_offset = __ pc() - start;
+
+  OopMap* map = continuation_enter_setup(masm, framesize_words);
+
+  // Frame is now completed as far as size and linkage.
+  frame_complete =__ pc() - start;
+
+  fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
+  // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+  __ load_and_test(reg_is_cont, reg_is_cont);
+  __ z_brnaz(L_thaw);
+
+  // --- call Continuation.enter(Continuation c, boolean isContinue)
+
+  // Emit compiled static call
+  // The call needs to be resolved. There's a special case for this in
+  // SharedRuntime::find_callee_info_helper() which calls
+  // LinkResolver::resolve_continuation_enter() which resolves the call to
+  // Continuation.enter(Continuation c, boolean isContinue).
+
+  // Make sure the call is patchable
+  assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
+         "must be aligned (offset=%d)", __ offset());
+
+  address stub = CompiledDirectCall::emit_to_interp_stub(masm, __ pc());
+  if (stub == nullptr) {
+    fatal("CodeCache is full at gen_continuation_enter");
+  }
+  __ relocate(relocInfo::static_call_type); // FIXME: is the order correct for relocation after emit_to_interp_stub ?
+  __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
+  oop_maps->add_gc_map(__ pc() - start, map);
+  __ post_call_nop();
+
+  __ branch_optimized(Assembler::bcondAlways, L_exit);
+
+  // --- Thawing path
   Unimplemented();
 }
 
