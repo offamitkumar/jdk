@@ -931,9 +931,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // To simplify the rest of the code, we expect the arguments to reside at these known
   // registers, and we additionally check the placement here in case calling convention ever
   // changes.
-  Register reg_cont_obj   = R3_ARG1;
-  Register reg_is_cont    = R4_ARG2;
-  Register reg_is_virtual = R5_ARG3;
+  Register reg_cont_obj   = Z_ARG1;
+  Register reg_is_cont    = Z_ARG2;
+  Register reg_is_virtual = Z_ARG3;
 
   check_continuation_enter_argument(regs[pos_cont_obj].first(),   reg_cont_obj,   "Continuation object");
   check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
@@ -959,13 +959,66 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ load_address(reg_is_cont,    Address(Z_esp, Interpreter::stackElementSize*2));
     __ load_address(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*1));
 
-    __ push_cont_fastpath();
+//    __ push_cont_fastpath(); // TODO: uncomment
 
     OopMap* map = continuation_enter_setup(masm, framesize_words);
 
+    // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
+    // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
+
+    fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
   }
 
   Unimplemented();
+}
+
+//---------------------------- fill_continuation_entry ---------------------------
+//
+// Initialize the new ContinuationEntry.
+//
+// Arguments:
+//   Z_SP: pointer to blank Continuation entry
+//   reg_cont_obj: pointer to the continuation
+//   reg_flags: flags
+//
+// Results:
+//   Z_SP: pointer to filled out ContinuationEntry
+//
+// Kills:
+//  Z_R1_scratch
+//
+static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj, Register reg_flags) {
+  assert_different_registers(reg_cont_obj, reg_flags);
+
+  Register temp1  = Z_R1_scratch;
+  Register zero   = Z_R1_scratch;
+  Register sp     = Z_SP;
+  Register thread = Z_thread;
+
+  DEBUG_ONLY(__ block_comment("fill_continuation_entry {"));
+
+#ifdef ASSERT
+  __ load_const_optimized(temp1, ContinuationEntry::cookie_value());
+  __ z_st(temp1, Address(Z_SP, ContinuationEntry::cookie_offset()));
+#endif // ASSERT
+
+  z_lghi(zero, 0);
+  __ z_stg(reg_cont_obj, Address(sp, ContinuationEntry::cont_offset()));
+  __ z_sty(reg_flags,    Address(sp, ContinuationEntry::flags_offset()));
+  __ z_stg(zero,         Address(sp, ContinuationEntry::chunk_offset()));
+  __ z_sty(zero,         Address(sp, ContinuationEntry::argsize_offset()));
+  __ z_sty(zero,         Address(sp, ContinuationEntry::pin_count_offset()));
+
+  __ z_lg(temp1,  Address(thread, JavaThread::cont_fastpath_offset()));
+  __ z_stg(temp1, Address(sp, ContinuationEntry::parent_cont_fastpath_offset()));
+  __ z_lg(temp1,  Address(thread, JavaThread::held_monitor_count_offset()));
+  __ z_stg(temp1, Address(sp, ContinuationEntry::parent_held_monitor_count_offset()));
+
+  __ z_lghi(zero, 0);
+  __ z_stg(zero, Address(thread, JavaThread::cont_fastpath_offset()));
+  __ z_stg(zero, Address(thread, JavaThread::held_monitor_count_offset()));
+
+  DEBUG_ONLY(__ block_comment("} fill_continuation_entry"));
 }
 
 //---------------------------- continuation_enter_setup ---------------------------
