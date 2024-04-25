@@ -1045,6 +1045,29 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ post_call_nop();
 
   // --- Normal exit (resolve/thawing)
+
+  __ bind(L_exit);
+  continuation_enter_cleanup(masm);
+
+
+  Unimplemented();
+}
+
+//---------------------------- continuation_enter_cleanup ---------------------------
+//
+// Copy corresponding attributes from the top ContinuationEntry to the JavaThread
+// before deleting it.
+//
+// Arguments:
+//   Z_SP: pointer to the ContinuationEntry
+//
+// Results:
+//   None.
+//
+// Kills:
+//
+//
+static void continuation_enter_cleanup(MacroAssembler* masm) {
   Unimplemented();
 }
 
