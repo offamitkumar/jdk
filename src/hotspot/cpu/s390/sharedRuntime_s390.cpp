@@ -961,7 +961,48 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
     __ push_cont_fastpath();
 
+    OopMap* map = continuation_enter_setup(masm, framesize_words);
+
   }
+
+  Unimplemented();
+}
+
+//---------------------------- continuation_enter_setup ---------------------------
+//
+// Frame setup.
+//
+// Arguments:
+//   None.
+//
+// Results:
+//   Z_SP: pointer to blank ContinuationEntry in the pushed frame.
+//
+// Kills:
+//   Z_R1_scratch
+//
+static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_words) {
+  assert(ContinuationEntry::size() % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::cont_offset())  % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::chunk_offset()) % VMRegImpl::stack_slot_size == 0, "");
+
+  const int frame_size_in_bytes = (int)ContinuationEntry::size();
+  assert(is_aligned(frame_size_in_bytes, frame::alignment_in_bytes), "alignment error");
+
+  framesize_words = frame_size_in_bytes / wordSize;
+
+  DEBUG_ONLY(__ block_comment("continuation_enter_setup {"));
+  // Save return pc and push entry frame
+  __ save_return_pc();
+  __ push_frame(frame_size_in_bytes);
+  OopMap* map = new OopMap((int)frame_size_in_bytes / VMRegImpl::stack_slot_size, 0 /* arg_slots*/);
+
+  z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
+  z_stg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  z_stg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
+
+  DEBUG_ONLY(__ block_comment("} continuation_enter_setup"));
+  return map;
 }
 
 static void gen_special_dispatch(MacroAssembler *masm,
