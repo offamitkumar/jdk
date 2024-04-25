@@ -1035,6 +1035,16 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ branch_optimized(Assembler::bcondAlways, L_exit);
 
   // --- Thawing path
+  __ bind(L_thaw);
+
+  __ load_const_optimized(Z_R1_scratch, StubRoutines::cont_thaw());
+  __ z_br(Z_R1_scratch);
+
+  oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
+  ContinuationEntry::_return_pc_offset = __ pc() - start;
+  __ post_call_nop();
+
+  // --- Normal exit (resolve/thawing)
   Unimplemented();
 }
 
