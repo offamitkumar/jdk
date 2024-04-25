@@ -967,8 +967,36 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
 
     fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
+    // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+    __ load_and_test(reg_is_cont, reg_is_cont);
+    __ z_brnaz(L_thaw);
+
+    // --- call Continuation.enter(Continuation c, boolean isContinue)
+
+    // Emit compiled static call. The call will be always resolved to the c2i
+    // entry of Continuation.enter(Continuation c, boolean isContinue).
+    // There are special cases in SharedRuntime::resolve_static_call_C() and
+    // SharedRuntime::resolve_sub_helper_internal() to achieve this
+    // See also corresponding call below.
+
+    // Make sure the call is patchable
+    assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
+           "must be aligned (offset=%d)", __ offset());
+
+    address stub = CompiledDirectCall::emit_to_interp_stub(masm, __ pc());
+    if (stub == nullptr) {
+      fatal("CodeCache is full at gen_continuation_enter");
+    }
+    __ relocate(relocInfo::static_call_type); // FIXME: is the order correct for relocation after emit_to_interp_stub ?
+    __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
+    oop_maps->add_gc_map(__ pc() - start, map);
+    __ post_call_nop();
+
+    __ jmp(L_exit);
   }
 
+  // compiled entry
   Unimplemented();
 }
 
