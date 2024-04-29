@@ -1068,7 +1068,75 @@ static void gen_continuation_enter(MacroAssembler* masm,
 //
 //
 static void continuation_enter_cleanup(MacroAssembler* masm) {
-  Unimplemented();
+
+  Register tmp1 = Z_R1_scratch;
+
+#ifdef ASSERT
+  __ block_comment("continuation_enter_cleanup {");
+  NearLabel ok;
+  __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ z_bre(ok);
+  __ stop(FILE_AND_LINE ": incorrect SP");
+  __ bind(ok);
+#endif // ASSERT
+
+  __ z_lgf(tmp1, Address(Z_SP, ContinuationEntry::flags_offset()));
+  __ z_stg(tmp1, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  if (CheckJNICalls) {
+    // check if this is a virtual thread continuation
+
+    Label L_skip_vthread_code;
+
+    __ load_and_test_long(tmp1, Address(Z_SP, ContinuationEntry::flags_offset());
+    __ z_bre(L_skip_vthread_code);
+
+    // If the held monitor count is > 0 and this vthread is terminating then
+    // it failed to release a JNI monitor. So we issue the same log message
+    // that JavaThread::exit does.
+    __ load_and_test_long(tmp1, Address(Z_thread, JavaThread::jni_monitor_count_offset()));
+    __ z_bre(L_skip_vthread_code);
+
+    // Save return value potentially containing the exception oop
+    __ push_frame(BytesPerWord + frame::z_abi_160_size);  // TODO: do we really need to push this frame ?
+    __ z_stg(Z_EXC_OOP, BytesPerWord + frame::z_abi_160_size, Z_SP);
+    __ z_lgr(Z_ARG2 /*Z_R3 */, Z_EXC_OOP /* Z_R2 */);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::log_jni_monitor_still_held));
+    // Restore potental return value
+    __ z_lg(Z_EXC_OOP, BytesPerWord + frame::z_abi_160_size, Z_SP);
+    __ pop_frame();
+
+    // For vthreads we have to explicitly zero the JNI monitor count of the carrier
+    // on termination. The held count is implicitly zeroed below when we restore from
+    // the parent held count (which has to be zero).
+    __ z_lghi(tmp1, 0);
+    __ z_stg(tmp1, Address(Z_thread, JavaThread::jni_monitor_count_offset()));
+
+    __ bind(L_skip_vthread_code);
+  }
+#ifdef ASSERT
+  else {
+    // Check if this is a virtual thread continuation
+    Label L_skip_vthread_code;
+    __ load_and_test_long(tmp1, Address(Z_SP, ContinuationEntry::flags_offset()));
+    __ z_bre(L_skip_vthread_code);
+
+    // See comment just above. If not checking JNI calls the JNI count is only
+    // needed for assertion checking.
+    __ z_lghi(tmp1, 0);
+    __ z_stg(tmp1, Address(Z_thread, JavaThread::jni_monitor_count_offset()));
+
+    __ bind(L_skip_vthread_code);
+  }
+#endif // ASSERT
+
+
+  __ z_lg(tmp1, Address(Z_SP, ContinuationEntry::parent_cont_fastpath_offset()));
+  __ z_stg(tmp1, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+
+  __ z_lg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
+  __ z_stg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
+
+  __ block_comment("} continuation_enter_cleanup");
 }
 
 //---------------------------- fill_continuation_entry ---------------------------
