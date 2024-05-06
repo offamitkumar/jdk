@@ -1049,8 +1049,52 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ bind(L_exit);
   continuation_enter_cleanup(masm);
 
+  // Pop frame and return
+  DEBUG_ONLY(__ z_lg(Z_R1_scratch, 0, Z_SP));
+  __ z_agfi(Z_SP, framesize_words*wordSize);
+  DEBUG_ONLY(__ z_cgr(Z_R1_scratch, Z_SP));
+#ifdef ASSERT
+  NearLabel ok;
+  z_bre(ok);
+  __ stop(FILE_AND_LINE " : inconsistent frame size");
+  bind(ok);
+#endif // ASSERT
+  __ pop_frame();
+  __ restore_return_pc();
+  __ z_br(Z_R14);
 
-  Unimplemented();
+  // Exception handling path
+  exception_offset = __ pc() - start;
+
+  continuation_enter_cleanup(masm);
+  Register ex_pc  = Z_EXC_PC;  /* Z_R3 */
+  Register ex_oop = Z_EXC_OOP; /* Z_R2 */
+  __ z_lgr(ex_pc , z_common_abi(callers_sp), Z_SP);
+  __ z_lgr(ex_pc , z_common_abi(return_pc), ex_pc);
+  __ save_return_pc();
+  __ push_frame_abi160(0);
+  // Find exception handler.
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address),
+                  Z_thread,
+                  Z_ARG2);
+//  // Copy handler's address.
+//  __ z_lgr(Z_R1, Z_RET);
+//  __ pop_frame();
+//  __ restore_return_pc();
+//  // Set up the arguments for the exception handler:
+//  // - Z_ARG1: exception oop
+//  // - Z_ARG2: exception pc
+//  // Load pending exception oop.
+//  __ z_lg(Z_ARG1, in_bytes(Thread::pending_exception_offset()), Z_thread);
+//
+//  // The exception pc is the return address in the caller,
+//  // must load it into Z_ARG2
+//  __ z_lgr(Z_ARG2, Z_R14);
+//  // Clear the pending exception.
+//  __ clear_mem(Address(Z_thread, in_bytes(Thread::pending_exception_offset())), sizeof(void *));
+//  // Jump to exception handler
+//  __ z_br(Z_R1 /*handler address*/);
+    Unimplemented();
 }
 
 //---------------------------- continuation_enter_cleanup ---------------------------
