@@ -1092,6 +1092,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ z_br(Z_R1_scratch); // Jump to exception handler.
   }
 
+  // static stub for the call above
+  stub = CompiledDirectCall::emit_to_interp_stub(masm, call_pc);
+  guarantee(stub != nullptr, "no space for static stub");
 }
 
 //---------------------------- continuation_enter_cleanup ---------------------------
