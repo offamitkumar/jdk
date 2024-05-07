@@ -1027,7 +1027,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   if (stub == nullptr) {
     fatal("CodeCache is full at gen_continuation_enter");
   }
-  __ relocate(relocInfo::static_call_type); // FIXME: is the order correct for relocation after emit_to_interp_stub ?
+  __ relocate(relocInfo::static_call_type);
   __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
   oop_maps->add_gc_map(__ pc() - start, map);
   __ post_call_nop();
@@ -1065,36 +1065,33 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
   // Exception handling path
   exception_offset = __ pc() - start;
+  { // amit_watchpoint here:
+    // Keep copies in callee-saved registers during runtime call.
+    const Register ex_oop = Z_R11;
+    const Register ex_pc  = Z_R12;
+    continuation_enter_cleanup(masm);
 
-  continuation_enter_cleanup(masm);
-  Register ex_pc  = Z_EXC_PC;  /* Z_R3 */
-  Register ex_oop = Z_EXC_OOP; /* Z_R2 */
-  __ z_lgr(ex_pc , z_common_abi(callers_sp), Z_SP);
-  __ z_lgr(ex_pc , z_common_abi(return_pc), ex_pc);
-  __ save_return_pc();
-  __ push_frame_abi160(0);
-  // Find exception handler.
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address),
-                  Z_thread,
-                  Z_ARG2);
-//  // Copy handler's address.
-//  __ z_lgr(Z_R1, Z_RET);
-//  __ pop_frame();
-//  __ restore_return_pc();
-//  // Set up the arguments for the exception handler:
-//  // - Z_ARG1: exception oop
-//  // - Z_ARG2: exception pc
-//  // Load pending exception oop.
-//  __ z_lg(Z_ARG1, in_bytes(Thread::pending_exception_offset()), Z_thread);
-//
-//  // The exception pc is the return address in the caller,
-//  // must load it into Z_ARG2
-//  __ z_lgr(Z_ARG2, Z_R14);
-//  // Clear the pending exception.
-//  __ clear_mem(Address(Z_thread, in_bytes(Thread::pending_exception_offset())), sizeof(void *));
-//  // Jump to exception handler
-//  __ z_br(Z_R1 /*handler address*/);
-    Unimplemented();
+    __ lgr_if_needed(ex_oop, Z_EXC_OOP);
+    __ z_lgr(ex_pc, z_common_abi(callers_sp), Z_SP);
+    __ z_lgr(ex_pc, z_common_abi(return_pc) , ex_pc);
+    __ push_frame_abi160(0); // Runtime code needs the z_abi_160.
+
+    // Search the exception handler address of the caller (using the return address).
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), Z_thread, ex_pc);
+    // Z_RET(Z_R2): exception handler address of the caller.
+
+    __ pop_frame();
+
+    // Move the result of call into correct register
+    __ lgr_if_needed(Z_R1_scratch, Z_RET);
+
+    // Restore exception oop and pc to Z_EXC_OOP and Z_EXC_PC (required convention of exception handler).
+    __ lgr_if_needed(Z_EXC_OOP, ex_oop);
+    __ lgr_if_needed(Z_EXC_PC, ex_pc);
+
+    __ z_br(Z_R1_scratch); // Jump to exception handler.
+  }
+
 }
 
 //---------------------------- continuation_enter_cleanup ---------------------------
