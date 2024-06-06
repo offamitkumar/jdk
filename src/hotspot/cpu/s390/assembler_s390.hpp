@@ -1632,17 +1632,17 @@ class Assembler : public AbstractAssembler {
   static int64_t rsmask_48( int64_t d2, Register b2)              { return uimm12(d2, 20, 48)                    | regz(b2, 16, 48); }
   static int64_t rsmask_SS( int64_t d2, Register b2)              { return uimm12(d2, 36, 48)                    | regz(b2, 32, 48); } // storage-storage instructions
   static int64_t rsymask_48(int64_t d2, Register b2)              { return simm20(d2)                            | regz(b2, 16, 48); }
-  static int64_t rxmask_32( int64_t d2, Register x2, Register b2) { return uimm12(d2, 20, 32) | regt(x2, 12, 32) | regz(b2, 16, 32); }
-  static int64_t rxmask_48( int64_t d2, Register x2, Register b2) { return uimm12(d2, 20, 48) | regt(x2, 12, 48) | regz(b2, 16, 48); }
-  static int64_t rxymask_48(int64_t d2, Register x2, Register b2) { return simm20(d2)         | regt(x2, 12, 48) | regz(b2, 16, 48); }
+  static int64_t rxmask_32( int64_t d2, Register x2, Register b2) { return uimm12(d2, 20, 32) | reg(x2, 12, 32) | regz(b2, 16, 32); }
+  static int64_t rxmask_48( int64_t d2, Register x2, Register b2) { return uimm12(d2, 20, 48) | reg(x2, 12, 48) | regz(b2, 16, 48); }
+  static int64_t rxymask_48(int64_t d2, Register x2, Register b2) { return simm20(d2)         | reg(x2, 12, 48) | regz(b2, 16, 48); }
 
   // For instructions which use address calculation to derive an input value to the instruction.
   // Shift instructions are an example of such use.
-  static int64_t rsmaskt_32( int64_t d2, Register b2)             { return uimm12(d2, 20, 32)                    | regt(b2, 16, 32); }
-  static int64_t rsmaskt_48( int64_t d2, Register b2)             { return uimm12(d2, 20, 48)                    | regt(b2, 16, 48); }
-  static int64_t rsymaskt_48(int64_t d2, Register b2)             { return simm20(d2)                            | regt(b2, 16, 48); }
-  static int64_t rxmaskt_32( int64_t d2, Register x2, Register b2){ return uimm12(d2, 20, 32) | regt(x2, 12, 32) | regt(b2, 16, 32); }
-  static int64_t rxymaskt_48(int64_t d2, Register x2, Register b2){ return simm20(d2)         | regt(x2, 12, 48) | regt(b2, 16, 48); }
+  static int64_t rsmaskt_32( int64_t d2, Register b2)             { return uimm12(d2, 20, 32)                    | reg(b2, 16, 32); }
+  static int64_t rsmaskt_48( int64_t d2, Register b2)             { return uimm12(d2, 20, 48)                    | reg(b2, 16, 48); }
+  static int64_t rsymaskt_48(int64_t d2, Register b2)             { return simm20(d2)                            | reg(b2, 16, 48); }
+  static int64_t rxmaskt_32( int64_t d2, Register x2, Register b2){ return uimm12(d2, 20, 32) | reg(x2, 12, 32) | reg(b2, 16, 32); }
+  static int64_t rxymaskt_48(int64_t d2, Register x2, Register b2){ return simm20(d2)         | reg(x2, 12, 48) | reg(b2, 16, 48); }
 
   // Address calculated from d12(vx,b) - vx is vector index register.
   static int64_t rvmask_48( int64_t d2, VectorRegister x2, Register b2) { return uimm12(d2, 20, 48) | vreg(x2, 12) | regz(b2, 16, 48); }
@@ -1742,7 +1742,6 @@ class Assembler : public AbstractAssembler {
 
   static long reg(int r, int s, int len)       { return u_field(r, (len-s)-1, (len-s)-4); }
   static long reg( Register r, int s, int len) { return reg(r->encoding(), s, len); }
-  static long regt(Register r, int s, int len) { return reg(r, s, len); }
   static long regz(Register r, int s, int len) { assert(r != Z_R0, "cannot use register R0 in memory access"); return reg(r, s, len); }
 
   static long uimm4( int64_t ui4,  int s, int len) { return uimm(ui4,   4) << (len-s-4);  }
