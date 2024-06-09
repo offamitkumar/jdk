@@ -2886,6 +2886,10 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
   //     }
   //   }
   //
+
+  bind(nl_loop_search_resolved_entry);
+  bind(nl_resolved_found);
+  bind(nl_holder_found);
   stop("let me implement it first!!!!");
 
   BLOCK_COMMENT("} lookup_interface_method_stub");
