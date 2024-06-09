@@ -2788,6 +2788,8 @@ void MacroAssembler::tlab_allocate(Register obj,
   }
 }
 
+long fubar = 0;
+
 // Look up the method for a megamorphic invokeinterface call in a single pass over itable:
 // - check r_recv_klass (actual object class) is a subtype of r_resolved_klass from CompiledICHolder
 // - find an r_holder_klass (class that implements the method) vtable offset and get the method from vtable by index
@@ -2821,6 +2823,9 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
   NearLabel nl_loop_search_resolved_entry, nl_resolved_found, nl_holder_found;
 
   BLOCK_COMMENT("lookup_interface_method_stub {");
+  load_const_optimized(r_scan_temp, (uintptr_t)&fubar);
+  z_agsi(0, r_scan_temp, 1);
+
   // r_scan_temp = r_recv_klass -> _vtable_len;
   z_llgf(r_scan_temp, Address(r_recv_klass, Klass::vtable_length_offset()));
 
@@ -2916,6 +2921,8 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
   bind(nl_holder_found);
 
   z_lg(r_method_result, Address(r_scan_temp, ooffset - ioffset));
+
+  add2reg(r_recv_klass, itable_index * wordSize + in_bytes(itableMethodEntry::method_offset()));
 
   z_lg(r_method_result, Address(r_recv_klass, r_method_result));
   BLOCK_COMMENT("} lookup_interface_method_stub");
