@@ -2846,7 +2846,7 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
   z_bre(nl_holder_found);
 
   //   - if (holder_klass != resolved_klass), go to "scan for resolved"
-  z_cgr(r_holder_klass, r_resolved_klass)
+  z_cgr(r_holder_klass, r_resolved_klass);
   z_brne(nl_loop_search_resolved_entry);
 
   // Loop: Look for holder_klass record in itable
