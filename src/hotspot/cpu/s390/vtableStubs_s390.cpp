@@ -185,26 +185,28 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   assert(VtableStub::receiver_location() == Z_R2->as_VMReg(), "receiver expected in Z_ARG1");
 
   // Entry arguments:
-  //  Z_method: Interface
+  //  Z_method: CompiledICData
   //  Z_ARG1:   Receiver
-  NearLabel no_such_interface;
-  const Register rcvr_klass = Z_tmp_1,
-                 interface  = Z_tmp_2;
+  NearLabel nl_no_such_interface;
+  const Register r_recv_klass     = Z_tmp_1,
+                 r_holder_klass   = Z_tmp_2, // declaring interface klass (DEFC)
+                 r_resolved_klass = Z_tmp_3, // resolved interface klass (REFC)
+                 r_temp           = Z_R1_scratch,
+                 r_temp2          = Z_tmp_4, // FIXME: do we really need this ?
+                 r_icdata         = Z_method;
+
+
 
   // Get receiver klass.
   // Must do an explicit check if offset too large or implicit checks are disabled.
   address npe_addr = __ pc(); // npe is short for null pointer exception
-  __ load_klass(rcvr_klass, Z_ARG1);
+  __ load_klass(r_recv_klass, Z_ARG1);
 
-  // Receiver subtype check against REFC.
-  __ z_lg(interface, Address(Z_method, CompiledICData::itable_refc_klass_offset()));
-  __ lookup_interface_method(rcvr_klass, interface, noreg,
-                             noreg, Z_R1, no_such_interface, /*return_method=*/ false);
+  __ z_lg(r_holder_klass, Address(Z_method, CompiledICData::itable_defc_klass_offset()));
+  __ z_lg(r_resolved_klass, Address(Z_method, CompiledICData::itable_refc_klass_offset()));
 
-  // Get Method* and entrypoint for compiler
-  __ z_lg(interface, Address(Z_method, CompiledICData::itable_defc_klass_offset()));
-  __ lookup_interface_method(rcvr_klass, interface, itable_index,
-                             Z_method, Z_R1, no_such_interface, /*return_method=*/ true);
+  __ lookup_interface_method_stub(r_recv_klass, r_holder_klass, r_resolved_klass, Z_method,
+                                  r_temp, r_temp2, itable_index, nl_no_such_interface);
 
 #ifndef PRODUCT
   if (DebugVtables) {
