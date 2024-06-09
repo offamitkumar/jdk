@@ -2874,24 +2874,50 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
 
   // Loop: Look for resolved_class record in itable
   //   while (true) {
-  //     temp_itbl_klass = *(scan_temp += itable_offset_entry_size);
-  //     if (temp_itbl_klass == 0) {
+  //     r_temp_itbl_klass = *(r_scan_temp);
+  //     r_scan_temp += itable_offset_entry_size
+  //     if (r_temp_itbl_klass == 0) {
   //       goto L_no_such_interface;
   //     }
-  //     if (temp_itbl_klass == resolved_klass) {
+  //     if (r_temp_itbl_klass == r_resolved_klass) {
   //        goto L_resolved_found;  // Found!
   //     }
-  //     if (temp_itbl_klass == holder_klass) {
+  //     if (r_temp_itbl_klass == r_holder_klass) {
   //        holder_offset = scan_temp;
   //     }
   //   }
   //
 
   bind(nl_loop_search_resolved_entry);
-  bind(nl_resolved_found);
-  bind(nl_holder_found);
-  stop("let me implement it first!!!!");
 
+  NearLabel nl_loop_search_resolved;
+  bind(nl_loop_search_resolved);
+  z_lg(r_temp_itbl_klass, Address(r_scan_temp));
+  add2reg(r_scan_temp, itable_offset_entry_size);
+
+  z_ltgr(r_temp_itbl_klass, r_temp_itbl_klass);
+  branch_optimized(bcondEqual, nl_no_such_interface);
+
+  z_cgr(r_temp_itbl_klass, r_resolved_klass);
+  z_bre(nl_resolved_found);
+
+  z_cgr(r_temp_itbl_klass, r_holder_klass);
+  z_brne(nl_loop_search_resolved);
+  z_lgr(r_holder_offset, r_scan_temp);
+  z_bru(nl_loop_search_resolved);
+
+  // See if we already have a holder klass. If not, go and scan for it.
+  bind(nl_resolved_found);
+  z_ltgr(r_holder_offset, r_holder_offset);
+  z_bre(nl_search);
+  z_lgr(r_scan_temp, r_holder_offset);
+
+  // Finally, scan_temp contains holder_klass vtable offset
+  bind(nl_holder_found);
+
+  z_lg(r_method_result, Address(r_scan_temp, ooffset - ioffset));
+
+  z_lg(r_method_result, Address(r_recv_klass, r_method_result));
   BLOCK_COMMENT("} lookup_interface_method_stub");
 }
 
