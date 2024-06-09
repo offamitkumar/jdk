@@ -2788,6 +2788,24 @@ void MacroAssembler::tlab_allocate(Register obj,
   }
 }
 
+// Look up the method for a megamorphic invokeinterface call in a single pass over itable:
+// - check r_recv_klass (actual object class) is a subtype of r_resolved_klass from CompiledICHolder
+// - find an r_holder_klass (class that implements the method) vtable offset and get the method from vtable by index
+// The target method is determined by <r_holder_klass, itable_index>.
+// The receiver klass is in r_recv_klass.
+// On success, the result will be in r_method_result, and execution falls through.
+// On failure, execution transfers to the given label.
+void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
+                                                  Register r_holder_klass,
+                                                  Register r_resolved_klass,
+                                                  Register r_method_result,
+                                                  Register r_temp,
+                                                  Register r_temp2,
+                                                  int      itable_index,
+                                                  Label&   nl_no_such_interface) {
+  stop("let me implement it first!!!!")
+}
+
 // Emitter for interface method lookup.
 //   input: recv_klass, intf_klass, itable_index
 //   output: method_result
