@@ -210,18 +210,15 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 
 #ifndef PRODUCT
   if (DebugVtables) {
-    NearLabel ok1;
     __ z_ltgr(Z_method, Z_method);
-    __ z_brne(ok1);
-    __ stop("method is null", 103);
-    __ bind(ok1);
+    __ asm_assert(bcondNotEqual, "method is null", 103); // Z_method should be NE to 0
   }
 #endif
 
   address ame_addr = __ pc();
   // Must do an explicit check if implicit checks are disabled.
   if (!ImplicitNullChecks) {
-    __ compare64_and_branch(Z_method, (intptr_t) 0, Assembler::bcondEqual, no_such_interface);
+    __ compare64_and_branch(Z_method, (intptr_t) 0, Assembler::bcondEqual, nl_no_such_interface);
   }
   __ z_lg(Z_R1_scratch, in_bytes(Method::from_compiled_offset()), Z_method);
   __ z_br(Z_R1_scratch);
