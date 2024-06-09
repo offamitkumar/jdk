@@ -227,7 +227,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   __ z_br(Z_R1_scratch);
 
   // Handle IncompatibleClassChangeError in itable stubs.
-  __ bind(no_such_interface);
+  __ bind(nl_no_such_interface);
   // more detailed IncompatibleClassChangeError
   // we force re-resolving of the call site by jumping to
   // the "handle wrong method" stub, thus letting the

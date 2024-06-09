@@ -2800,9 +2800,11 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
                                                   Register r_resolved_klass,
                                                   Register r_method_result,
                                                   Register r_temp,
-                                                  Register r_temp2,
+                                                  Register r_temp2, // FIXME: are you seeing thing ?
                                                   int      itable_index,
                                                   Label&   nl_no_such_interface) {
+  // 'method_result' is only used as output register at the very end of this method.
+  // Until then, we can reuse it as 'r_holder_offset'.
   stop("let me implement it first!!!!");
 }
 
