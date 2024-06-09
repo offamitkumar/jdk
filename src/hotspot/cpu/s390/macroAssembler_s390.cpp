@@ -2803,7 +2803,7 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
                                                   Register r_temp2,
                                                   int      itable_index,
                                                   Label&   nl_no_such_interface) {
-  stop("let me implement it first!!!!")
+  stop("let me implement it first!!!!");
 }
 
 // Emitter for interface method lookup.
