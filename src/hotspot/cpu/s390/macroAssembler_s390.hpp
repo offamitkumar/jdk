@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -668,6 +668,15 @@ class MacroAssembler: public Assembler {
                                Register           temp1_reg,
                                Label&             no_such_interface,
                                bool               return_method = true);
+
+  void lookup_interface_method_stub(Register r_recv_klass,
+                                    Register r_holder_klass,
+                                    Register r_resolved_klass,
+                                    Register r_method_result,
+                                    Register r_temp,
+                                    Register r_temp2,
+                                    int      itable_index,
+                                    Label&   nl_no_such_interface);
 
   // virtual method calling
   void lookup_virtual_method(Register             recv_klass,
