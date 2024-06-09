@@ -2808,11 +2808,87 @@ void MacroAssembler::lookup_interface_method_stub(Register r_recv_klass,
 
   // 'method_result' is only used as output register at the very end of this method.
   // Until then, we can reuse it as 'r_holder_offset'.
-  Register r_holder_offset   = r_method_result,
-           r_temp_itbl_klass = r_temp,
-           r_scan_temp       = r_temp2;
+  Register r_holder_offset     = r_method_result,
+           r_scan_temp         = r_temp,
+           r_temp_itbl_klass   = r_temp2,
+           r_itable_entry_addr = Z_R1_scratch;
 
+  const int vtable_start_offset = in_bytes(Klass::vtable_start_offset()),
+       itable_offset_entry_size = itableOffsetEntry::size() * wordSize,
+       ioffset                  = in_bytes(itableOffsetEntry::interface_offset()),
+       ooffset                  = in_bytes(itableOffsetEntry::offset_offset());
+
+  NearLabel nl_loop_search_resolved_entry, nl_resolved_found, nl_holder_found;
+
+  BLOCK_COMMENT("lookup_interface_method_stub {");
+  // r_scan_temp = r_recv_klass -> _vtable_len;
+  z_llgf(r_scan_temp, Address(r_recv_klass, Klass::vtable_length_offset()));
+
+  // r_scan_temp = r_scan_temp * sizeof(vtableEntry)
+  z_sllg(r_scan_temp, r_scan_temp, exact_log2(vtableEntry::size_in_bytes()));
+
+  // itableOffsetEntry[] r_itable_entry_addr = r_recv_klass + vtable_start_offset + ioffset + r_scan_temp;
+  add2reg_with_index(r_itable_entry_addr,
+                     vtable_start_offset + ioffset,
+                     r_recv_klass, r_scan_temp);
+
+  // r_scan_temp = &(r_itable_entry_addr[0]._interface)
+  z_lgr(r_scan_temp, r_itable_entry_addr);
+
+  // r_temp_itbl_klass = r_itable_entry_addr[0]._interface;
+  // Initial checks:
+  //   - if (itable[0]._interface == 0), no such interface
+  load_and_test_long(r_temp_itbl_klass, Address(r_itable_entry_addr));
+  branch_optimized(bcondEqual, nl_no_such_interface);
+
+  //   - if (itable[0]._interface == holder_klass), shortcut to "holder found"
+  z_cgr(r_temp_itbl_klass, r_holder_klass);
+  z_bre(nl_holder_found);
+
+  //   - if (holder_klass != resolved_klass), go to "scan for resolved"
+  z_cgr(r_holder_klass, r_resolved_klass)
+  z_brne(nl_loop_search_resolved_entry);
+
+  // Loop: Look for holder_klass record in itable
+  //   do {
+  //     r_temp_itbl_klass = *(r_scan_temp);
+  //     if (r_temp_itbl_klass == r_holder_klass) {
+  //       goto nl_holder_found; // Found!
+  //     }
+  //     scan_temp += itable_offset_entry_size
+  //   } while (r_temp_itbl_klass != 0);
+  //   goto nl_no_such_interface // Not found.
+  NearLabel nl_search;
+
+  bind(nl_search);
+  z_lg(r_temp_itbl_klass, Address(r_scan_temp));
+
+  z_cgr(r_temp_itbl_klass, r_holder_klass);
+  z_bre(nl_holder_found);
+
+  add2reg(r_scan_temp, itable_offset_entry_size);
+  z_ltgr(r_temp_itbl_klass, r_temp_itbl_klass);
+  z_brne(nl_search);
+
+  branch_optimized(bcondAlways, nl_no_such_interface); // not found
+
+  // Loop: Look for resolved_class record in itable
+  //   while (true) {
+  //     temp_itbl_klass = *(scan_temp += itable_offset_entry_size);
+  //     if (temp_itbl_klass == 0) {
+  //       goto L_no_such_interface;
+  //     }
+  //     if (temp_itbl_klass == resolved_klass) {
+  //        goto L_resolved_found;  // Found!
+  //     }
+  //     if (temp_itbl_klass == holder_klass) {
+  //        holder_offset = scan_temp;
+  //     }
+  //   }
+  //
   stop("let me implement it first!!!!");
+
+  BLOCK_COMMENT("} lookup_interface_method_stub");
 }
 
 // Emitter for interface method lookup.
