@@ -211,7 +211,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 #ifndef PRODUCT
   if (DebugVtables) {
     __ z_ltgr(Z_method, Z_method);
-    __ asm_assert(bcondNotEqual, "method is null", 103); // Z_method should be NE to 0
+    __ asm_assert(Assembler::bcondNotEqual, "method is null", 103); // Z_method should be NE to 0
   }
 #endif
 
