@@ -1,0 +1,128 @@
+//
+// Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+// Copyright 2024 IBM Corporation. All rights reserved.
+// DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+//
+// This code is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 only, as
+// published by the Free Software Foundation.
+//
+// This code is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// version 2 for more details (a copy is included in the LICENSE file that
+// accompanied this code).
+//
+// You should have received a copy of the GNU General Public License version
+// 2 along with this work; if not, write to the Free Software Foundation,
+// Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+//
+// Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+// or visit www.oracle.com if you need additional information or have any
+// questions.
+//
+
+source_hpp %{
+
+#include "gc/g1/c2/g1BarrierSetC2.hpp"
+#include "gc/shared/gc_globals.hpp"
+
+%}
+
+source %{
+
+#include "gc/g1/g1BarrierSetAssembler_s390.hpp"
+#include "gc/g1/g1BarrierSetRuntime.hpp"
+
+static void g1_pre_write_barrier(MacroAssembler* masm,
+                                 const MachNode* node,
+                                 Register obj,
+                                 Register pre_val,
+                                 Register tmp,
+                                 RegSet preserve = RegSet(),
+                                 RegSet no_preserve = RegSet()) {
+  if (!G1PreBarrierStubC2::needs_barrier(node)) {
+    return;
+  }
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  G1BarrierSetAssembler* g1_asm = static_cast<G1BarrierSetAssembler*>(BarrierSet::barrier_set()->barrier_set_assembler());
+  G1PreBarrierStubC2* const stub = G1PreBarrierStubC2::create(node);
+  for (RegSetIterator<Register> reg = preserve.begin(); *reg != noreg; ++reg) {
+    stub->preserve(*reg);
+  }
+  for (RegSetIterator<Register> reg = no_preserve.begin(); *reg != noreg; ++reg) {
+    stub->dont_preserve(*reg);
+  }
+  g1_asm->g1_write_barrier_pre_c2(masm, obj, pre_val, Z_thread, tmp, stub);
+}
+
+static void g1_post_write_barrier(MacroAssembler* masm,
+                                  const MachNode* node,
+                                  Register store_addr,
+                                  Register new_val,
+                                  Register tmp1,
+                                  Register tmp2) {
+  if (!G1PostBarrierStubC2::needs_barrier(node)) {
+    return;
+  }
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  G1BarrierSetAssembler* g1_asm = static_cast<G1BarrierSetAssembler*>(BarrierSet::barrier_set()->barrier_set_assembler());
+  G1PostBarrierStubC2* const stub = G1PostBarrierStubC2::create(node);
+  g1_asm->g1_write_barrier_post_c2(masm, store_addr, new_val, Z_thread, tmp1, tmp2, stub);
+}
+
+%} // source
+
+encode %{
+  enc_class z_form_rt_mem_opt(iRegI dst, memory mem) %{
+    int isize = $secondary > 1L << 32 ? 48 : 32;
+    Register Ridx = $mem$$index$$Register;
+    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+
+    if (Displacement::is_shortDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($dst$$reg, 8, isize) |
+          Assembler::uimm12($mem$$disp, 20, isize) |
+          Assembler::reg(Ridx, 12, isize) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $primary |
+          Assembler::reg($dst$$reg, 8, 48) |
+          Assembler::simm20($mem$$disp) |
+          Assembler::reg(Ridx, 12, 48) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
+    } else {
+      __ load_const_optimized(Z_R1_scratch, $mem$$disp);
+      if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($dst$$reg, 8, isize) |
+          Assembler::uimm12(0, 20, isize) |
+          Assembler::reg(Z_R1_scratch, 12, isize) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    }
+    %}
+%} // encode
+
+// store pointer
+instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3) %{
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  match(Set dst (StoreP dst src));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
+  ins_cost(MEMORY_REF_COST);
+  format %{ "STG     $src,$dst\t # ptr" %}
+  opcode(STG_ZOPC, STG_ZOPC);
+  ins_encode %{
+    g1_pre_write_barrier(masm, this,
+                          $tmp1$$Register /* obj */,
+                          $tmp2$$Register /* pre_val */,
+                          $tmp3$$Register /* tmp */,
+                          RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+    z_form_rt_mem_opt(src, dst);
+    g1_post_write_barrier(masm, this,
+                           $tmp1$$Register /* store_addr */,
+                           $src$$Register /* new_val */,
+                           $tmp3$$Register /* tmp1 */,
+                           $tmp2$$Register /* tmp2 */);
+  %}
+  ins_pipe(pipe_class_dummy);
+%}

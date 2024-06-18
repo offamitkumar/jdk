@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, 2023 SAP SE. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,10 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "gc/g1/c1/g1BarrierSetC1.hpp"
-#endif
+#endif // COMPILER1
+#ifdef COMPILER2
+#include "gc/g1/c2/g1BarrierSetC2.hpp"
+#endif // COMPILER2
 
 #define __ masm->
 
@@ -99,6 +102,48 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
     __ z_br(Z_R1); // Branch without linking, callee will return to stub caller.
   }
 }
+
+#if defined(COMPILER2)
+
+#undef __
+#define __ masm->
+
+void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
+                                                    Register obj,
+                                                    Register pre_val,
+                                                    Register thread,
+                                                    Register tmp1,
+                                                    G1PreBarrierStubC2* stub) {
+  assert(thread == Z_thread, "must be");
+  assert_different_registers(obj, pre_val, tmp1);
+  assert(pre_val != noreg && tmp1 != noreg, "expecting a register");
+
+  // FIXME: Below code could be moved to a function, for now it's fine :-)
+  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
+  // Is marking active?
+  // Note: value is loaded for test purposes only. No further use here.
+  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+    __ load_and_test_int(tmp1, Address(Z_thread, active_offset));
+  } else {
+    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+    __ load_and_test_byte(tmp1, Address(Z_thread, active_offset));
+  }
+  __ branch_optimized(Assembler::bcondEqual, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
+
+  __ bind(*stub->continuation());
+}
+
+void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
+                                                         G1PreBarrierStubC2* stub) const {
+  __ stop("generate_c2_pre_barrier_stub, not yet implemented");
+}
+
+void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
+                                                          G1PostBarrierStubC2* stub) const {
+  __ stop("generate_c2_post_barrier_stub, not yet implemented");
+}
+
+#endif //COMPILER2
 
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                     const Address& src, Register dst, Register tmp1, Register tmp2, Label *L_handle_null) {
