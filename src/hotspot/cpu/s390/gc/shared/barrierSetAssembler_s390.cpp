@@ -33,6 +33,9 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
+#ifdef COMPILER2
+#include "gc/shared/c2/barrierSetC2.hpp"
+#endif // COMPILER2
 
 #define __ masm->
 
@@ -150,8 +153,43 @@ void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm) {
 
 #ifdef COMPILER2
 
-OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Name opto_reg) {
-  Unimplemented(); // This must be implemented to support late barrier expansion.
+OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Name opto_reg) const {
+  if (!OptoReg::is_reg(opto_reg)) {
+    return OptoReg::Bad;
+  }
+
+  VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+  if ((vm_reg->is_Register() || vm_reg ->is_FloatRegister()) && (opto_reg & 1) != 0) {
+    return OptoReg::Bad;
+  }
+
+  return opto_reg;
+}
+
+#undef __
+#define __ _masm->
+
+SaveLiveRegisters::SaveLiveRegisters(MacroAssembler *masm, BarrierStubC2 *stub)
+  : _masm(masm), _reg_mask(stub->preserve_set()) {
+
+  const int register_save_size = iterate_over_register_mask(ACTION_COUNT_ONLY) * BytesPerWord;
+
+  _frame_size = align_up(register_save_size, frame::alignment_in_bytes) + frame::z_abi_160_size; // FIXME: this could be restricted to argument only
+
+  __ save_return_pc();
+  __ push_frame(_frame_size, Z_R14); // FIXME: check if Z_R1_scaratch can do a job here;
+
+  __ z_lg(Z_R14, _z_common_abi(return_pc) + _frame_size, Z_SP);
+
+  iterate_over_register_mask(ACTION_SAVE, _frame_size);
+}
+
+SaveLiveRegisters::~SaveLiveRegisters() {
+  iterate_over_register_mask(ACTION_RESTORE, _frame_size);
+
+  __ pop_frame();
+
+  __ restore_return_pc();
 }
 
 #endif // COMPILER2
