@@ -3907,6 +3907,7 @@ instruct loadP(iRegP dst, memory mem) %{
 // LoadP + CastP2L
 instruct castP2X_loadP(iRegL dst, memory mem) %{
   match(Set dst (CastP2X (LoadP mem)));
+  predicate(n->as_Load()->barrier_data() == 0);
   ins_cost(MEMORY_REF_COST);
   size(Z_DISP3_SIZE);
   format %{ "LG      $dst,$mem\t # ptr + p2x" %}
