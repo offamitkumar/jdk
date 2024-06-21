@@ -192,4 +192,13 @@ SaveLiveRegisters::~SaveLiveRegisters() {
   __ restore_return_pc();
 }
 
+int SaveLiveRegisters::iterate_over_register_mask(IterationAction action, int offset) {
+  int reg_save_index = 0;
+  RegMaskIterator live_regs_iterator(_reg_mask);
+
+  _masm->z_illtrap(03); // don't
+
+  return -1;
+}
+
 #endif // COMPILER2
