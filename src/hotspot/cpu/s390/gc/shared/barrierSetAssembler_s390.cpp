@@ -196,9 +196,50 @@ int SaveLiveRegisters::iterate_over_register_mask(IterationAction action, int of
   int reg_save_index = 0;
   RegMaskIterator live_regs_iterator(_reg_mask);
 
-  _masm->z_illtrap(03); // don't
+  while(live_regs_iterator.has_next()) {
+    const OptoReg::Name opto_reg = live_regs_iterator.next();
 
-  return -1;
+    // Filter out stack slots (spilled registers, i.e., stack-allocated registers).
+    if (!OptoReg::is_reg(opto_reg)) {
+      continue;
+    }
+
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      Register std_reg = vm_reg->as_Register();
+
+      if (std_reg->encoding() >= Z_R2->encoding() && std_reg->encoding() <= Z_R15->encoding()) {
+        reg_save_index++;
+
+        if (action == ACTION_SAVE) {
+          _masm->z_stg(std_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+        } else if (action == ACTION_RESTORE) {
+          _masm->z_lg(std_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+        } else {
+          assert(action == ACTION_COUNT_ONLY, "Sanity");
+        }
+      }
+    } else if (vm_reg->is_FloatRegister()) {
+      FloatRegister fp_reg = vm_reg->as_FloatRegister();
+      if (fp_reg->encoding() >= Z_F0->encoding() && fp_reg->encoding() <= Z_F15->encoding()
+          && fp_reg->encoding() != Z_F1->encoding()) {
+        reg_save_index++;
+
+        if (action == ACTION_SAVE) {
+          _masm->z_std(fp_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+        } else if (action == ACTION_RESTORE) {
+          _masm->z_ld(fp_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+        } else {
+          assert(action == ACTION_COUNT_ONLY, "Sanity");
+        }
+      }
+    } else if (false /* vm_reg->is_VectorRegister() */){
+      fatal("Vector register support is not there yet!");
+    } else {
+      fatal("Register type is not known");
+    }
+  }
+  return reg_save_index;
 }
 
 #endif // COMPILER2
