@@ -105,6 +105,32 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 #undef __
 #define __ masm->
 
+void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
+                                                    Register obj,
+                                                    Register pre_val,
+                                                    Register thread,
+                                                    Register tmp1,
+                                                    Register tmp2,
+                                                    G1PreBarrierStubC2* stub) {
+  assert(thread == Z_thread, "must be");
+  assert_different_registers(obj, pre_val, tmp1, tmp2);
+  assert(pre_val != noreg && tmp1 != noreg && tmp2 != noreg, "expecting a register");
+
+  // FIXME: Below code could be moved to a function, for now it's fine :-)
+  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
+  // Is marking active?
+  // Note: value is loaded for test purposes only. No further use here.
+  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+    __ load_and_test_int(tmp1, Address(Z_thread, active_offset));
+  } else {
+    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+    __ load_and_test_byte(tmp1, Address(Z_thread, active_offset));
+  }
+  __ branch_optimized(bcondEqual, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
+
+  __ bind(*stub->continuation());
+}
+
 void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
                                                          G1PreBarrierStubC2* stub) const {
   __ stop("generate_c2_pre_barrier_stub, not yet implemented");
