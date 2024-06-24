@@ -151,14 +151,25 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgP(memoryRSY mem, iRegP newval, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr)
-%{
+instruct g1XChgP(memoryRSY mem, iRegP newval, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set newval (GetAndSetP mem newval));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   format %{ "xchgq    $newval, $mem" %}
   ins_encode %{
     __ stop("g1xChgP not yet implemented yet");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+instruct g1XChgN(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr) %{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
+  match(Set newval (GetAndSetN mem newval));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  format %{ "xchgq    $newval, $mem" %}
+  ins_encode %{
+    assert_different_registers($mem$$Register, $newval$$Register);
+    __ stop("g1XChgN is not yet implemented");
   %}
   ins_pipe(pipe_class_dummy);
 %}
