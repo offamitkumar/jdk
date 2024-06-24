@@ -129,7 +129,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
     guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
     __ load_and_test_byte(tmp1, Address(Z_thread, active_offset));
   }
-  __ branch_optimized(bcondEqual, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
+  __ branch_optimized(Assembler::bcondEqual, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
 
   __ bind(*stub->continuation());
 }
