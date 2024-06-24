@@ -5442,7 +5442,6 @@ instruct xchgN_reg_mem(memoryRSY mem, iRegN dst, iRegI tmp, flagsReg cr) %{
 %}
 
 instruct xchgP_reg_mem(memoryRSY mem, iRegP dst, iRegL tmp, flagsReg cr) %{
-  predicate(n->as_LoadStore()->barrier_data() == 0);
   match(Set dst (GetAndSetP mem dst));
   predicate(n->as_LoadStore()->barrier_data() == 0);
   effect(KILL cr, TEMP tmp); // USE_DEF dst by match rule.

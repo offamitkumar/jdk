@@ -109,7 +109,7 @@ instruct storeN(memory mem, iRegN_P2N src) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-//FIXME: update this match rule
+//FIXME: update this match rule, Not required on s390x
 instruct g1EncodePAndStoreN(memory mem, iRegN_P2N src) %{
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
@@ -119,3 +119,22 @@ instruct g1EncodePAndStoreN(memory mem, iRegN_P2N src) %{
   ins_pipe(pipe_class_dummy);
 %}
 
+/*
+ * g1CompareAndExchangeP not required on s390 as of now
+ */
+
+/*
+ * g1CompareAndExchangeN(CompareAndExchangeN) not required
+ */
+
+instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, flagsReg cr) %{
+  match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
+  predicate(n->as_LoadStore()->barrier_data() == 0);
+  effect(USE mem_ptr, USE_KILL oldval, KILL cr);
+  format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
+  ins_encode %{
+    __ stop("compareAndSwapP not yet working");
+    
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
