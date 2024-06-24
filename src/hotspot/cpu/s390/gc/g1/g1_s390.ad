@@ -108,3 +108,14 @@ instruct storeN(memory mem, iRegN_P2N src) %{
   %}
   ins_pipe(pipe_class_dummy);
 %}
+
+//FIXME: update this match rule
+instruct g1EncodePAndStoreN(memory mem, iRegN_P2N src) %{
+  match(Set mem (StoreN mem (EncodeP src)));
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  ins_encode %{
+  __ stop("StoreN+EncodeP is not finished");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
