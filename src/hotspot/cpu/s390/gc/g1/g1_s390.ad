@@ -72,3 +72,27 @@ static void g1_post_write_barrier(MacroAssembler* masm,
 }
 
 %}
+
+// store pointer
+instruct g1StoreP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  match(Set dst (StoreP dst src));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  format %{ "STG     $src,$dst\t # ptr" %}
+  opcode(STG_ZOPC, STG_ZOPC);
+  ins_encode %{
+    // FIXME: materialization required ?
+    g1_pre_write_barrier(masm, this,
+                         $tmp1$$Register /* obj */,
+                         $tmp2$$Register /* pre_val */,
+                         $tmp3$$Register /* tmp */,
+                         RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+    z_form_rt_mem_opt(src, dst);
+    g1_post_write_barrier(masm, this,
+                          $tmp1$$Register /* store_addr */,
+                          $src$$Register /* new_val */,
+                          $tmp3$$Register /* tmp1 */,
+                          $tmp2$$Register /* tmp2 */);
+  %}
+%}
