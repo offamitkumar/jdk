@@ -212,9 +212,9 @@ int SaveLiveRegisters::iterate_over_register_mask(IterationAction action, int of
         reg_save_index++;
 
         if (action == ACTION_SAVE) {
-          _masm->z_stg(std_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+          __ z_stg(std_reg, offset - reg_save_index * BytesPerWord, Z_SP);
         } else if (action == ACTION_RESTORE) {
-          _masm->z_lg(std_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+          __ z_lg(std_reg, offset - reg_save_index * BytesPerWord, Z_SP);
         } else {
           assert(action == ACTION_COUNT_ONLY, "Sanity");
         }
@@ -226,9 +226,9 @@ int SaveLiveRegisters::iterate_over_register_mask(IterationAction action, int of
         reg_save_index++;
 
         if (action == ACTION_SAVE) {
-          _masm->z_std(fp_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+          __ z_std(fp_reg, offset - reg_save_index * BytesPerWord, Z_SP);
         } else if (action == ACTION_RESTORE) {
-          _masm->z_ld(fp_reg, offset - reg_save_index * BytesPerWord, Z_SP);
+          __ z_ld(fp_reg, offset - reg_save_index * BytesPerWord, Z_SP);
         } else {
           assert(action == ACTION_COUNT_ONLY, "Sanity");
         }
