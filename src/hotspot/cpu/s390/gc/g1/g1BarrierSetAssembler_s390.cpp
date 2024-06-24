@@ -42,7 +42,10 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "gc/g1/c1/g1BarrierSetC1.hpp"
-#endif
+#endif // COMPILER1
+#ifdef COMPILER2
+#include "gc/g1/c2/g1BarrierSetC2.hpp"
+#endif // COMPILER2
 
 #define __ masm->
 
