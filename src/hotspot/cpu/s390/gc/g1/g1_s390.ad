@@ -95,4 +95,16 @@ instruct g1StoreP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
                           $tmp3$$Register /* tmp1 */,
                           $tmp2$$Register /* tmp2 */);
   %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+//FIXME: update this match rule
+// Store Compressed Pointer
+instruct storeN(memory mem, iRegN_P2N src) %{
+  match(Set mem (StoreN mem src));
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  ins_encode %{
+    __ stop("StoreN is not finished");
+  %}
+  ins_pipe(pipe_class_dummy);
 %}
