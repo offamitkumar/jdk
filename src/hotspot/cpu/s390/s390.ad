@@ -5767,7 +5767,7 @@ instruct addL_mem_imm(memoryRSY mem, immL8 src, flagsReg cr) %{
 // Ptr Addition
 instruct addP_reg_reg_LA(iRegP dst, iRegP_N2P src1, iRegL src2) %{
   match(Set dst (AddP src1 src2));
-  predicate( PreferLAoverADD && n->as_Load()->barrier_data() == 0);
+  predicate( PreferLAoverADD);
   ins_cost(DEFAULT_COST);
   size(4);
   format %{ "LA      $dst,#0($src1,$src2)\t # ptr 0(x,b)" %}
@@ -5808,7 +5808,7 @@ instruct addP_reg_reg_RISC(iRegP dst, iRegP_N2P src1, iRegL src2, flagsReg cr) %
 
 instruct addP_reg_imm12(iRegP dst, iRegP_N2P src, uimmL12 con) %{
   match(Set dst (AddP src con));
-  predicate( PreferLAoverADD && n->as_Load()->barrier_data() == 0);
+  predicate( PreferLAoverADD);
   ins_cost(DEFAULT_COST_LOW);
   size(4);
   format %{ "LA      $dst,$con(,$src)\t # ptr d12(,b)" %}
@@ -5845,7 +5845,7 @@ instruct addP_reg_imm16_RISC(iRegP dst, iRegP_N2P src, immL16 con, flagsReg cr) 
 
 instruct addP_reg_imm20(iRegP dst, memoryRegP src, immL20 con) %{
   match(Set dst (AddP src con));
-  predicate(PreferLAoverADD && n->as_Load()->barrier_data() == 0);
+  predicate(PreferLAoverADD);
   ins_cost(DEFAULT_COST);
   size(6);
   format %{ "LAY     $dst,$con(,$src)\t # ptr d20(,b)" %}
@@ -5870,7 +5870,7 @@ instruct addP_reg_imm32(iRegP dst, immL32 src, flagsReg cr) %{
 
 instruct addP_reg_reg_imm12(iRegP dst, memoryRegP src1, iRegL src2, uimmL12 con) %{
   match(Set dst (AddP (AddP src1 src2) con));
-  predicate( PreferLAoverADD && n->as_Load()->barrier_data() == 0);
+  predicate( PreferLAoverADD);
   ins_cost(DEFAULT_COST_LOW);
   size(4);
   format %{ "LA      $dst,$con($src1,$src2)\t # ptr d12(x,b)" %}
@@ -5881,8 +5881,7 @@ instruct addP_reg_reg_imm12(iRegP dst, memoryRegP src1, iRegL src2, uimmL12 con)
 
 instruct addP_regN_reg_imm12(iRegP dst, iRegP_N2P src1, iRegL src2, uimmL12 con) %{
   match(Set dst (AddP (AddP src1 src2) con));
-  predicate( PreferLAoverADD && CompressedOops::base() == nullptr && CompressedOops::shift() == 0 &&
-              n->as_Load()->barrier_data() == 0);
+  predicate( PreferLAoverADD && CompressedOops::base() == nullptr && CompressedOops::shift() == 0);
   ins_cost(DEFAULT_COST_LOW);
   size(4);
   format %{ "LA      $dst,$con($src1,$src2)\t # ptr d12(x,b)" %}
@@ -5893,7 +5892,7 @@ instruct addP_regN_reg_imm12(iRegP dst, iRegP_N2P src1, iRegL src2, uimmL12 con)
 
 instruct addP_reg_reg_imm20(iRegP dst, memoryRegP src1, iRegL src2, immL20 con) %{
   match(Set dst (AddP (AddP src1 src2) con));
-  predicate(PreferLAoverADD && n->as_Load()->barrier_data() == 0);
+  predicate(PreferLAoverADD);
   ins_cost(DEFAULT_COST);
   // TODO: s390 port size(FIXED_SIZE);
   format %{ "LAY     $dst,$con($src1,$src2)\t # ptr d20(x,b)" %}
@@ -5904,8 +5903,7 @@ instruct addP_reg_reg_imm20(iRegP dst, memoryRegP src1, iRegL src2, immL20 con) 
 
 instruct addP_regN_reg_imm20(iRegP dst, iRegP_N2P src1, iRegL src2, immL20 con) %{
   match(Set dst (AddP (AddP src1 src2) con));
-  predicate( PreferLAoverADD && CompressedOops::base() == nullptr && CompressedOops::shift() == 0 &&
-            n->as_Load()->barrier_data() == 0);
+  predicate( PreferLAoverADD && CompressedOops::base() == nullptr && CompressedOops::shift() == 0);
   ins_cost(DEFAULT_COST);
   // TODO: s390 port size(FIXED_SIZE);
   format %{ "LAY     $dst,$con($src1,$src2)\t # ptr d20(x,b)" %}
