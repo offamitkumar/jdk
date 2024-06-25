@@ -100,9 +100,12 @@ instruct g1StoreP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
 
 //FIXME: update this match rule
 // Store Compressed Pointer
-instruct storeN(memory mem, iRegN_P2N src) %{
+instruct storeN(memory mem, iRegN_P2N src, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
   match(Set mem (StoreN mem src));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  ins_cost(MEMORY_REF_COST);
+  size(Z_DISP_SIZE);
   ins_encode %{
     __ stop("StoreN is not finished");
   %}
@@ -174,7 +177,7 @@ instruct g1XChgN(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rRegP tmp3,
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgN(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+instruct g1XChgN(indirect mem, iRegP newval, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
 %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set newval (GetAndSetN mem newval));
