@@ -234,3 +234,14 @@ instruct G1castP2X_loadP(iRegL dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, memory mem)
   };
   ins_pipe(pipe_class_dummy);
 %}
+
+instruct g1EncodePAndStoreN(memory mem, iRegP src, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr)
+%{
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  match(Set mem (StoreN mem (EncodeP src)));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  ins_encode %{
+    __ stop("g1Encode is not supported yet");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
