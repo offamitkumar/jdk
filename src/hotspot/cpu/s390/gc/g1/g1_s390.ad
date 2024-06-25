@@ -190,3 +190,47 @@ instruct g1LoadN(iRegN dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
   %}
   ins_pipe(pipe_class_dummy);
 %}
+
+
+instruct G1addP_mem_imm(memoryRSY mem, immL8 src, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
+  match(Set mem (StoreP mem (AddP (LoadP mem) src)));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  predicate(VM_Version::has_MemWithImmALUOps() && UseG1GC && n->as_Load()->barrier_data() == 0);
+  ins_cost(MEMORY_REF_COST);
+  // TODO: size(6);
+  format %{ "AGSI    $mem,$src\t # direct mem add 8 (ptr)" %}
+  opcode(AGSI_ZOPC);
+  ins_encode %{
+    __ stop("g1addp_mem_imm is not yet implemented");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+// Move Immediate to 8-byte memory.
+instruct G1memInitP(memoryRS mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, immP16 src) %{
+  match(Set mem (StoreP mem src));
+  predicate(UseG1GC && n->as_Store()->barrier_data() == 0);
+  ins_cost(MEMORY_REF_COST);
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
+  // TODO: size(6);
+  format %{ "MVGHI   $mem,$src\t # direct mem init 8" %}
+  opcode(MVGHI_ZOPC);
+  ins_encode %{
+    __ stop("g1memInitP not yet implemented");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+// LoadP + CastP2L
+instruct G1castP2X_loadP(iRegL dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, memory mem) %{
+  match(Set dst (CastP2X (LoadP mem)));
+  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  ins_cost(MEMORY_REF_COST);
+  // TODO: size(Z_DISP3_SIZE);
+  format %{ "LG      $dst,$mem\t # ptr + p2x" %}
+  opcode(LG_ZOPC, LG_ZOPC);
+  ins_encode{
+    __ stop("G1castP2X_loadP not yet implemented");
+  };
+  ins_pipe(pipe_class_dummy);
+%}
