@@ -117,7 +117,7 @@ instruct storeN(memory mem, iRegN_P2N src, iRegP tmp1, iRegP tmp2, iRegP tmp3, f
 
 instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP tmp1, iRegP tmp2, iRegP tmp3, iRegP_N2P newval, iRegI res, flagsReg cr) %{
   match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   effect(USE mem_ptr, TEMP tmp1, TEMP tmp3, USE_KILL oldval, KILL cr);
   // TODO: size(18);
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
@@ -129,7 +129,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP tmp1, iRegP tm
 
 instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegP tmp1, iRegP tmp2, iRegP tmp3, iRegN_P2N newval, iRegI res, flagsReg cr) %{
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   effect(USE mem_ptr, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
   // TODO: size(16);
   format %{ "$res = CompareAndSwapN $oldval,$newval,$mem_ptr" %}
@@ -141,7 +141,7 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegP tmp1, iRegP tm
 
 instruct g1XChgP(memoryRSY mem, iRegP dst, iRegL tmp, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
   match(Set dst (GetAndSetP mem dst));
-  predicate(USEG1GC && n->as_LoadStore()->barrier_data() == 0);
+  predicate(USEG1GC && n->as_LoadStore()->barrier_data() != 0);
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
   format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
@@ -151,7 +151,7 @@ instruct g1XChgP(memoryRSY mem, iRegP dst, iRegL tmp, iRegP tmp1, iRegP tmp2, iR
 %}
 
 instruct g1XChgN(memoryRSY mem, iRegN dst, iRegI tmp, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetN mem dst));
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
   format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
@@ -164,7 +164,7 @@ instruct g1XChgN(memoryRSY mem, iRegN dst, iRegI tmp, iRegP tmp1, iRegP tmp2, iR
 // Load Pointer
 instruct g1LoadP(iRegP dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
   match(Set dst (LoadP mem));
-  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   ins_cost(MEMORY_REF_COST);
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
   // TODO: size(Z_DISP3_SIZE);
@@ -179,7 +179,7 @@ instruct g1LoadP(iRegP dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
 // Load narrow oop
 instruct g1LoadN(iRegN dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
   match(Set dst (LoadN mem));
-  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
   ins_cost(MEMORY_REF_COST);
   // TODO: size(Z_DISP3_SIZE);
@@ -195,7 +195,7 @@ instruct g1LoadN(iRegN dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
 instruct G1addP_mem_imm(memoryRSY mem, immL8 src, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
   match(Set mem (StoreP mem (AddP (LoadP mem) src)));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-  predicate(VM_Version::has_MemWithImmALUOps() && UseG1GC && n->as_Load()->barrier_data() == 0);
+  predicate(VM_Version::has_MemWithImmALUOps() && UseG1GC && n->as_Load()->barrier_data() != 0);
   ins_cost(MEMORY_REF_COST);
   // TODO: size(6);
   format %{ "AGSI    $mem,$src\t # direct mem add 8 (ptr)" %}
@@ -209,7 +209,7 @@ instruct G1addP_mem_imm(memoryRSY mem, immL8 src, iRegP tmp1, iRegP tmp2, iRegP 
 // Move Immediate to 8-byte memory.
 instruct G1memInitP(memoryRS mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, immP16 src) %{
   match(Set mem (StoreP mem src));
-  predicate(UseG1GC && n->as_Store()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   ins_cost(MEMORY_REF_COST);
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
   // TODO: size(6);
@@ -224,7 +224,7 @@ instruct G1memInitP(memoryRS mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, immP16 src
 // LoadP + CastP2L
 instruct G1castP2X_loadP(iRegL dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, memory mem) %{
   match(Set dst (CastP2X (LoadP mem)));
-  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   ins_cost(MEMORY_REF_COST);
   // TODO: size(Z_DISP3_SIZE);
   format %{ "LG      $dst,$mem\t # ptr + p2x" %}
