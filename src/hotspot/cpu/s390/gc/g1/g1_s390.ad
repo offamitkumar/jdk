@@ -82,18 +82,19 @@ instruct g1StoreP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
   format %{ "STG     $src,$dst\t # ptr" %}
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
+    __ stop(" g1StoreP not yet implemented");
     // FIXME: materialization required ?
-    g1_pre_write_barrier(masm, this,
-                         $tmp1$$Register /* obj */,
-                         $tmp2$$Register /* pre_val */,
-                         $tmp3$$Register /* tmp */,
-                         RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
-    z_form_rt_mem_opt(src, dst);
-    g1_post_write_barrier(masm, this,
-                          $tmp1$$Register /* store_addr */,
-                          $src$$Register /* new_val */,
-                          $tmp3$$Register /* tmp1 */,
-                          $tmp2$$Register /* tmp2 */);
+//    g1_pre_write_barrier(masm, this,
+//                         $tmp1$$Register /* obj */,
+//                         $tmp2$$Register /* pre_val */,
+//                         $tmp3$$Register /* tmp */,
+//                         RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+//    z_form_rt_mem_opt(src, dst);
+//    g1_post_write_barrier(masm, this,
+//                          $tmp1$$Register /* store_addr */,
+//                          $src$$Register /* new_val */,
+//                          $tmp3$$Register /* tmp1 */,
+//                          $tmp2$$Register /* tmp2 */);
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -106,135 +107,86 @@ instruct storeN(memory mem, iRegN_P2N src, iRegP tmp1, iRegP tmp2, iRegP tmp3, f
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   ins_cost(MEMORY_REF_COST);
   size(Z_DISP_SIZE);
+  format %{ "ST      $src,$mem\t # (cOop)" %}
+  opcode(STY_ZOPC, ST_ZOPC);
   ins_encode %{
     __ stop("StoreN is not finished");
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
-//FIXME: update this match rule, Not required on s390x
-instruct g1EncodePAndStoreN(memory mem, iRegN_P2N src) %{
-  match(Set mem (StoreN mem (EncodeP src)));
-  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
-  ins_encode %{
-  __ stop("StoreN+EncodeP is not finished");
-  %}
-  ins_pipe(pipe_class_dummy);
-%}
-
-/*
- * g1CompareAndExchangeP not required on s390 as of now
- */
-
-/*
- * g1CompareAndExchangeN(CompareAndExchangeN) not required
- */
-
-instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, flagsReg cr) %{
+instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP tmp1, iRegP tmp2, iRegP tmp3, iRegP_N2P newval, iRegI res, flagsReg cr) %{
   match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
-  effect(USE mem_ptr, USE_KILL oldval, KILL cr);
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() == 0);
+  effect(USE mem_ptr, TEMP tmp1, TEMP tmp3, USE_KILL oldval, KILL cr);
+  // TODO: size(18);
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
-  ins_encode %{
-    __ stop("compareAndSwapP not yet working");
-    
+  ins_encode %
+    __ stop("g1CompareAndSwapP not yet implemented")
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, flagsReg cr) %{
+instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegP tmp1, iRegP tmp2, iRegP tmp3, iRegN_P2N newval, iRegI res, flagsReg cr) %{
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
-  effect(USE mem_ptr, USE_KILL oldval, KILL cr);
-  size(16);
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() == 0);
+  effect(USE mem_ptr, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
+  // TODO: size(16);
   format %{ "$res = CompareAndSwapN $oldval,$newval,$mem_ptr" %}
   ins_encode %{
-    __ stop("compareAndSwapN_bool not yet implemented")
+    __ stop("g1CompareAndSwapN not yes implemented")
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgP(memoryRSY mem, iRegP newval, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
-  match(Set newval (GetAndSetP mem newval));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-  format %{ "xchgq    $newval, $mem" %}
+instruct g1XChgP(memoryRSY mem, iRegP dst, iRegL tmp, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
+  match(Set dst (GetAndSetP mem dst));
+  predicate(USEG1GC && n->as_LoadStore()->barrier_data() == 0);
+  effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
+  format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
-    __ stop("g1xChgP not yet implemented yet");
+    __ stop("g1XChgP not yet implemented")
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgN(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr) %{
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
-  match(Set newval (GetAndSetN mem newval));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-  format %{ "xchgq    $newval, $mem" %}
-  ins_encode %{
-    assert_different_registers($mem$$Register, $newval$$Register);
-    __ stop("g1XChgN is not yet implemented");
+instruct g1XChgN(memoryRSY mem, iRegN dst, iRegI tmp, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() == 0);
+  match(Set dst (GetAndSetN mem dst));
+  effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
+  format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
+  ins_encode%{
+    __ stop("g1XChgN not yet implemented");
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgN(indirect mem, iRegP newval, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
-%{
-  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
-  match(Set newval (GetAndSetN mem newval));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-  format %{ "xchgq    $newval, $mem" %}
-  ins_encode %{
-    assert_different_registers($mem$$Register, $newval$$Register);
-    g1_pre_write_barrier(masm, this,
-                         $mem$$Register /* obj */,
-                         $tmp2$$Register /* pre_val */,
-                         $tmp3$$Register /* tmp */,
-                         RegSet::of($mem$$Register, $newval$$Register) /* preserve */);
-    __ movl($tmp1$$Register, $newval$$Register);
-    __ decode_heap_oop($tmp1$$Register);
-    __ xchgl($newval$$Register, Address($mem$$Register, 0));
-    g1_post_write_barrier(masm, this,
-                          $mem$$Register /* store_addr */,
-                          $tmp1$$Register /* new_val */,
-                          $tmp2$$Register /* tmp1 */,
-                          $tmp3$$Register /* tmp2 */);
-  %}
-  ins_pipe(pipe_cmpxchg);
-%}
-
-instruct g1LoadP(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
-%{
-  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
+// Load Pointer
+instruct g1LoadP(iRegP dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
   match(Set dst (LoadP mem));
-  effect(TEMP dst, TEMP tmp, KILL cr);
-  ins_cost(125); // XXX
-  format %{ "movq    $dst, $mem\t# ptr" %}
+  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  ins_cost(MEMORY_REF_COST);
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
+  // TODO: size(Z_DISP3_SIZE);
+  format %{ "LG      $dst,$mem\t # ptr" %}
+  opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
-    __ movq($dst$$Register, $mem$$Address);
-    g1_pre_write_barrier(masm, this,
-                         noreg /* obj */,
-                         $dst$$Register /* pre_val */,
-                         $tmp$$Register /* tmp */);
+    __ stop("g1LoadP not yet implemented");
   %}
-  ins_pipe(ialu_reg_mem); // XXX
+  ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1LoadN(rRegN dst, memory mem, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
-%{
-  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
+// Load narrow oop
+instruct g1LoadN(iRegN dst, iRegP tmp1, iRegP tmp2, iRegP tmp3, memory mem) %{
   match(Set dst (LoadN mem));
-  effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
-  ins_cost(125); // XXX
-  format %{ "movl    $dst, $mem\t# compressed ptr" %}
+  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3);
+  ins_cost(MEMORY_REF_COST);
+  // TODO: size(Z_DISP3_SIZE);
+  format %{ "LoadN   $dst,$mem\t # (cOop)" %}
+  opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
-    __ movl($dst$$Register, $mem$$Address);
-    __ movl($tmp1$$Register, $dst$$Register);
-    __ decode_heap_oop($tmp1$$Register);
-    g1_pre_write_barrier(masm, this,
-                         noreg /* obj */,
-                         $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp */);
+    __ stop("g1LoadN not yet implemented")
   %}
-  ins_pipe(ialu_reg_mem); // XXX
+  ins_pipe(pipe_class_dummy);
 %}
-
