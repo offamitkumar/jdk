@@ -173,3 +173,65 @@ instruct g1XChgN(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rRegP tmp3,
   %}
   ins_pipe(pipe_class_dummy);
 %}
+
+instruct g1XChgN(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+%{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
+  match(Set newval (GetAndSetN mem newval));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  format %{ "xchgq    $newval, $mem" %}
+  ins_encode %{
+    assert_different_registers($mem$$Register, $newval$$Register);
+    g1_pre_write_barrier(masm, this,
+                         $mem$$Register /* obj */,
+                         $tmp2$$Register /* pre_val */,
+                         $tmp3$$Register /* tmp */,
+                         RegSet::of($mem$$Register, $newval$$Register) /* preserve */);
+    __ movl($tmp1$$Register, $newval$$Register);
+    __ decode_heap_oop($tmp1$$Register);
+    __ xchgl($newval$$Register, Address($mem$$Register, 0));
+    g1_post_write_barrier(masm, this,
+                          $mem$$Register /* store_addr */,
+                          $tmp1$$Register /* new_val */,
+                          $tmp2$$Register /* tmp1 */,
+                          $tmp3$$Register /* tmp2 */);
+  %}
+  ins_pipe(pipe_cmpxchg);
+%}
+
+instruct g1LoadP(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
+%{
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
+  match(Set dst (LoadP mem));
+  effect(TEMP dst, TEMP tmp, KILL cr);
+  ins_cost(125); // XXX
+  format %{ "movq    $dst, $mem\t# ptr" %}
+  ins_encode %{
+    __ movq($dst$$Register, $mem$$Address);
+    g1_pre_write_barrier(masm, this,
+                         noreg /* obj */,
+                         $dst$$Register /* pre_val */,
+                         $tmp$$Register /* tmp */);
+  %}
+  ins_pipe(ialu_reg_mem); // XXX
+%}
+
+instruct g1LoadN(rRegN dst, memory mem, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+%{
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
+  match(Set dst (LoadN mem));
+  effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
+  ins_cost(125); // XXX
+  format %{ "movl    $dst, $mem\t# compressed ptr" %}
+  ins_encode %{
+    __ movl($dst$$Register, $mem$$Address);
+    __ movl($tmp1$$Register, $dst$$Register);
+    __ decode_heap_oop($tmp1$$Register);
+    g1_pre_write_barrier(masm, this,
+                         noreg /* obj */,
+                         $tmp1$$Register /* pre_val */,
+                         $tmp2$$Register /* tmp */);
+  %}
+  ins_pipe(ialu_reg_mem); // XXX
+%}
+
