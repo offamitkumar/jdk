@@ -4722,7 +4722,7 @@ instruct encodeP_NN_Ex(iRegN dst, iRegP src, flagsReg cr) %{
 // Store Compressed Pointer
 instruct storeN(memory mem, iRegN_P2N src) %{
   match(Set mem (StoreN mem src));
-  // predicate(n->as_Store()->barrier_data() == 0);
+  predicate(n->as_Store()->barrier_data() == 0);
   ins_cost(MEMORY_REF_COST);
   size(Z_DISP_SIZE);
   format %{ "ST      $src,$mem\t # (cOop)" %}
