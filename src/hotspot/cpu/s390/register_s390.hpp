@@ -448,4 +448,6 @@ constexpr Register      Z_R0_scratch = Z_R0;
 constexpr Register      Z_R1_scratch = Z_R1;
 constexpr FloatRegister Z_fscratch_1 = Z_F1;
 
+typedef AbstractRegSet<Register> RegSet;
+
 #endif // CPU_S390_REGISTER_S390_HPP
