@@ -113,11 +113,10 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register pre_val,
                                                     Register thread,
                                                     Register tmp1,
-                                                    Register tmp2,
                                                     G1PreBarrierStubC2* stub) {
   assert(thread == Z_thread, "must be");
-  assert_different_registers(obj, pre_val, tmp1, tmp2);
-  assert(pre_val != noreg && tmp1 != noreg && tmp2 != noreg, "expecting a register");
+  assert_different_registers(obj, pre_val, tmp1);
+  assert(pre_val != noreg && tmp1 != noreg, "expecting a register");
 
   // FIXME: Below code could be moved to a function, for now it's fine :-)
   const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
