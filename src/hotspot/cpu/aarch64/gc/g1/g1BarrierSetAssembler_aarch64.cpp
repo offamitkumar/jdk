@@ -285,6 +285,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register tmp1,
                                                     Register tmp2,
                                                     G1PreBarrierStubC2* stub) {
+  __ stop("g1_write_barrier_pre_c2 not yet implemented");
   assert(thread == rthread, "must be");
   assert_different_registers(obj, pre_val, tmp1, tmp2);
   assert(pre_val != noreg && tmp1 != noreg && tmp2 != noreg, "expecting a register");
@@ -307,6 +308,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   Register tmp1 = stub->tmp1();
   Register tmp2 = stub->tmp2();
 
+  __ stop("generate_c2_pre_barrier_stub");
   __ bind(*stub->entry());
 
   Register is_pre_val_not_null = generate_pre_val_not_null_test(masm, obj, pre_val);
@@ -337,6 +339,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
   assert(store_addr != noreg && new_val != noreg && tmp1 != noreg
          && tmp2 != noreg, "expecting a register");
 
+  __ stop("g1_write_barrier_post_c2");
   stub->initialize_registers(thread, tmp1, tmp2);
 
   Register is_region_crossing = generate_region_crossing_test(masm, store_addr, new_val, tmp1);
@@ -362,6 +365,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   Register tmp1 = stub->tmp1(); // tmp1 holds the card address.
   Register tmp2 = stub->tmp2();
 
+  __ stop("generate_c2_post_barrier_stub");
   __ bind(*stub->entry());
 
   Register is_card_clean = generate_card_clean_test(masm, tmp1, tmp2);
