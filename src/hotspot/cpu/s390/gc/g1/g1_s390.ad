@@ -39,6 +39,7 @@ static void g1_pre_write_barrier(MacroAssembler* masm,
                                  Register obj,
                                  Register pre_val,
                                  Register tmp,
+                                 Register tmp1,
                                  RegSet preserve = RegSet(),
                                  RegSet no_preserve = RegSet()) {
   if (!G1PreBarrierStubC2::needs_barrier(node)) {
@@ -83,10 +84,11 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
     g1_pre_write_barrier(masm, this,
-                          $tmp1$$Register /* obj */,
-                          $tmp2$$Register /* pre_val */,
-                          $tmp3$$Register /* tmp */,
-                          RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
+                          $dst$$Registern /* obj */,
+                          $tmp1$$Register /* pre_val */,
+                          $tmp2$$Register /* tmp1 */,
+                          $tmp3$$Register /* tmp2 */,
+                          RegSet::of($dst$$Register, $src$$Register) /* preserve */);
 
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $dst$$index$$Register;
@@ -115,10 +117,10 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
     }
 
     g1_post_write_barrier(masm, this,
-                           $tmp1$$Register /* store_addr */,
-                           $src$$Register /* new_val */,
-                           $tmp3$$Register /* tmp1 */,
-                           $tmp2$$Register /* tmp2 */);
+                           $dst$$Register, /* store_addr */
+                           $src$$Register  /* new_val */,
+                           $tmp2$$Register /* tmp1 */,
+                           $tmp3$$Register /* tmp2 */);
   %}
   ins_pipe(pipe_class_dummy);
 %}
