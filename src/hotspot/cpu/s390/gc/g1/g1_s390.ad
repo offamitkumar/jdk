@@ -87,7 +87,33 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
                           $tmp2$$Register /* pre_val */,
                           $tmp3$$Register /* tmp */,
                           RegSet::of($tmp1$$Register, $src$$Register) /* preserve */);
-    z_form_rt_mem_opt(src, dst);
+
+    int isize = $secondary > 1L << 32 ? 48 : 32;
+    Register Ridx = $dst$$index$$Register;
+    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+
+    if (Displacement::is_shortDisp((long)$dst$$disp)) {
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($src$$reg, 8, isize) |
+          Assembler::uimm12($dst$$disp, 20, isize) |
+          Assembler::reg(Ridx, 12, isize) |
+          Assembler::regz(reg_to_register_object($dst$$base), 16, isize));
+    } else if (Displacement::is_validDisp((long)$dst$$disp)) {
+      z_emit_inst(masm, $primary |
+          Assembler::reg($src$$reg, 8, 48) |
+          Assembler::simm20($dst$$disp) |
+          Assembler::reg(Ridx, 12, 48) |
+          Assembler::regz(reg_to_register_object($dst$$base), 16, 48));
+    } else {
+      __ load_const_optimized(Z_R1_scratch, $dst$$disp);
+      if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($src$$reg, 8, isize) |
+          Assembler::uimm12(0, 20, isize) |
+          Assembler::reg(Z_R1_scratch, 12, isize) |
+          Assembler::regz(reg_to_register_object($dst$$base), 16, isize));
+    }
+
     g1_post_write_barrier(masm, this,
                            $tmp1$$Register /* store_addr */,
                            $src$$Register /* new_val */,
