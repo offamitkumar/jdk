@@ -45,6 +45,7 @@ static void g1_pre_write_barrier(MacroAssembler* masm,
   if (!G1PreBarrierStubC2::needs_barrier(node)) {
     return;
   }
+  assert(pre_val != noreg, "fuck");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   G1BarrierSetAssembler* g1_asm = static_cast<G1BarrierSetAssembler*>(BarrierSet::barrier_set()->barrier_set_assembler());
   G1PreBarrierStubC2* const stub = G1PreBarrierStubC2::create(node);
@@ -136,6 +137,7 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3)
   opcode(STY_ZOPC, ST_ZOPC);
 
     ins_encode %{
+      assert($tmp1$$Register != noreg, "what");
     g1_pre_write_barrier(masm, this,
                           $mem$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,

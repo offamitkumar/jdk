@@ -155,6 +155,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ bind(*stub->entry());
   
   BLOCK_COMMENT("generate_pre_val_not_null_test {");
+  assert(pre_val != noreg, "why noreg");
   if (obj != noreg) {
     __ load_heap_oop(pre_val, Address(obj), noreg, noreg, AS_RAW);
   }
