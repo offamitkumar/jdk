@@ -121,6 +121,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register pre_val,
                                                     Register thread,
                                                     Register tmp1,
+                                                    Register tmp2,
                                                     G1PreBarrierStubC2* stub) {
   assert(thread == Z_thread, "must be");
   assert_different_registers(obj, pre_val, tmp1);

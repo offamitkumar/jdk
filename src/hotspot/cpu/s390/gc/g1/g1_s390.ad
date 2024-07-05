@@ -38,8 +38,8 @@ static void g1_pre_write_barrier(MacroAssembler* masm,
                                  const MachNode* node,
                                  Register obj,
                                  Register pre_val,
-                                 Register tmp,
                                  Register tmp1,
+                                 Register tmp2,
                                  RegSet preserve = RegSet(),
                                  RegSet no_preserve = RegSet()) {
   if (!G1PreBarrierStubC2::needs_barrier(node)) {
@@ -55,7 +55,7 @@ static void g1_pre_write_barrier(MacroAssembler* masm,
   for (RegSetIterator<Register> reg = no_preserve.begin(); *reg != noreg; ++reg) {
     stub->dont_preserve(*reg);
   }
-  g1_asm->g1_write_barrier_pre_c2(masm, obj, pre_val, Z_thread, tmp, stub);
+  g1_asm->g1_write_barrier_pre_c2(masm, obj, pre_val, Z_thread, tmp1, tmp2, stub);
 }
 
 static void g1_post_write_barrier(MacroAssembler* masm,
