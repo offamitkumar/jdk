@@ -136,6 +136,8 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
 void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
                                                          G1PreBarrierStubC2* stub) const {
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  const int buffer_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset());
+  const int index_offset  = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
   Label runtime;
   Register obj = stub->obj();
   Register pre_val = stub->pre_val();
@@ -154,8 +156,8 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-    Register Rbuffer = Rtmp1, Rindex = Rtmp2;
-  assert_different_registers(Rbuffer, Rindex, Rpre_val);
+  Register Rbuffer = tmp1, Rindex = tmp2;
+  assert_different_registers(Rbuffer, Rindex, pre_val);
 
   __ z_lg(Rbuffer, buffer_offset, Z_thread);
 
@@ -166,7 +168,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ z_stg(Rindex, index_offset, Z_thread);
 
   // Record the previous value.
-  __ z_stg(Rpre_val, 0, Rbuffer, Rindex);
+  __ z_stg(pre_val, 0, Rbuffer, Rindex);
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
   
   __ z_bru(*stub->continuation());
