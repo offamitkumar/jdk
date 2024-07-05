@@ -145,7 +145,45 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
                                                      Register tmp1,
                                                      Register tmp2,
                                                      G1PostBarrierStubC2* stub) {
-  Unimplemented();
+  assert(thread == Z_thread, "must be");
+  assert_different_registers(store_addr, new_val, thread, tmp1, tmp2, Z_R1_scratch);
+  
+  assert(store_addr != noreg && new_val != noreg && tmp1 != noreg && tmp2 != noreg, "expecting a register");
+  
+  stub->initialize_registers(thread, tmp1, tmp2);
+  
+  BLOCK_COMMENT("generate_region_crossing_test {");
+  if (VM_Version::has_DistinctOpnds()) {
+    __ z_xgrk(tmp1, store_addr, new_val);
+  } else {
+    __ z_lgr(tmp1, store_addr);
+    __ z_xgr(tmp1, new_val);
+  }
+  __ z_srag(tmp1, tmp1, G1HeapRegion::LogOfHRGrainBytes);
+  __ z_bre(*stub->continuation());
+  BLOCK_COMMENT("} generate_region_crossing_test");
+
+  // crosses regions, storing null?
+  if ((stub->barrier_data() & G1C2BarrierPostNotNull) == 0) {
+    __ z_ltgr(new_val, new_val);
+    __ z_bre(*stub->continuation());
+  }
+  
+  BLOCK_COMMENT("generate_card_young_test {");
+    // calculate address of card
+    __ load_const_optimized(tmp1, (address)ct->card_table()->byte_map_base());      // Card table base.
+    __ z_srlg(tmp2, store_addr, CardTable::card_shift());         // Index into card table.
+    __ z_algr(tmp2, tmp1);                                      // Explicit calculation needed for cli.
+  
+    // Filter young.
+    __ z_cli(0, tmp2, G1CardTable::g1_young_card_val());
+    
+  BLOCK_COMMENT("} generate_card_young_test");
+  
+  // From here on, tmp1 holds the card address.
+  __ z_brne(*stub->entry());
+
+  __ bind(*stub->continuation());
 }
 
 void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
