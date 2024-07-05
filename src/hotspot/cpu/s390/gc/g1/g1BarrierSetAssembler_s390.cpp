@@ -108,7 +108,16 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 #undef __
 #define __ masm->
 
-long fubar = 0;
+static void generate_c2_barrier_runtime_call(MacroAssembler* masm, G1BarrierStubC2* stub, const Register arg, const address runtime_path) {
+  SaveLiveRegisters save_registers(masm, stub);
+  if (Z_ARG1 != arg) {
+    __ z_lgr(Z_ARG1, arg);
+  }
+  __ mov(Z_ARG2, rthread);
+  __ mov(Z_R1_scratch, runtime_path);
+  __ z_br(Z_R1_scratch);
+}
+
 void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register obj,
                                                     Register pre_val,
