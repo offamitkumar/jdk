@@ -110,11 +110,9 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 
 static void generate_c2_barrier_runtime_call(MacroAssembler* masm, G1BarrierStubC2* stub, const Register arg, const address runtime_path) {
   SaveLiveRegisters save_registers(masm, stub);
-  if (Z_ARG1 != arg) {
-    __ z_lgr(Z_ARG1, arg);
-  }
-  __ mov(Z_ARG2, rthread);
-  __ mov(Z_R1_scratch, runtime_path);
+  __ lgr_if_needed(Z_ARG1, arg);
+  __ z_lgr(Z_ARG2, Z_thread);
+  __ load_const(Z_R1_scratch, runtime_path);
   __ z_br(Z_R1_scratch);
 }
 
