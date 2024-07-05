@@ -126,6 +126,8 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
   assert_different_registers(obj, pre_val, tmp1);
   assert(pre_val != noreg && tmp1 != noreg, "expecting a register");
 
+  stub->initialize_registers(obj, pre_val, thread, tmp1, tmp2);
+  
   // FIXME: Below code could be moved to a function, for now it's fine :-)
   const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
   // Is marking active?
