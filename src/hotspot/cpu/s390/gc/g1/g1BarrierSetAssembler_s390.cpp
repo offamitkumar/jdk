@@ -182,13 +182,13 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   Register Rbuffer = tmp2, Rindex = tmp1;
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
-
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
   __ z_bre(runtime); // If index == 0, goto runtime.
 
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
+
+  __ z_lg(Rbuffer, buffer_offset, Z_thread);
 
   // Record the previous value.
   __ z_stg(pre_val, 0, Rbuffer, Rindex);
@@ -292,13 +292,13 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   Register pre_val = tmp1, Rbuffer = Z_R1_scratch, Rindex = tmp2;
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
-
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
   __ z_bre(runtime); // If index == 0, goto runtime.
 
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
+
+  __ z_lg(Rbuffer, buffer_offset, Z_thread);
 
   // Record the previous value.
   __ z_stg(pre_val, 0, Rbuffer, Rindex);
