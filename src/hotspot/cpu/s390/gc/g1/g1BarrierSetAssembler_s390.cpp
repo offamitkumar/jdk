@@ -179,7 +179,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register Rbuffer = tmp1, Rindex = tmp2;
+  Register Rbuffer = tmp2, Rindex = tmp1;
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
   __ z_lg(Rbuffer, buffer_offset, Z_thread);
