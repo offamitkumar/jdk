@@ -289,7 +289,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_dirty_card");
 
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register pre_val = tmp1, Rbuffer = Z_R1_scratch, Rindex = tmp1;
+  Register pre_val = tmp1, Rbuffer = Z_R1_scratch, Rindex = tmp2;
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
   __ z_lg(Rbuffer, buffer_offset, Z_thread);

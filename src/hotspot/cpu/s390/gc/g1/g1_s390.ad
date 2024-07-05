@@ -84,6 +84,7 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
   format %{ "STG     $src,$dst\t # ptr" %}
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
+    
     g1_pre_write_barrier(masm, this,
                           $dst$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,
