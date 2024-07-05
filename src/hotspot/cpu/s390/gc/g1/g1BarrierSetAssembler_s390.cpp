@@ -135,7 +135,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
 
 void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
                                                          G1PreBarrierStubC2* stub) const {
-  __ stop("generate_c2_pre_barrier_stub, not yet implemented");
+  Unimplemented();
 }
 
 void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
@@ -145,15 +145,12 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
                                                      Register tmp1,
                                                      Register tmp2,
                                                      G1PostBarrierStubC2* stub) {
-  __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar);
-  __ z_agsi(0, Z_R1_scratch, 1);
-
-  __ stop("g1_write_barrier_post_c2 not yet implemented");
+  Unimplemented();
 }
 
 void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
                                                           G1PostBarrierStubC2* stub) const {
-  __ stop("generate_c2_post_barrier_stub, not yet implemented");
+  Unimplemented();
 }
 
 #endif //COMPILER2
