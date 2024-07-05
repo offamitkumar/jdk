@@ -119,7 +119,7 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
 
     g1_post_write_barrier(masm, this,
                            $dst$$Register, /* store_addr */
-                           $src$$Register  /* new_val */,
+                           $tmp1$$Register /* new_val */,
                            $tmp2$$Register /* tmp1 */,
                            $tmp3$$Register /* tmp2 */);
   %}
@@ -175,7 +175,7 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3)
 
     g1_post_write_barrier(masm, this,
                            $mem$$Register, /* store_addr */
-                           $src$$Register  /* new_val */,
+                           $tmp1$$Register  /* new_val */,
                            $tmp2$$Register /* tmp1 */,
                            $tmp3$$Register /* tmp2 */);
   %}
