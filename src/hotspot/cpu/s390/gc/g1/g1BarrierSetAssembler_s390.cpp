@@ -270,8 +270,9 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   const int index_offset  = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
   
   Register thread = stub->thread();
-  Register tmp1 = stub->tmp1(); // tmp1 holds the card address.
-  Register tmp2 = stub->tmp2();
+  Register tmp1       = stub->tmp1(); // tmp1 holds the card address.
+  Register tmp2       = stub->tmp2();
+  Register Rcard_addr = tmp1;
 
   __ bind(*stub->entry());
   
@@ -288,7 +289,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_dirty_card");
 
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register Rbuffer = tmp1, Rindex = tmp2;
+  Register pre_val = tmp1, Rbuffer = Z_R1_scratch, Rindex = tmp1;
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
   __ z_lg(Rbuffer, buffer_offset, Z_thread);
@@ -309,7 +310,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   
   generate_c2_barrier_runtime_call(masm, stub, tmp1, CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry));
 
-  __ b(*stub->continuation());
+  __ z_bru(*stub->continuation());
   
   BLOCK_COMMENT("} generate_c2_post_barrier_stub");
 }
