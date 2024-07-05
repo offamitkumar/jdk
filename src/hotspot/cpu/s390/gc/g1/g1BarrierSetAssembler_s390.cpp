@@ -170,13 +170,14 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
   }
   
   BLOCK_COMMENT("generate_card_young_test {");
-    // calculate address of card
-    __ load_const_optimized(tmp1, (address)ct->card_table()->byte_map_base());      // Card table base.
-    __ z_srlg(tmp2, store_addr, CardTable::card_shift());         // Index into card table.
-    __ z_algr(tmp2, tmp1);                                      // Explicit calculation needed for cli.
-  
-    // Filter young.
-    __ z_cli(0, tmp2, G1CardTable::g1_young_card_val());
+  CardTableBarrierSet* ct = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
+  // calculate address of card
+  __ load_const_optimized(tmp1, (address)ct->card_table()->byte_map_base());      // Card table base.
+  __ z_srlg(tmp2, store_addr, CardTable::card_shift());         // Index into card table.
+  __ z_algr(tmp2, tmp1);                                      // Explicit calculation needed for cli.
+
+  // Filter young.
+  __ z_cli(0, tmp2, G1CardTable::g1_young_card_val());
     
   BLOCK_COMMENT("} generate_card_young_test");
   
