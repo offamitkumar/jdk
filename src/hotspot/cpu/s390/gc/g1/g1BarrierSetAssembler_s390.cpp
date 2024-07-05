@@ -159,7 +159,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
     __ load_heap_oop(pre_val, Address(obj), noreg, noreg, AS_RAW);
   }
   __ z_ltgr(pre_val, pre_val);
-  __ z_bre(pre_val, *stub->continuation());
+  __ z_bre(*stub->continuation());
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
