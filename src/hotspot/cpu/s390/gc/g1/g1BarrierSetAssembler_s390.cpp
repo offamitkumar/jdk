@@ -135,7 +135,47 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
 
 void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
                                                          G1PreBarrierStubC2* stub) const {
-  Unimplemented();
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  Label runtime;
+  Register obj = stub->obj();
+  Register pre_val = stub->pre_val();
+  Register thread = stub->thread();
+  Register tmp1 = stub->tmp1();
+  Register tmp2 = stub->tmp2();
+  
+  __ bind(*stub->entry());
+  
+  BLOCK_COMMENT("generate_pre_val_not_null_test {");
+  if (obj != noreg) {
+    __ load_heap_oop(pre_val, Address(obj), noreg, noreg, AS_RAW);
+  }
+  __ z_ltgr(pre_val, pre_val);
+  __ z_bre(pre_val, *stub->continuation());
+  BLOCK_COMMENT("} generate_pre_val_not_null_test");
+  
+  BLOCK_COMMENT("generate_queue_test_and_insertion {");
+    Register Rbuffer = Rtmp1, Rindex = Rtmp2;
+  assert_different_registers(Rbuffer, Rindex, Rpre_val);
+
+  __ z_lg(Rbuffer, buffer_offset, Z_thread);
+
+  __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
+  __ z_bre(runtime); // If index == 0, goto runtime.
+
+  __ add2reg(Rindex, -wordSize); // Decrement index.
+  __ z_stg(Rindex, index_offset, Z_thread);
+
+  // Record the previous value.
+  __ z_stg(Rpre_val, 0, Rbuffer, Rindex);
+  BLOCK_COMMENT("} generate_queue_test_and_insertion");
+  
+  __ z_bru(*stub->continuation());
+  
+  __ bind(runtime);
+  
+  generate_c2_barrier_runtime_call(masm, stub, pre_val, CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry));
+  
+  __ z_bru(*stub->continuation());
 }
 
 void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
