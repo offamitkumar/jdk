@@ -84,6 +84,7 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
   format %{ "STG     $src,$dst\t # ptr" %}
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
+    __ block_comment("g1StoreP {");
     g1_pre_write_barrier(masm, this,
                           $dst$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,
@@ -122,6 +123,7 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
                            $src$$Register /* new_val */,
                            $tmp2$$Register /* tmp1 */,
                            $tmp3$$Register /* tmp2 */);
+    __ block_comment("} g1StoreP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -137,6 +139,7 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
   opcode(STY_ZOPC, ST_ZOPC);
 
   ins_encode %{
+    __ block_comment("g1StoreN {");
     assert($tmp1$$Register != noreg, "what");
     g1_pre_write_barrier(masm, this,
                           $mem$$Register  /* obj */,
@@ -185,6 +188,7 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
                            $tmp1$$Register  /* new_val */,
                            $tmp2$$Register /* tmp1 */,
                            $tmp3$$Register /* tmp2 */);
+    __ block_comment("} g1StoreN");
   %}
 
   ins_pipe(pipe_class_dummy);
