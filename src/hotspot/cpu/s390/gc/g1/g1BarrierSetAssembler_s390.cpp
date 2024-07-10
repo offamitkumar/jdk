@@ -108,13 +108,15 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 #undef __
 #define __ masm->
 
-static void generate_c2_barrier_runtime_call(MacroAssembler* masm, G1BarrierStubC2* stub, const Register arg, const address runtime_path) {
+static void generate_c2_barrier_runtime_call(MacroAssembler* masm, G1BarrierStubC2* stub, const Register pre_val, const address runtime_path) {
   BLOCK_COMMENT("generate_c2_barrier_runtime_call {");
   SaveLiveRegisters save_registers(masm, stub);
-  __ lgr_if_needed(Z_ARG1, arg);
-  __ z_lgr(Z_ARG2, Z_thread);
-  __ load_const(Z_R1_scratch, runtime_path);
-  __ z_br(Z_R1_scratch);
+// FIXME: REMOVE BELOW CODE BEFORE PR!!!!!!!!
+//  __ lgr_if_needed(Z_ARG1, pre_val);
+//  __ z_lgr(Z_ARG2, Z_thread);
+//  __ load_const(Z_R1_scratch, runtime_path);
+//  __ call(Z_R1_scratch);
+  __ call_VM_leaf(runtime_path, pre_val, Z_thread);
   BLOCK_COMMENT("} generate_c2_barrier_runtime_call");
 }
 
