@@ -203,7 +203,7 @@ instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newva
   ins_encode %{
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
-
+    __ block_comment("g1compareAndSwapN_bool {");
     g1_pre_write_barrier(masm, this,
                          $mem_ptr$$Register /* obj     */,
                          $tmp1$$Register    /* pre_val */,
@@ -243,19 +243,22 @@ instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newva
                           $tmp2$$Register    /* new_val    */,
                           $tmp1$$Register    /* tmp1       */,
                           $tmp3$$Register    /* tmp2       */);
+    __ block_comment("} g1compareAndSwapN_bool");
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
 // Load narrow oop
-instruct loadN(iRegN dst, memory mem) %{
+instruct g1loadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadN mem));
-  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  effect(TEMP dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
-  size(Z_DISP3_SIZE);
+  // size(Z_DISP3_SIZE);
   format %{ "LoadN   $dst,$mem\t # (cOop)" %}
   opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
+    __ block_comment("g1loadN {");
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $mem$$index$$Register;
     if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -281,14 +284,16 @@ instruct loadN(iRegN dst, memory mem) %{
                     Assembler::reg(Z_R1_scratch, 12, isize) |
                     Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
     }
+
     if ((barrier_data() & G1C2BarrierPre) != 0) {
-      __ oop_decoder($tmp1$$Register, $dst$$Register);
+      __ oop_decoder($tmp1$$Register, $dst$$Register, true);
       g1_pre_write_barrier(masm, this,
-                           noreg /* obj */,
+                           noreg           /* obj     */,
                            $tmp1$$Register /* pre_val */,
-                           $tmp2$$Register /* tmp1 */,
-                           $tmp3$$Register /* tmp2 */);
+                           $tmp2$$Register /* tmp1    */,
+                           $tmp3$$Register /* tmp2    */);
     }
+    __ block_comment("} g1loadN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
