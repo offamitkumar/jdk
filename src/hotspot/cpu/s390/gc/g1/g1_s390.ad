@@ -211,7 +211,7 @@ instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newva
                          $tmp3$$Register    /* tmp2    */,
                          RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                          RegSet::of($res$$Register) /* no_preserve */);
-    
+
     Register Rcomp = reg_to_register_object($oldval$$reg);
     Register Rnew  = reg_to_register_object($newval$$reg);
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
@@ -219,7 +219,7 @@ instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newva
     __ z_cs(Rcomp, Rnew, 0, Raddr);
 
     Register Rres = reg_to_register_object($res$$reg);
-    
+
     if (VM_Version::has_LoadStoreConditional()) {
       __ load_const_optimized(Z_R0_scratch, 0L); // false (failed)
       __ load_const_optimized(Rres, 1L);         // true  (succeed)
@@ -231,7 +231,7 @@ instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newva
       __ load_const_optimized(Rres, 1L); // true  (succeed)
       __ bind(done);
     }
-    
+
     // FIXME: for now loading newval into temp, But I have doubt
     // do we need to load the value, which we have stored at the mem_ptr address, because if that the case
     // then it depends on the CC.
@@ -246,3 +246,51 @@ instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newva
   %}
   ins_pipe(pipe_class_dummy);
 %}
+
+// Load narrow oop
+instruct loadN(iRegN dst, memory mem) %{
+  match(Set dst (LoadN mem));
+  predicate(UseG1GC && n->as_Load()->barrier_data() == 0);
+  ins_cost(MEMORY_REF_COST);
+  size(Z_DISP3_SIZE);
+  format %{ "LoadN   $dst,$mem\t # (cOop)" %}
+  opcode(LLGF_ZOPC, LLGF_ZOPC);
+  ins_encode %{
+    int isize = $secondary > 1L << 32 ? 48 : 32;
+    Register Ridx = $mem$$index$$Register;
+    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+
+    if (Displacement::is_shortDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $secondary |
+                  Assembler::reg($dst$$reg, 8, isize) |
+                  Assembler::uimm12($mem$$disp, 20, isize) |
+                  Assembler::reg(Ridx, 12, isize) |
+                  Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $primary |
+                  Assembler::reg($dst$$reg, 8, 48) |
+                  Assembler::simm20($mem$$disp) |
+                  Assembler::reg(Ridx, 12, 48) |
+                  Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
+    } else {
+        __ load_const_optimized(Z_R1_scratch, $mem$$disp);
+        if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
+        z_emit_inst(masm, $secondary |
+                    Assembler::reg($dst$$reg, 8, isize) |
+                    Assembler::uimm12(0, 20, isize) |
+                    Assembler::reg(Z_R1_scratch, 12, isize) |
+                    Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    }
+    if ((barrier_data() & G1C2BarrierPre) != 0) {
+      __ oop_decoder($tmp1$$Register, $dst$$Register);
+      g1_pre_write_barrier(masm, this,
+                           noreg /* obj */,
+                           $tmp1$$Register /* pre_val */,
+                           $tmp2$$Register /* tmp1 */,
+                           $tmp3$$Register /* tmp2 */);
+    }
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+
