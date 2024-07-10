@@ -142,10 +142,10 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
     __ block_comment("g1StoreN {");
     assert($tmp1$$Register != noreg, "what");
     g1_pre_write_barrier(masm, this,
-                          $mem$$Register  /* obj */,
+                          $mem$$Register  /* obj     */,
                           $tmp1$$Register /* pre_val */,
-                          $tmp2$$Register /* tmp1 */,
-                          $tmp3$$Register /* tmp2 */,
+                          $tmp2$$Register /* tmp1    */,
+                          $tmp3$$Register /* tmp2    */,
                           RegSet::of($mem$$Register, $src$$Register) /* preserve */);
 
     int isize = $secondary > 1L << 32 ? 48 : 32;
@@ -185,12 +185,64 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
 
     g1_post_write_barrier(masm, this,
                            $mem$$Register, /* store_addr */
-                           $tmp1$$Register  /* new_val */,
-                           $tmp2$$Register /* tmp1 */,
-                           $tmp3$$Register /* tmp2 */);
+                           $tmp1$$Register /* new_val    */,
+                           $tmp2$$Register /* tmp1       */,
+                           $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1StoreN");
   %}
 
   ins_pipe(pipe_class_dummy);
 %}
 
+instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
+  match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
+  effect(USE mem_ptr, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
+  // size(16);
+  format %{ "$res = CompareAndSwapN $oldval,$newval,$mem_ptr" %}
+  ins_encode %{
+    assert_different_registers($oldval$$Register, $mem_ptr$$Register);
+    assert_different_registers($newval$$Register, $mem_ptr$$Register);
+
+    g1_pre_write_barrier(masm, this,
+                         $mem_ptr$$Register /* obj     */,
+                         $tmp1$$Register    /* pre_val */,
+                         $tmp2$$Register    /* tmp1    */,
+                         $tmp3$$Register    /* tmp2    */,
+                         RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
+                         RegSet::of($res$$Register) /* no_preserve */);
+    
+    Register Rcomp = reg_to_register_object($oldval$$reg);
+    Register Rnew  = reg_to_register_object($newval$$reg);
+    Register Raddr = reg_to_register_object($mem_ptr$$reg);
+
+    __ z_cs(Rcomp, Rnew, 0, Raddr);
+
+    Register Rres = reg_to_register_object($res$$reg);
+    
+    if (VM_Version::has_LoadStoreConditional()) {
+      __ load_const_optimized(Z_R0_scratch, 0L); // false (failed)
+      __ load_const_optimized(Rres, 1L);         // true  (succeed)
+      __ z_locgr(Rres, Z_R0_scratch, Assembler::bcondNotEqual);
+    } else {
+      Label done;
+      __ load_const_optimized(Rres, 0L); // false (failed)
+      __ z_brne(done);                   // Assume true to be the common case.
+      __ load_const_optimized(Rres, 1L); // true  (succeed)
+      __ bind(done);
+    }
+    
+    // FIXME: for now loading newval into temp, But I have doubt
+    // do we need to load the value, which we have stored at the mem_ptr address, because if that the case
+    // then it depends on the CC.
+    // FOR NOW make things simple and load newval
+    __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
+
+    g1_post_write_barrier(masm, this,
+                          $mem_ptr$$Register /* store_addr */,
+                          $tmp2$$Register    /* new_val    */,
+                          $tmp1$$Register    /* tmp1       */,
+                          $tmp3$$Register    /* tmp2       */);
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
