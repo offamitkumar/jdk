@@ -129,10 +129,10 @@ instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3
 %}
 
 // Store Compressed Pointer
-instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
+instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem src));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL cr);
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
   // TODO size(Z_DISP_SIZE);
   format %{ "ST      $src,$mem\t # (cOop)" %}
@@ -141,14 +141,40 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
   ins_encode %{
     __ block_comment("g1StoreN {");
     assert($tmp1$$Register != noreg, "what");
-    __ z_la($tmp4$$Register, $mem$$Address);
     g1_pre_write_barrier(masm, this,
-                          $tmp4$$Register /* obj     */,
+                          $mem$$Register  /* obj     */,
                           $tmp1$$Register /* pre_val */,
                           $tmp2$$Register /* tmp1    */,
                           $tmp3$$Register /* tmp2    */,
-                          RegSet::of($tmp4$$Register, $src$$Register) /* preserve */);
-    __ z_st($src$$Register, Address($tmp4$$Register));
+                          RegSet::of($mem$$Register, $src$$Register) /* preserve */);
+
+    int isize = $secondary > 1L << 32 ? 48 : 32;
+    Register Ridx = $mem$$index$$Register;
+    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+
+    if (Displacement::is_shortDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($src$$reg, 8, isize) |
+          Assembler::uimm12($mem$$disp, 20, isize) |
+          Assembler::reg(Ridx, 12, isize) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $primary |
+          Assembler::reg($src$$reg, 8, 48) |
+          Assembler::simm20($mem$$disp) |
+          Assembler::reg(Ridx, 12, 48) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
+    } else {
+      __ load_const_optimized(Z_R1_scratch, $mem$$disp);
+      if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($src$$reg, 8, isize) |
+          Assembler::uimm12(0, 20, isize) |
+          Assembler::reg(Z_R1_scratch, 12, isize) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    }
+
+    // FIXME: is decoding correct ?
     if ((barrier_data() & G1C2BarrierPost) != 0) {
       if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
         __ oop_decoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
@@ -158,7 +184,7 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
     }
 
     g1_post_write_barrier(masm, this,
-                           $tmp4$$Register, /* store_addr */
+                           $mem$$Register, /* store_addr */
                            $tmp1$$Register /* new_val    */,
                            $tmp2$$Register /* tmp1       */,
                            $tmp3$$Register /* tmp2       */);
