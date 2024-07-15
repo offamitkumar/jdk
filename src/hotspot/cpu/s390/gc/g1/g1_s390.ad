@@ -197,7 +197,7 @@ instruct g1storeN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegP res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
   effect(USE mem_ptr, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
