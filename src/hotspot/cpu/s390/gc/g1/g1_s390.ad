@@ -148,7 +148,7 @@ instruct g1storeN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
     Label ok;
     __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar);
     __ z_agsi(0, Z_R1_scratch, 1);
-    __ compareU64_and_branch($mem$$Register, 0x3ff00292b38, Assembler::bcondHigh, ok);
+    __ compareU64_and_branch($mem$$Register, 0x3ff00292b38, Assembler::bcondLow, ok);
     __ stop("crashed");
     __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar);
     __ z_agsi(0, Z_R1_scratch, 1);
