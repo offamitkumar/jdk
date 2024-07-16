@@ -405,3 +405,50 @@ instruct g1compareAndSwapP_bool(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newva
   ins_pipe(pipe_class_dummy);
 %}
 
+// Load Pointer
+instruct g1loadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
+  match(Set dst (LoadP mem));
+  effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  // size(Z_DISP3_SIZE);
+  format %{ "LG      $dst,$mem\t # ptr" %}
+  opcode(LG_ZOPC, LG_ZOPC);
+  ins_encode %{
+    __ block_comment("g1loadP {");
+    int isize = $secondary > 1L << 32 ? 48 : 32;
+    Register Ridx = $mem$$index$$Register;
+    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+
+    if (Displacement::is_shortDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($dst$$reg, 8, isize) |
+          Assembler::uimm12($mem$$disp, 20, isize) |
+          Assembler::reg(Ridx, 12, isize) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
+      z_emit_inst(masm, $primary |
+          Assembler::reg($dst$$reg, 8, 48) |
+          Assembler::simm20($mem$$disp) |
+          Assembler::reg(Ridx, 12, 48) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
+    } else {
+      __ load_const_optimized(Z_R1_scratch, $mem$$disp);
+      if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
+      z_emit_inst(masm, $secondary |
+          Assembler::reg($dst$$reg, 8, isize) |
+          Assembler::uimm12(0, 20, isize) |
+          Assembler::reg(Z_R1_scratch, 12, isize) |
+          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+    }
+
+    g1_pre_write_barrier(masm, this,
+                         noreg /* obj */,
+                         $dst$$Register /* pre_val */,
+                         $tmp1$$Register /* tmp1 */,
+                         $tmp2$$Register /* tmp2 */);
+    __ block_comment("} g1loadP");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
