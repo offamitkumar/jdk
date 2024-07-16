@@ -314,4 +314,46 @@ instruct g1loadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flag
   ins_pipe(pipe_class_dummy);
 %}
 
+// FIXME: try to switch back to memoryRSY instead of indirect
+instruct g1xchgN_reg_mem(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
+  match(Set dst (GetAndSetN mem dst));
+  effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
+  format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
+  ins_encode %{
+    __ block_comment("g1xchgN_reg_mem {");
+    assert_different_registers($mem$$Register, $dst$$Register);
+    g1_pre_write_barrier(masm, this,
+                         $mem$$Register  /* obj */,
+                         $tmp1$$Register /* pre_val */,
+                         $tmp2$$Register /* tmp1 */,
+                         $tmp3$$Register /* tmp2 */,
+                         RegSet::of($mem$$Register, $dst$$Register) /* preserve */);
+
+    Register Rdst = reg_to_register_object($dst$$reg);
+    Register Rtmp = reg_to_register_object($tmp$$reg);
+    guarantee(Rdst != Rtmp, "Fix match rule to use TEMP_DEF");
+    Label    retry;
+
+    // Iterate until swap succeeds.
+    __ z_llgf(Rtmp, Address($mem$$Register));  // current contents
+    __ bind(retry);
+    // Calculate incremented value.
+    __ z_csy(Rtmp, Rdst, Address($mem$$Register)); // Try to store new value.
+    __ z_brne(retry);                    // Yikes, concurrent update, need to retry.
+
+    __ oop_decoder($tmp1$$Register, $dst$$Register, true /* maybe_null */);
+
+    __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
+
+    g1_post_write_barrier(masm, this,
+                          $mem$$Register  /* store_addr */,
+                          $tmp1$$Register /* new_val    */,
+                          $tmp2$$Register /* tmp1       */,
+                          $tmp3$$Register /* tmp2       */);
+
+    __ block_comment("} g1xchgN_reg_mem");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
 
