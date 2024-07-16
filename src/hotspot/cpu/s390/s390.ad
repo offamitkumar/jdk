@@ -3905,9 +3905,10 @@ instruct loadP(iRegP dst, memory mem) %{
 %}
 
 // LoadP + CastP2L
+// FIXME: does this match rule need load/store barrier for G1 ?
 instruct castP2X_loadP(iRegL dst, memory mem) %{
   match(Set dst (CastP2X (LoadP mem)));
-  predicate(n->as_Load()->barrier_data() == 0);
+  // predicate(n->as_Load()->barrier_data() == 0);
   ins_cost(MEMORY_REF_COST);
   size(Z_DISP3_SIZE);
   format %{ "LG      $dst,$mem\t # ptr + p2x" %}
@@ -4371,9 +4372,10 @@ instruct memInitL(memoryRS mem, immL16 src) %{
 %}
 
 // Move Immediate to 8-byte memory.
+// FIXME: does this match rule need load/store barrier ?
 instruct memInitP(memoryRS mem, immP16 src) %{
   match(Set mem (StoreP mem src));
-  predicate(n->as_Store()->barrier_data() == 0);
+  //predicate(n->as_Store()->barrier_data() == 0);
   ins_cost(MEMORY_REF_COST);
   size(6);
   format %{ "MVGHI   $mem,$src\t # direct mem init 8" %}
@@ -5915,10 +5917,11 @@ instruct addP_regN_reg_imm20(iRegP dst, iRegP_N2P src1, iRegL src2, immL20 con) 
 // MEM = MEM + IMM
 
 // Add Immediate to 8-byte memory operand and result
+// FIXME:: does this match rule need Barrier ? It does operate on memory :)
 instruct addP_mem_imm(memoryRSY mem, immL8 src, flagsReg cr) %{
   match(Set mem (StoreP mem (AddP (LoadP mem) src)));
   effect(KILL cr);
-  predicate(VM_Version::has_MemWithImmALUOps() && n->as_LoadStore()->barrier_data() == 0);
+  predicate(VM_Version::has_MemWithImmALUOps()/* && n->as_LoadStore()->barrier_data() == 0 */);
   ins_cost(MEMORY_REF_COST);
   size(6);
   format %{ "AGSI    $mem,$src\t # direct mem add 8 (ptr)" %}
