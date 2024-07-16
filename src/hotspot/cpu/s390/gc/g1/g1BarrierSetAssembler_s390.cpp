@@ -268,8 +268,8 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Label runtime;
   
-  const int buffer_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset());
-  const int index_offset  = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
+  const int buffer_offset = in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset());
+  const int index_offset  = in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset());
   
   Register thread = stub->thread();
   Register tmp1       = stub->tmp1(); // tmp1 holds the card address.
