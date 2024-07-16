@@ -177,7 +177,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
     __ load_heap_oop(pre_val, Address(obj), noreg, noreg, AS_RAW);
   }
   __ z_ltgr(pre_val, pre_val);
-  __ z_bre(*stub->continuation());
+  __ branch_optimized(Assembler::bcondEqual, *stub->continuation());
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
@@ -185,7 +185,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
-  __ z_bre(runtime); // If index == 0, goto runtime.
+  __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
 
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
@@ -196,13 +196,13 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ z_stg(pre_val, 0, Rbuffer, Rindex);
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
   
-  __ z_bru(*stub->continuation());
+  __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
   
   __ bind(runtime);
   
   generate_c2_barrier_runtime_call(masm, stub, pre_val, CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry));
   
-  __ z_bru(*stub->continuation());
+  __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
   
   BLOCK_COMMENT("} generate_c2_pre_barrier_stub");
 }
@@ -231,13 +231,13 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
     __ z_xgr(tmp1, new_val);
   }
   __ z_srag(tmp1, tmp1, G1HeapRegion::LogOfHRGrainBytes);
-  __ z_bre(*stub->continuation());
+  __ branch_optimized(Assembler::bcondEqual, *stub->continuation());
   BLOCK_COMMENT("} generate_region_crossing_test");
 
   // crosses regions, storing null?
   if ((stub->barrier_data() & G1C2BarrierPostNotNull) == 0) {
     __ z_ltgr(new_val, new_val);
-    __ z_bre(*stub->continuation());
+    __ branch_optimized(Assembler::bcondEqual, *stub->continuation());
   }
   
   BLOCK_COMMENT("generate_card_young_test {");
@@ -253,7 +253,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post_c2(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_card_young_test");
   
   // From here on, tmp1 holds the card address.
-  __ z_brne(*stub->entry());
+  __ branch_optimized(Assembler::bcondNotEqual, *stub->entry());
 
   __ bind(*stub->continuation());
   
@@ -281,7 +281,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("generate_card_clean_test {");
   __ z_sync(); // Required to support concurrent cleaning.
   __ z_cli(0, Rcard_addr, 0); // Reload after membar.
-  __ z_bre(*stub->continuation());
+  __ branch_optimized(Assembler::bcondEqual, *stub->continuation());
   BLOCK_COMMENT("} generate_card_clean_test");
   
   BLOCK_COMMENT("generate_dirty_card {");
@@ -296,7 +296,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   assert_different_registers(Rbuffer, Rindex, pre_val);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
-  __ z_bre(runtime); // If index == 0, goto runtime.
+  __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
 
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
@@ -307,13 +307,13 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   __ z_stg(pre_val, 0, Rbuffer, Rindex);
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
   
-  __ z_bru(*stub->continuation());
+  __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
 
   __ bind(runtime);
   
   generate_c2_barrier_runtime_call(masm, stub, tmp1, CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry));
 
-  __ z_bru(*stub->continuation());
+  __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
   
   BLOCK_COMMENT("} generate_c2_post_barrier_stub");
 }
