@@ -78,24 +78,23 @@ static void g1_post_write_barrier(MacroAssembler* masm,
 %} // source
 
 // store pointer
-//instruct g1storeP(memory dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
-//  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
-//  match(Set dst (StoreP dst src));
-//  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-//  ins_cost(MEMORY_REF_COST);
-//  format %{ "STG     $src,$dst\t # ptr" %}
-//  opcode(STG_ZOPC, STG_ZOPC);
-//  ins_encode %{
-//    __ block_comment("g1StoreP {");
-//  TODO: dst is not okay
-//    __ stop("dst is memory but is being used as register");
-//    g1_pre_write_barrier(masm, this,
-//                          $dst$$Register  /* obj */,
-//                          $tmp1$$Register /* pre_val */,
-//                          $tmp2$$Register /* tmp1 */,
-//                          $tmp3$$Register /* tmp2 */,
-//                          RegSet::of($dst$$Register, $src$$Register) /* preserve */);
-//
+// FIXME: can we switch back to memory instead of going with indirect ?
+instruct g1storeP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  match(Set dst (StoreP dst src));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  format %{ "STG     $src,$dst\t # ptr" %}
+  opcode(STG_ZOPC, STG_ZOPC);
+  ins_encode %{
+    g1_pre_write_barrier(masm, this,
+                          $dst$$Register  /* obj */,
+                          $tmp1$$Register /* pre_val */,
+                          $tmp2$$Register /* tmp1 */,
+                          $tmp3$$Register /* tmp2 */,
+                          RegSet::of($dst$$Register, $src$$Register) /* preserve */);
+
+    __ z_stg($src$$Register, Address($dst$$Register));
 //    int isize = $secondary > 1L << 32 ? 48 : 32;
 //    Register Ridx = $dst$$index$$Register;
 //    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -121,16 +120,16 @@ static void g1_post_write_barrier(MacroAssembler* masm,
 //          Assembler::reg(Z_R1_scratch, 12, isize) |
 //          Assembler::regz(reg_to_register_object($dst$$base), 16, isize));
 //    }
-//
-//    g1_post_write_barrier(masm, this,
-//                           $dst$$Register, /* store_addr */
-//                           $src$$Register /* new_val */,
-//                           $tmp2$$Register /* tmp1 */,
-//                           $tmp3$$Register /* tmp2 */);
-//    __ block_comment("} g1StoreP");
-//  %}
-//  ins_pipe(pipe_class_dummy);
-//%}
+
+    g1_post_write_barrier(masm, this,
+                           $dst$$Register, /* store_addr */
+                           $src$$Register  /* new_val    */,
+                           $tmp2$$Register /* tmp1       */,
+                           $tmp3$$Register /* tmp2       */);
+    __ block_comment("} g1StoreP");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
 
 // Store Compressed Pointer
 instruct g1storeN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
