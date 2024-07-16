@@ -477,11 +477,42 @@ instruct g1xchgP_reg_mem(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL t
     g1_post_write_barrier(masm, this,
                           $mem$$Register /* store_addr */,
                           $tmp1$$Register /* new_val */,
-                          $tmp2$$Register /* tmp1 */, 
+                          $tmp2$$Register /* tmp1 */,
                           $tmp$$Register /* tmp2 */);
     __ block_comment("} g1xchgP_reg_mem");
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
+instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr)
+%{
+  predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
+  match(Set mem (StoreN mem (EncodeP src)));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  // ins_cost(INSN_COST);
+  format %{ "encode_heap_oop $tmp1, $src\n\t"
+            "st  $tmp1, $mem\t# compressed ptr" %}
+  ins_encode %{
+    g1_pre_write_barrier(masm, this,
+                         $mem$$Register /* obj */,
+                         $tmp1$$Register /* pre_val */,
+                         $tmp2$$Register /* tmp1 */,
+                         $tmp3$$Register /* tmp2 */,
+                         RegSet::of($mem$$Register, $src$$Register) /* preserve */);
+    if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
+      // FIXME:: can we update the macroAssembler method and look more aarch64 type ?
+      // is it worth, doing ?
+      __ oop_encoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
+    } else {
+      __ oop_encoder($tmp1$$Register, $src$$Register, false /* maybe_null */);
+    }
+    __ z_st($tmp1$$Register, Address($mem$$Register));
+    g1_post_write_barrier(masm, this,
+                          $mem$$Register /* store_addr */,
+                          $src$$Register /* new_val */,
+                          $tmp2$$Register /* tmp1 */,
+                          $tmp3$$Register /* tmp2 */);
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
 
