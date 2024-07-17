@@ -436,7 +436,7 @@ public class TestG1BarrierGeneration {
 //         return fVarHandle.getAndSet(o, newVal);
 //     }
 
-    @Run(test = {"testCompareAndExchange")//,
+    @Run(test = {"testCompareAndExchange"})//,
                  //"testCompareAndSwap",
                  //"testGetAndSet"}*/)
     public void runAtomicTests() {
