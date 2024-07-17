@@ -516,3 +516,34 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
   ins_pipe(pipe_class_dummy);
 %}
 
+// Add Immediate to 8-byte memory operand and result
+instruct g1addP_mem_imm(memoryRSY mem, immL8 src, flagsReg cr) %{
+  predicate(UseG1GC && VM_Version::has_MemWithImmALUOps() && n->as_LoadStore()->barrier_data() != 0);
+  match(Set mem (StoreP mem (AddP (LoadP mem) src)));
+  effect(KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  size(6);
+  format %{ "AGSI    $mem,$src\t # direct mem add 8 (ptr)" %}
+  opcode(AGSI_ZOPC);
+  ins_encode %{
+    __ stop("g1addP_mem_imm not yet implemented");
+    // ins_encode(z_siyform(mem, src));
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+// LoadP + CastP2L
+instruct g1castP2X_loadP(iRegL dst, memory mem) %{
+  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
+  match(Set dst (CastP2X (LoadP mem)));
+  ins_cost(MEMORY_REF_COST);
+  size(Z_DISP3_SIZE);
+  format %{ "LG      $dst,$mem\t # ptr + p2x" %}
+  opcode(LG_ZOPC, LG_ZOPC);
+  ins_encode %{
+    __ stop("g1castP2X_loadP not yet implemented");
+    // z_form_rt_mem_opt(dst, mem)
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
