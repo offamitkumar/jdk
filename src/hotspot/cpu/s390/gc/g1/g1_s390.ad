@@ -79,7 +79,7 @@ static void g1_post_write_barrier(MacroAssembler* masm,
 
 // store pointer
 // FIXME: can we switch back to memory instead of going with indirect ?
-instruct g1storeP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set dst (StoreP dst src));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
@@ -132,7 +132,7 @@ instruct g1storeP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
 %}
 
 // Store Compressed Pointer
-instruct g1storeN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
+instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem src));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL cr);
@@ -257,42 +257,43 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
 %}
 
 // Load narrow oop
-instruct g1loadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1LoadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadN mem));
   effect(TEMP dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
   // size(Z_DISP3_SIZE);
   format %{ "LoadN   $dst,$mem\t # (cOop)" %}
-  opcode(LLGF_ZOPC, LLGF_ZOPC);
+  //opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
     __ block_comment("g1loadN {");
-    int isize = $secondary > 1L << 32 ? 48 : 32;
-    Register Ridx = $mem$$index$$Register;
-    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+//    int isize = $secondary > 1L << 32 ? 48 : 32;
+//    Register Ridx = $mem$$index$$Register;
+//    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
+//
+//    if (Displacement::is_shortDisp((long)$mem$$disp)) {
+//      z_emit_inst(masm, $secondary |
+//                  Assembler::reg($dst$$reg, 8, isize) |
+//                  Assembler::uimm12($mem$$disp, 20, isize) |
+//                  Assembler::reg(Ridx, 12, isize) |
+//                  Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+//    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
+//      z_emit_inst(masm, $primary |
+//                  Assembler::reg($dst$$reg, 8, 48) |
+//                  Assembler::simm20($mem$$disp) |
+//                  Assembler::reg(Ridx, 12, 48) |
+//                  Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
+//    } else {
+//        __ load_const_optimized(Z_R1_scratch, $mem$$disp);
+//        if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
+//        z_emit_inst(masm, $secondary |
+//                    Assembler::reg($dst$$reg, 8, isize) |
+//                    Assembler::uimm12(0, 20, isize) |
+//                    Assembler::reg(Z_R1_scratch, 12, isize) |
+//                    Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
+//    }
 
-    if (Displacement::is_shortDisp((long)$mem$$disp)) {
-      z_emit_inst(masm, $secondary |
-                  Assembler::reg($dst$$reg, 8, isize) |
-                  Assembler::uimm12($mem$$disp, 20, isize) |
-                  Assembler::reg(Ridx, 12, isize) |
-                  Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
-      z_emit_inst(masm, $primary |
-                  Assembler::reg($dst$$reg, 8, 48) |
-                  Assembler::simm20($mem$$disp) |
-                  Assembler::reg(Ridx, 12, 48) |
-                  Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
-    } else {
-        __ load_const_optimized(Z_R1_scratch, $mem$$disp);
-        if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
-        z_emit_inst(masm, $secondary |
-                    Assembler::reg($dst$$reg, 8, isize) |
-                    Assembler::uimm12(0, 20, isize) |
-                    Assembler::reg(Z_R1_scratch, 12, isize) |
-                    Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-    }
-
+    __ z_llgf($dst$$Register, $mem$$Register);
     if ((barrier_data() & G1C2BarrierPre) != 0) {
       __ oop_decoder($tmp1$$Register, $dst$$Register, true);
       g1_pre_write_barrier(masm, this,
@@ -400,7 +401,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
 %}
 
 // Load Pointer
-instruct g1loadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadP mem));
   effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
