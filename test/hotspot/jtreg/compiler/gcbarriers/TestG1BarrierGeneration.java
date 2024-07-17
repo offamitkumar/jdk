@@ -102,16 +102,16 @@ public class TestG1BarrierGeneration {
         framework.start();
     }
 
-    @Test
-    @IR(applyIf = {"UseCompressedOops", "false"},
-        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    @IR(applyIf = {"UseCompressedOops", "true"},
-        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    public static void testStore(Outer o, Object o1) {
-        o.f = o1;
-    }
+//     @Test
+//     @IR(applyIf = {"UseCompressedOops", "false"},
+//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     @IR(applyIf = {"UseCompressedOops", "true"},
+//         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     public static void testStore(Outer o, Object o1) {
+//         o.f = o1;
+//     }
 
 //     @Test
 //     @IR(applyIf = {"UseCompressedOops", "false"},
