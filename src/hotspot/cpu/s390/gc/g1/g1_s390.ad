@@ -199,7 +199,7 @@ instruct g1storeN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1compareAndSwapN_bool(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
   effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
@@ -306,7 +306,7 @@ instruct g1loadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flag
 %}
 
 // FIXME: try to switch back to memoryRSY instead of indirect
-instruct g1xchgN_reg_mem(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetN mem dst));
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
@@ -348,7 +348,7 @@ instruct g1xchgN_reg_mem(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL t
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1compareAndSwapP_bool(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
   effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
@@ -445,7 +445,7 @@ instruct g1loadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
 %}
 
 // FIXME:: can we switch back to memoryRSY from indirect
-instruct g1xchgP_reg_mem(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetP mem dst));
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2); // USE_DEF dst by match rule.
