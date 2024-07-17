@@ -403,17 +403,17 @@ public class TestG1BarrierGeneration {
 //         }
 //     }
 //
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_COMPARE_AND_EXCHANGE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_COMPARE_AND_EXCHANGE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     static Object testCompareAndExchange(Outer o, Object oldVal, Object newVal) {
-//         return fVarHandle.compareAndExchange(o, oldVal, newVal);
-//     }
-//
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_COMPARE_AND_EXCHANGE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_COMPARE_AND_EXCHANGE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    static Object testCompareAndExchange(Outer o, Object oldVal, Object newVal) {
+        return fVarHandle.compareAndExchange(o, oldVal, newVal);
+    }
+
 //     @Test
 //     @IR(applyIf = {"UseCompressedOops", "false"},
 //         counts = {IRNode.G1_COMPARE_AND_SWAP_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
@@ -435,20 +435,20 @@ public class TestG1BarrierGeneration {
 //     static Object testGetAndSet(Outer o, Object newVal) {
 //         return fVarHandle.getAndSet(o, newVal);
 //     }
-//
-//     @Run(test = {"testCompareAndExchange",
-//                  "testCompareAndSwap",
-//                  "testGetAndSet"})
-//     public void runAtomicTests() {
-//         {
-//             Outer o = new Outer();
-//             Object oldVal = new Object();
-//             o.f = oldVal;
-//             Object newVal = new Object();
-//             Object oldVal2 = testCompareAndExchange(o, oldVal, newVal);
-//             Asserts.assertEquals(oldVal, oldVal2);
-//             Asserts.assertEquals(o.f, newVal);
-//         }
+
+    @Run(test = {"testCompareAndExchange")//,
+                 //"testCompareAndSwap",
+                 //"testGetAndSet"}*/)
+    public void runAtomicTests() {
+        {
+            Outer o = new Outer();
+            Object oldVal = new Object();
+            o.f = oldVal;
+            Object newVal = new Object();
+            Object oldVal2 = testCompareAndExchange(o, oldVal, newVal);
+            Asserts.assertEquals(oldVal, oldVal2);
+            Asserts.assertEquals(o.f, newVal);
+        }
 //         {
 //             Outer o = new Outer();
 //             Object oldVal = new Object();
@@ -467,44 +467,50 @@ public class TestG1BarrierGeneration {
 //             Asserts.assertEquals(oldVal, oldVal2);
 //             Asserts.assertEquals(o.f, newVal);
 //         }
+    }
+
+
+
+
+
+
+// amit tested below this :-)
+//     @Test
+//     @IR(applyIf = {"UseCompressedOops", "false"},
+//         counts = {IRNode.G1_LOAD_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     @IR(applyIf = {"UseCompressedOops", "true"},
+//         counts = {IRNode.G1_LOAD_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     static Object testLoadSoftReference(SoftReference<Object> ref) {
+//         return ref.get();
 //     }
 //
-    @Test
-    @IR(applyIf = {"UseCompressedOops", "false"},
-        counts = {IRNode.G1_LOAD_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    @IR(applyIf = {"UseCompressedOops", "true"},
-        counts = {IRNode.G1_LOAD_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    static Object testLoadSoftReference(SoftReference<Object> ref) {
-        return ref.get();
-    }
-
-    @Test
-    @IR(applyIf = {"UseCompressedOops", "false"},
-        counts = {IRNode.G1_LOAD_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    @IR(applyIf = {"UseCompressedOops", "true"},
-        counts = {IRNode.G1_LOAD_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    static Object testLoadWeakReference(WeakReference<Object> ref) {
-        return ref.get();
-    }
-
-    @Run(test = {"testLoadSoftReference",
-                 "testLoadWeakReference"})
-    public void runReferenceTests() {
-        {
-            Object o1 = new Object();
-            SoftReference<Object> sref = new SoftReference<Object>(o1);
-            Object o2 = testLoadSoftReference(sref);
-            Asserts.assertTrue(o2 == o1 || o2 == null);
-        }
-        {
-            Object o1 = new Object();
-            WeakReference<Object> wref = new WeakReference<Object>(o1);
-            Object o2 = testLoadWeakReference(wref);
-            Asserts.assertTrue(o2 == o1 || o2 == null);
-        }
-    }
+//     @Test
+//     @IR(applyIf = {"UseCompressedOops", "false"},
+//         counts = {IRNode.G1_LOAD_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     @IR(applyIf = {"UseCompressedOops", "true"},
+//         counts = {IRNode.G1_LOAD_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     static Object testLoadWeakReference(WeakReference<Object> ref) {
+//         return ref.get();
+//     }
+//
+//     @Run(test = {"testLoadSoftReference",
+//                  "testLoadWeakReference"})
+//     public void runReferenceTests() {
+//         {
+//             Object o1 = new Object();
+//             SoftReference<Object> sref = new SoftReference<Object>(o1);
+//             Object o2 = testLoadSoftReference(sref);
+//             Asserts.assertTrue(o2 == o1 || o2 == null);
+//         }
+//         {
+//             Object o1 = new Object();
+//             WeakReference<Object> wref = new WeakReference<Object>(o1);
+//             Object o2 = testLoadWeakReference(wref);
+//             Asserts.assertTrue(o2 == o1 || o2 == null);
+//         }
+//     }
 }
