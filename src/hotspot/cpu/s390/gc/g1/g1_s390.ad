@@ -256,6 +256,60 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
   ins_pipe(pipe_class_dummy);
 %}
 
+// FIXME: this is exact replica of above match rule, only saves the previous value in res
+instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
+  match(Set res (CompareAndExchangeN mem_ptr (Binary oldval newval)));
+  effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
+  // size(16);
+  format %{ "$res = CompareAndExchangeN $oldval,$newval,$mem_ptr" %}
+  ins_encode %{
+    assert_different_registers($oldval$$Register, $mem_ptr$$Register);
+    assert_different_registers($newval$$Register, $mem_ptr$$Register);
+    __ block_comment("g1CompareAndExchangeN {");
+//    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar1);
+//    __ z_agsi(0, Z_R1_scratch, 1);
+    g1_pre_write_barrier(masm, this,
+                         $mem_ptr$$Register /* obj     */,
+                         $tmp1$$Register    /* pre_val */,
+                         $tmp2$$Register    /* tmp1    */,
+                         $tmp3$$Register    /* tmp2    */,
+                         RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
+                         RegSet::of($res$$Register) /* no_preserve */);
+
+    Register Rcomp = reg_to_register_object($oldval$$reg);
+    Register Rnew  = reg_to_register_object($newval$$reg);
+    Register Raddr = reg_to_register_object($mem_ptr$$reg);
+
+    Register Rres = reg_to_register_object($res$$reg);
+    assert_different_registers(Rres, $mem_ptr$$Register);
+
+    Label    retry;
+
+    // Iterate until swap succeeds.
+    __ bind(retry);
+    // Calculate incremented value.
+    __ z_csy(Rcomp, Rnew, 0, Raddr); // Try to store new value.
+    __ z_brne(retry);                    // Yikes, concurrent update, need to retry.
+
+    __ z_lgr(Rres, Rcomp);  // previous contents
+
+    // FIXME: for now loading newval into temp, But I have doubt
+    // do we need to load the value, which we have stored at the mem_ptr address, because if that the case
+    // then it depends on the CC.
+    // FOR NOW make things simple and load newval
+    __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
+
+    g1_post_write_barrier(masm, this,
+                          $mem_ptr$$Register /* store_addr */,
+                          $tmp2$$Register    /* new_val    */,
+                          $tmp1$$Register    /* tmp1       */,
+                          $tmp3$$Register    /* tmp2       */);
+    __ block_comment("} g1CompareAndExchangeN");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
 // Load narrow oop
 instruct g1LoadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
@@ -396,6 +450,51 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
                           $tmp2$$Register    /* new_val    */,
                           $tmp1$$Register    /* tmp1       */,
                           $tmp3$$Register    /* tmp2       */);
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
+  match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
+  //size(18);
+  format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
+  ins_encode %{
+    __ block_comment("g1CompareAndExchangeP {");
+    assert_different_registers($oldval$$Register, $mem_ptr$$Register);
+    assert_different_registers($newval$$Register, $mem_ptr$$Register);
+
+    Register Rcomp = reg_to_register_object($oldval$$reg);
+    Register Rnew  = reg_to_register_object($newval$$reg);
+    Register Raddr = reg_to_register_object($mem_ptr$$reg);
+
+    g1_pre_write_barrier(masm, this,
+                         $mem_ptr$$Register /* obj */,
+                         $tmp1$$Register /* pre_val */,
+                         $tmp2$$Register /* tmp1 */,
+                         $tmp3$$Register /* tmp2 */,
+                         RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
+                         RegSet::of($res$$Register) /* no_preserve */);
+
+    __ z_lgr($tmp1$$Register, $oldval$$Register);
+    __ z_lgr($tmp2$$Register, $newval$$Register);
+    Label retry; 
+    
+    __ bind(retry);
+    __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr); 
+    __ z_brne(retry); // Raddr contents got changed, need to retry
+
+    Register Rres = reg_to_register_object($res$$reg);
+    __ z_lgr(Rres, $tmp1$$Register); // previous content
+
+
+    g1_post_write_barrier(masm, this,
+                          $mem_ptr$$Register /* store_addr */,
+                          $tmp2$$Register    /* new_val    */,
+                          $tmp1$$Register    /* tmp1       */,
+                          $tmp3$$Register    /* tmp2       */);
+    __ block_comment("} g1CompareAndExchangeP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
