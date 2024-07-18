@@ -104,25 +104,14 @@ public class TestG1BarrierGeneration {
 
     @Test
     @IR(applyIf = {"UseCompressedOops", "false"},
-        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
         phase = CompilePhase.FINAL_CODE)
     @IR(applyIf = {"UseCompressedOops", "true"},
-        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
         phase = CompilePhase.FINAL_CODE)
-    public static void testStore(Outer o, Object o1) {
-        o.f = o1;
+    public static void testStoreNull(Outer o) {
+        o.f = null;
     }
-//
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testStoreNull(Outer o) {
-//         o.f = null;
-//     }
 
 //     @Test
 //     @IR(applyIf = {"UseCompressedOops", "false"},
@@ -163,25 +152,19 @@ public class TestG1BarrierGeneration {
 //         return o;
 //     }
 
-    @Run(test = {"testStore"}) //,
-                 //"testStoreNull",
+    @Run(test = {
+                 "testStoreNull"}) // ,
                  //"testStoreNotNull",
                  //"testStoreTwice",
                  //"testStoreOnNewObject"}) */
     public void runStoreTests() {
         {
             Outer o = new Outer();
-            Object o1 = new Object();
-            testStore(o, o1);
-            Asserts.assertEquals(o1, o.f);
+            testStoreNull(o);
+            Asserts.assertNull(o.f);
         }
     }
 }
-//         {
-//             Outer o = new Outer();
-//             testStoreNull(o);
-//             Asserts.assertNull(o.f);
-//         }
 //         {
 //             Outer o = new Outer();
 //             Object o1 = new Object();
