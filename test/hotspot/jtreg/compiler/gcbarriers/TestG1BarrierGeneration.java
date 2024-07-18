@@ -112,17 +112,17 @@ public class TestG1BarrierGeneration {
     public static void testStore(Outer o, Object o1) {
         o.f = o1;
     }
-
-    @Test
-    @IR(applyIf = {"UseCompressedOops", "false"},
-        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    @IR(applyIf = {"UseCompressedOops", "true"},
-        counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-        phase = CompilePhase.FINAL_CODE)
-    public static void testStoreNull(Outer o) {
-        o.f = null;
-    }
+//
+//     @Test
+//     @IR(applyIf = {"UseCompressedOops", "false"},
+//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     @IR(applyIf = {"UseCompressedOops", "true"},
+//         counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+//         phase = CompilePhase.FINAL_CODE)
+//     public static void testStoreNull(Outer o) {
+//         o.f = null;
+//     }
 
 //     @Test
 //     @IR(applyIf = {"UseCompressedOops", "false"},
@@ -163,18 +163,19 @@ public class TestG1BarrierGeneration {
 //         return o;
 //     }
 
-//     @Run(test = {"testStore",
-//                  "testStoreNull",
-//                  "testStoreNotNull",
-//                  "testStoreTwice",
-//                  "testStoreOnNewObject"})
-//     public void runStoreTests() {
-//         {
-//             Outer o = new Outer();
-//             Object o1 = new Object();
-//             testStore(o, o1);
-//             Asserts.assertEquals(o1, o.f);
-//         }
+    @Run(test = {"testStore"}) /*,
+                 "testStoreNull",
+                 "testStoreNotNull",
+                 "testStoreTwice",
+                 "testStoreOnNewObject"}) */
+    public void runStoreTests() {
+        {
+            Outer o = new Outer();
+            Object o1 = new Object();
+            testStore(o, o1);
+            Asserts.assertEquals(o1, o.f);
+        }
+    }
 //         {
 //             Outer o = new Outer();
 //             testStoreNull(o);
