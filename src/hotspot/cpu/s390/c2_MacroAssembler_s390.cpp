@@ -181,7 +181,7 @@ unsigned int C2_MacroAssembler::string_compress(Register result, Register src, R
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
     z_srak(Rix, Rcnt, log_min_vcnt);       // # vector loop iterations
     z_brz(VectorDone);                     // not enough data for vector loop
-
+    // {FIXME} stub generator
     z_vzero(Vzero);                        // all zeroes
     z_vgmh(Vmask, mask_ix_l, mask_ix_r);   // generate 0xff00/0xff80 mask for all 2-byte elements
     z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
