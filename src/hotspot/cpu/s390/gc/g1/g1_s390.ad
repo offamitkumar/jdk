@@ -87,6 +87,7 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
   format %{ "STG     $src,$dst\t # ptr" %}
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
+    __ block_comment("g1StoreP {");
     g1_pre_write_barrier(masm, this,
                           $dst$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,
@@ -209,7 +210,7 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
   ins_encode %{
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
-    __ block_comment("g1compareAndSwapN_bool {");
+    __ block_comment("g1compareAndSwapN {");
 //    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar1);
 //    __ z_agsi(0, Z_R1_scratch, 1);
     g1_pre_write_barrier(masm, this,
@@ -251,7 +252,7 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
                           $tmp2$$Register    /* new_val    */,
                           $tmp1$$Register    /* tmp1       */,
                           $tmp3$$Register    /* tmp2       */);
-    __ block_comment("} g1compareAndSwapN_bool");
+    __ block_comment("} g1compareAndSwapN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -320,7 +321,7 @@ instruct g1LoadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flag
   format %{ "LoadN   $dst,$mem\t # (cOop)" %}
   //opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
-    __ block_comment("g1loadN {");
+    __ block_comment("g1LoadN {");
 //    int isize = $secondary > 1L << 32 ? 48 : 32;
 //    Register Ridx = $mem$$index$$Register;
 //    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -356,7 +357,7 @@ instruct g1LoadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flag
                            $tmp2$$Register /* tmp1    */,
                            $tmp3$$Register /* tmp2    */);
     }
-    __ block_comment("} g1loadN");
+    __ block_comment("} g1LoadN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -368,7 +369,7 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
   format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
   ins_encode %{
-    __ block_comment("g1xchgN_reg_mem {");
+    __ block_comment("g1XChgN {");
     assert_different_registers($mem$$Register, $dst$$Register);
     g1_pre_write_barrier(masm, this,
                          $mem$$Register  /* obj */,
@@ -399,7 +400,7 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
                           $tmp2$$Register /* tmp1       */,
                           $tmp3$$Register /* tmp2       */);
 
-    __ block_comment("} g1xchgN_reg_mem");
+    __ block_comment("} g1XChgN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -412,6 +413,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   //size(18);
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
+    __ block_comment("g1CompareAndSwapP {");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -450,6 +452,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
                           $tmp2$$Register    /* new_val    */,
                           $tmp1$$Register    /* tmp1       */,
                           $tmp3$$Register    /* tmp2       */);
+    __ block_comment("} g1CompareAndSwapP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -510,7 +513,7 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   format %{ "LG      $dst,$mem\t # ptr" %}
   opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
-    __ block_comment("g1loadP {");
+    __ block_comment("g1LoadP {");
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $mem$$index$$Register;
     if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -542,7 +545,7 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
                          $dst$$Register /* pre_val */,
                          $tmp1$$Register /* tmp1 */,
                          $tmp2$$Register /* tmp2 */);
-    __ block_comment("} g1loadP");
+    __ block_comment("} g1LoadP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -554,7 +557,7 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2); // USE_DEF dst by match rule.
   format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
-    __ block_comment("g1xchgP_reg_mem {");
+    __ block_comment("g1XChgP {");
 
     g1_pre_write_barrier(masm, this,
                          $mem$$Register /* obj */,
@@ -582,7 +585,7 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
                           $tmp1$$Register /* new_val */,
                           $tmp2$$Register /* tmp1 */,
                           $tmp$$Register /* tmp2 */);
-    __ block_comment("} g1xchgP_reg_mem");
+    __ block_comment("} g1XChgP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -596,6 +599,7 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
   format %{ "encode_heap_oop $tmp1, $src\n\t"
             "st  $tmp1, $mem\t# compressed ptr" %}
   ins_encode %{
+    __ block_comment("g1EncodePAndStoreN {");
     g1_pre_write_barrier(masm, this,
                          $mem$$Register /* obj */,
                          $tmp1$$Register /* pre_val */,
@@ -615,6 +619,7 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
                           $src$$Register /* new_val */,
                           $tmp2$$Register /* tmp1 */,
                           $tmp3$$Register /* tmp2 */);
+    __ block_comment("} g1EncodePAndStoreN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
