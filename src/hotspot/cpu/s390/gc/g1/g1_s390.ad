@@ -257,7 +257,7 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
 %}
 
 // FIXME: this is exact replica of above match rule, only saves the previous value in res
-instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegP res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeN mem_ptr (Binary oldval newval)));
   effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
@@ -454,7 +454,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
   effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
