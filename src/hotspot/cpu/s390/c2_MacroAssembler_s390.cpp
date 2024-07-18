@@ -168,51 +168,13 @@ unsigned int C2_MacroAssembler::string_compress(Register result, Register src, R
                                            // Must correspond to # vector registers used by implementation,
                                            // and must be a power of 2.
     const int  log_min_vcnt = exact_log2(min_vcnt);
-    Label      VectorLoop, VectorDone, VectorBreak;
+    Label      VectorDone;
 
-    VectorRegister Vtmp1      = Z_V16;
-    VectorRegister Vtmp2      = Z_V17;
-    VectorRegister Vmask      = Z_V18;
-    VectorRegister Vzero      = Z_V19;
-    VectorRegister Vsrc_first = Z_V20;
-    VectorRegister Vsrc_last  = Z_V23;
-
-    assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
-    assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
     z_srak(Rix, Rcnt, log_min_vcnt);       // # vector loop iterations
     z_brz(VectorDone);                     // not enough data for vector loop
 
-    z_vzero(Vzero);                        // all zeroes
-    z_vgmh(Vmask, mask_ix_l, mask_ix_r);   // generate 0xff00/0xff80 mask for all 2-byte elements
-    z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
-
-    bind(VectorLoop);
-      z_vlm(Vsrc_first, Vsrc_last, 0, Rsrc);
-      add2reg(Rsrc, min_vcnt*2);
-
-      //---<  check for incompatible character  >---
-      z_vo(Vtmp1, Z_V20, Z_V21);
-      z_vo(Vtmp2, Z_V22, Z_V23);
-      z_vo(Vtmp1, Vtmp1, Vtmp2);
-      z_vn(Vtmp1, Vtmp1, Vmask);
-      z_vceqhs(Vtmp1, Vtmp1, Vzero);       // all bits selected by mask must be zero for successful compress.
-      z_bvnt(VectorBreak);                 // break vector loop if not all vector elements compare eq -> incompatible character found.
-                                           // re-process data from current iteration in break handler.
-
-      //---<  pack & store characters  >---
-      z_vpkh(Vtmp1, Z_V20, Z_V21);         // pack (src1, src2) -> tmp1
-      z_vpkh(Vtmp2, Z_V22, Z_V23);         // pack (src3, src4) -> tmp2
-      z_vstm(Vtmp1, Vtmp2, 0, Rdst);       // store packed string
-      add2reg(Rdst, min_vcnt);
-
-      z_brct(Rix, VectorLoop);
-
-    z_bru(VectorDone);
-
-    bind(VectorBreak);
-      add2reg(Rsrc, -min_vcnt*2);          // Fix Rsrc. Rsrc was already updated, but Rdst and Rix are not.
-      z_sll(Rix, log_min_vcnt);            // # chars processed so far in VectorLoop, excl. current iteration.
-      z_sr(Z_R0, Rix);                     // correct # chars processed in total.
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_compress());
+    call(Z_R1);
 
     bind(VectorDone);
   }
@@ -464,21 +426,8 @@ unsigned int C2_MacroAssembler::string_inflate(Register src, Register dst, Regis
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
     z_srak(Rix, Rcnt, log_min_vcnt);       // calculate # vector loop iterations
     z_brz(VectorDone);                     // skip if none
-
-    z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
-
-    bind(VectorLoop);
-      z_vlm(Z_V20, Z_V21, 0, Rsrc);        // get next 32 characters (single-byte)
-      add2reg(Rsrc, min_vcnt);
-
-      z_vuplhb(Z_V22, Z_V20);              // V2 <- (expand) V0(high)
-      z_vupllb(Z_V23, Z_V20);              // V3 <- (expand) V0(low)
-      z_vuplhb(Z_V24, Z_V21);              // V4 <- (expand) V1(high)
-      z_vupllb(Z_V25, Z_V21);              // V5 <- (expand) V1(low)
-      z_vstm(Z_V22, Z_V25, 0, Rdst);       // store next 32 bytes
-      add2reg(Rdst, min_vcnt*2);
-
-      z_brct(Rix, VectorLoop);
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate());
+    call(Z_R1);
 
     bind(VectorDone);
   }
@@ -616,60 +565,65 @@ unsigned int C2_MacroAssembler::string_inflate_const(Register src, Register dst,
   bool       restore_inputs = false;
   bool       workreg_clear  = false;
 
-  if ((len >= 32) && VM_Version::has_VectorFacility()) {
-    const int  min_vcnt     = 32;          // Minimum #characters required to use vector instructions.
-                                           // Otherwise just do nothing in vector mode.
-                                           // Must be multiple of vector register length (16 bytes = 128 bits).
-    const int  log_min_vcnt = exact_log2(min_vcnt);
-    const int  iterations   = (len - nprocessed) >> log_min_vcnt;
-    nprocessed             += iterations << log_min_vcnt;
-    Label      VectorLoop;
-
-    if (iterations == 1) {
-      z_vlm(Z_V20, Z_V21, 0+src_off, Rsrc);  // get next 32 characters (single-byte)
-      z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
-      z_vupllb(Z_V23, Z_V20);                // V3 <- (expand) V0(low)
-      z_vuplhb(Z_V24, Z_V21);                // V4 <- (expand) V1(high)
-      z_vupllb(Z_V25, Z_V21);                // V5 <- (expand) V1(low)
-      z_vstm(Z_V22, Z_V25, 0+dst_off, Rdst); // store next 32 bytes
-
-      src_off += min_vcnt;
-      dst_off += min_vcnt*2;
-    } else {
-      restore_inputs = true;
-
-      z_lgfi(Rix, len>>log_min_vcnt);
-      bind(VectorLoop);
+  if (VM_Version::has_VectorFacility()) {
+    if (len >= 32) {
+      const int min_vcnt = 32;          // Minimum #characters required to use vector instructions.
+      // Otherwise just do nothing in vector mode.
+      // Must be multiple of vector register length (16 bytes = 128 bits).
+      const int log_min_vcnt = exact_log2(min_vcnt);
+      const int iterations = (len - nprocessed) >> log_min_vcnt;
+      nprocessed += iterations << log_min_vcnt;
+      Label VectorLoop;
+      
+      load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate_const_32());
+      call(Z_R1);
+      if (iterations == 1) {
+        z_vlm(Z_V20, Z_V21, 0 + src_off, Rsrc);  // get next 32 characters (single-byte)
+        z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
+        z_vupllb(Z_V23, Z_V20);                // V3 <- (expand) V0(low)
+        z_vuplhb(Z_V24, Z_V21);                // V4 <- (expand) V1(high)
+        z_vupllb(Z_V25, Z_V21);                // V5 <- (expand) V1(low)
+        z_vstm(Z_V22, Z_V25, 0 + dst_off, Rdst); // store next 32 bytes
+        
+        src_off += min_vcnt;
+        dst_off += min_vcnt * 2;
+      } else {
+        restore_inputs = true;
+        
+        z_lgfi(Rix, len >> log_min_vcnt);
+        bind(VectorLoop);
         z_vlm(Z_V20, Z_V21, 0, Rsrc);        // get next 32 characters (single-byte)
         add2reg(Rsrc, min_vcnt);
-
+        
         z_vuplhb(Z_V22, Z_V20);              // V2 <- (expand) V0(high)
         z_vupllb(Z_V23, Z_V20);              // V3 <- (expand) V0(low)
         z_vuplhb(Z_V24, Z_V21);              // V4 <- (expand) V1(high)
         z_vupllb(Z_V25, Z_V21);              // V5 <- (expand) V1(low)
         z_vstm(Z_V22, Z_V25, 0, Rdst);       // store next 32 bytes
-        add2reg(Rdst, min_vcnt*2);
-
+        add2reg(Rdst, min_vcnt * 2);
+        
         z_brct(Rix, VectorLoop);
+      }
     }
-  }
-
-  if (((len-nprocessed) >= 16) && VM_Version::has_VectorFacility()) {
-    const int  min_vcnt     = 16;          // Minimum #characters required to use vector instructions.
-                                           // Otherwise just do nothing in vector mode.
-                                           // Must be multiple of vector register length (16 bytes = 128 bits).
-    const int  log_min_vcnt = exact_log2(min_vcnt);
-    const int  iterations   = (len - nprocessed) >> log_min_vcnt;
-    nprocessed             += iterations << log_min_vcnt;
-    assert(iterations == 1, "must be!");
-
-    z_vl(Z_V20, 0+src_off, Z_R0, Rsrc);    // get next 16 characters (single-byte)
-    z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
-    z_vupllb(Z_V23, Z_V20);                // V3 <- (expand) V0(low)
-    z_vstm(Z_V22, Z_V23, 0+dst_off, Rdst); // store next 32 bytes
-
-    src_off += min_vcnt;
-    dst_off += min_vcnt*2;
+    
+    if ((len - nprocessed) >= 16) {
+      const int min_vcnt = 16;          // Minimum #characters required to use vector instructions.
+      // Otherwise just do nothing in vector mode.
+      // Must be multiple of vector register length (16 bytes = 128 bits).
+      const int log_min_vcnt = exact_log2(min_vcnt);
+      const int iterations = (len - nprocessed) >> log_min_vcnt;
+      nprocessed += iterations << log_min_vcnt;
+      assert(iterations == 1, "must be!");
+      load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate_const_16());
+      call(Z_R1);
+      z_vl(Z_V20, 0 + src_off, Z_R0, Rsrc);    // get next 16 characters (single-byte)
+      z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
+      z_vupllb(Z_V23, Z_V20);                // V3 <- (expand) V0(low)
+      z_vstm(Z_V22, Z_V23, 0 + dst_off, Rdst); // store next 32 bytes
+      
+      src_off += min_vcnt;
+      dst_off += min_vcnt * 2;
+    }
   }
 
   if ((len-nprocessed) > 8) {

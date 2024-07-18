@@ -749,6 +749,121 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  address generate_vec_string_inflate_const_32() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const_32");
+
+    address start = __ pc();
+
+    __ stop("vec_string_inflate_const_32 stub is not ready yet");
+
+    return start;
+  }
+
+  address generate_vec_string_inflate_const_16() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const_16");
+
+    address start = __ pc();
+
+    __ stop("vec_string_inflate_const_16 stub is not ready yet");
+
+    return start;
+  }
+
+  address generate_vec_string_inflate() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate");
+
+    address start = __ pc();
+
+    const int  min_vcnt     = 32;          // Minimum #characters required to use vector instructions.
+    // Otherwise just do nothing in vector mode.
+    // Must be multiple of vector register length (16 bytes = 128 bits).
+    const int  log_min_vcnt = exact_log2(min_vcnt);
+    Label      VectorLoop;
+    Register   Rsrc = Z_ARG1;   // addr(src array)
+    Register   Rdst = Z_ARG2;   // addr(dst array)
+    Register   Rix  = Z_R10;    // loop index
+    __ z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
+    __ bind(VectorLoop);
+    __ z_vlm(Z_V20, Z_V21, 0, Rsrc);        // get next 32 characters (single-byte)
+    __ add2reg(Rsrc, min_vcnt);
+    __ z_vuplhb(Z_V22, Z_V20);              // V2 <- (expand) V0(high)
+    __ z_vupllb(Z_V23, Z_V20);              // V3 <- (expand) V0(low)
+    __ z_vuplhb(Z_V24, Z_V21);              // V4 <- (expand) V1(high)
+    __ z_vupllb(Z_V25, Z_V21);              // V5 <- (expand) V1(low)
+    __ z_vstm(Z_V22, Z_V25, 0, Rdst);       // store next 32 bytes
+    __ add2reg(Rdst, min_vcnt*2);
+    __ z_brct(Rix, VectorLoop);
+
+    __ z_br(Z_R14);
+    
+    return start;
+  }
+
+  address generate_vec_string_compress() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_compress");
+
+    address start = __ pc();
+
+    Label VectorLoop, VectorDone, VectorBreak;
+
+    const int  min_vcnt      = 32;
+    const int  log_min_vcnt  = exact_log2(min_vcnt);
+    unsigned int   mask_ix_l = 0;       // leftmost one bit pos in mask
+    unsigned int   mask_ix_r = 7;       // rightmost one bit pos in mask
+
+    VectorRegister Vtmp1      = Z_V16;
+    VectorRegister Vtmp2      = Z_V17;
+    VectorRegister Vmask      = Z_V18;
+    VectorRegister Vzero      = Z_V19;
+    VectorRegister Vsrc_first = Z_V20;
+    VectorRegister Vsrc_last  = Z_V23;
+
+    Register Rsrc = Z_ARG1;
+    Register Rdst = Z_ARG2;
+    Register Rix  = Z_R10;
+
+    assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
+    assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
+
+    __ z_vzero(Vzero);                        // all zeroes
+    __ z_vgmh(Vmask, mask_ix_l, mask_ix_r);   // generate 0xff00/0xff80 mask for all 2-byte elements
+    __ z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
+
+    __ bind(VectorLoop);
+    __ z_vlm(Vsrc_first, Vsrc_last, 0, Rsrc);
+    __ add2reg(Rsrc, min_vcnt*2);
+
+    //---<  check for incompatible character  >---
+    __ z_vo(Vtmp1, Z_V20, Z_V21);
+    __ z_vo(Vtmp2, Z_V22, Z_V23);
+    __ z_vo(Vtmp1, Vtmp1, Vtmp2);
+    __ z_vn(Vtmp1, Vtmp1, Vmask);
+    __ z_vceqhs(Vtmp1, Vtmp1, Vzero);       // all bits selected by mask must be zero for successful compress.
+    __ z_bvnt(VectorBreak);                 // break vector loop if not all vector elements compare eq -> incompatible character found.
+    // re-process data from current iteration in break handler.
+
+    //---<  pack & store characters  >---
+    __ z_vpkh(Vtmp1, Z_V20, Z_V21);         // pack (src1, src2) -> tmp1
+    __ z_vpkh(Vtmp2, Z_V22, Z_V23);         // pack (src3, src4) -> tmp2
+    __ z_vstm(Vtmp1, Vtmp2, 0, Rdst);       // store packed string
+    __ add2reg(Rdst, min_vcnt);
+
+    __ z_brct(Rix, VectorLoop);
+
+    __ z_bru(VectorDone);
+
+    __ bind(VectorBreak);
+    __ add2reg(Rsrc, -min_vcnt*2);          // Fix Rsrc. Rsrc was already updated, but Rdst and Rix are not.
+    __ z_sll(Rix, log_min_vcnt);            // # chars processed so far in VectorLoop, excl. current iteration.
+    __ z_sr(Z_R0, Rix);                     // correct # chars processed in total.
+
+    __ bind(VectorDone);
+
+    __ z_br(Z_R14);
+
+    return start;
+  }
+
 #if !defined(PRODUCT)
   // Wrapper which calls oopDesc::is_oop_or_null()
   // Only called by MacroAssembler::verify_oop
@@ -3299,7 +3414,14 @@ class StubGenerator: public StubCodeGenerator {
         }
       }
     }
-#endif
+
+    if (VM_Version::has_VectorFacility()) {
+      StubRoutines::zarch::_vec_string_inflate_const_32 = generate_vec_string_inflate_const_32();
+      StubRoutines::zarch::_vec_string_inflate_const_16 = generate_vec_string_inflate_const_16();
+      StubRoutines::zarch::_vec_string_inflate          = generate_vec_string_inflate();
+      StubRoutines::zarch::_vec_string_compress         = generate_vec_string_compress();
+    }
+#endif // COMPILER2
 #endif // COMPILER2_OR_JVMCI
   }
 

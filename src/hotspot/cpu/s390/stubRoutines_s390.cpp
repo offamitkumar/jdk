@@ -33,7 +33,11 @@
 // Implementation of the platform-specific part of StubRoutines - for
 // a description of how to extend it, see the stubRoutines.hpp file.
 
-address StubRoutines::zarch::_partial_subtype_check = nullptr;
+address StubRoutines::zarch::_partial_subtype_check       = nullptr;
+address StubRoutines::zarch::_vec_string_inflate_const_32 = nullptr;
+address StubRoutines::zarch::_vec_string_inflate_const_16 = nullptr;
+address StubRoutines::zarch::_vec_string_inflate          = nullptr;
+address StubRoutines::zarch::_vec_string_compress         = nullptr;
 
 // Comapct string intrinsics: Translate table for string inflate intrinsic. Used by trot instruction.
 address StubRoutines::zarch::_trot_table_addr = nullptr;
