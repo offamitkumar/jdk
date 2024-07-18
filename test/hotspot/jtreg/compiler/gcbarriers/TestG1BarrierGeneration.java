@@ -104,16 +104,38 @@ public class TestG1BarrierGeneration {
 
     @Test
     @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testArrayStore(Object[] a, int index, Object o1) {
+        a[index] = o1;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testArrayStoreNull(Object[] a, int index) {
+        a[index] = null;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
         phase = CompilePhase.FINAL_CODE)
     @IR(applyIf = {"UseCompressedOops", "true"},
         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
         phase = CompilePhase.FINAL_CODE)
-    public static void testStoreNotNull(Outer o, Object o1) {
+    public static void testArrayStoreNotNull(Object[] a, int index, Object o1) {
         if (o1.hashCode() == 42) {
             return;
         }
-        o.f = o1;
+        a[index] = o1;
     }
 
     @Test
@@ -123,9 +145,9 @@ public class TestG1BarrierGeneration {
     @IR(applyIf = {"UseCompressedOops", "true"},
         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
         phase = CompilePhase.FINAL_CODE)
-    public static void testStoreTwice(Outer o, Outer p, Object o1) {
-        o.f = o1;
-        p.f = o1;
+    public static void testArrayStoreTwice(Object[] a, Object[] b, int index, Object o1) {
+        a[index] = o1;
+        b[index] = o1;
     }
 
     @Test
@@ -135,140 +157,52 @@ public class TestG1BarrierGeneration {
     @IR(applyIfAnd = {"UseCompressedOops", "true", "ReduceInitialCardMarks", "true"},
         failOn = {IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
         phase = CompilePhase.FINAL_CODE)
-    public static Outer testStoreOnNewObject(Object o1) {
-        Outer o = new Outer();
-        o.f = o1;
-        return o;
+    public static Object[] testStoreOnNewArray(Object o1) {
+        Object[] a = new Object[10];
+        // The index needs to be concrete for C2 to detect that it is safe to
+        // remove the pre-barrier.
+        a[4] = o1;
+        return a;
     }
 
-    @Run(test = {
-                 "testStoreNotNull",
-                 "testStoreTwice",
-                 "testStoreOnNewObject"})
-    public void runStoreTests() {
+    @Run(test = {"testArrayStore",
+                 "testArrayStoreNull",
+                 "testArrayStoreNotNull",
+                 "testArrayStoreTwice",
+                 "testStoreOnNewArray"})
+    public void runArrayStoreTests() {
         {
-            Outer o = new Outer();
+            Object[] a = new Object[10];
             Object o1 = new Object();
-            testStoreNotNull(o, o1);
-            Asserts.assertEquals(o1, o.f);
+            testArrayStore(a, 4, o1);
+            Asserts.assertEquals(o1, a[4]);
         }
         {
-            Outer o = new Outer();
-            Outer p = new Outer();
+            Object[] a = new Object[10];
+            testArrayStoreNull(a, 4);
+            Asserts.assertNull(a[4]);
+        }
+        {
+            Object[] a = new Object[10];
             Object o1 = new Object();
-            testStoreTwice(o, p, o1);
-            Asserts.assertEquals(o1, o.f);
-            Asserts.assertEquals(o1, p.f);
+            testArrayStoreNotNull(a, 4, o1);
+            Asserts.assertEquals(o1, a[4]);
+        }
+        {
+            Object[] a = new Object[10];
+            Object[] b = new Object[10];
+            Object o1 = new Object();
+            testArrayStoreTwice(a, b, 4, o1);
+            Asserts.assertEquals(o1, a[4]);
+            Asserts.assertEquals(o1, b[4]);
         }
         {
             Object o1 = new Object();
-            Outer o = testStoreOnNewObject(o1);
-            Asserts.assertEquals(o1, o.f);
+            Object[] a = testStoreOnNewArray(o1);
+            Asserts.assertEquals(o1, a[4]);
         }
     }
 }
-
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testArrayStore(Object[] a, int index, Object o1) {
-//         a[index] = o1;
-//     }
-
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testArrayStoreNull(Object[] a, int index) {
-//         a[index] = null;
-//     }
-
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testArrayStoreNotNull(Object[] a, int index, Object o1) {
-//         if (o1.hashCode() == 42) {
-//             return;
-//         }
-//         a[index] = o1;
-//     }
-
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testArrayStoreTwice(Object[] a, Object[] b, int index, Object o1) {
-//         a[index] = o1;
-//         b[index] = o1;
-//     }
-
-//     @Test
-//     @IR(applyIfAnd = {"UseCompressedOops", "false", "ReduceInitialCardMarks", "true"},
-//         failOn = {IRNode.G1_STORE_P},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIfAnd = {"UseCompressedOops", "true", "ReduceInitialCardMarks", "true"},
-//         failOn = {IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static Object[] testStoreOnNewArray(Object o1) {
-//         Object[] a = new Object[10];
-//         // The index needs to be concrete for C2 to detect that it is safe to
-//         // remove the pre-barrier.
-//         a[4] = o1;
-//         return a;
-//     }
-
-//     @Run(test = {"testArrayStore",
-//                  "testArrayStoreNull",
-//                  "testArrayStoreNotNull",
-//                  "testArrayStoreTwice",
-//                  "testStoreOnNewArray"})
-//     public void runArrayStoreTests() {
-//         {
-//             Object[] a = new Object[10];
-//             Object o1 = new Object();
-//             testArrayStore(a, 4, o1);
-//             Asserts.assertEquals(o1, a[4]);
-//         }
-//         {
-//             Object[] a = new Object[10];
-//             testArrayStoreNull(a, 4);
-//             Asserts.assertNull(a[4]);
-//         }
-//         {
-//             Object[] a = new Object[10];
-//             Object o1 = new Object();
-//             testArrayStoreNotNull(a, 4, o1);
-//             Asserts.assertEquals(o1, a[4]);
-//         }
-//         {
-//             Object[] a = new Object[10];
-//             Object[] b = new Object[10];
-//             Object o1 = new Object();
-//             testArrayStoreTwice(a, b, 4, o1);
-//             Asserts.assertEquals(o1, a[4]);
-//             Asserts.assertEquals(o1, b[4]);
-//         }
-//         {
-//             Object o1 = new Object();
-//             Object[] a = testStoreOnNewArray(o1);
-//             Asserts.assertEquals(o1, a[4]);
-//         }
-//     }
-
 //     @Test
 //     public static Object[] testCloneArrayOfObjects(Object[] a) {
 //         Object[] a1 = null;
