@@ -102,6 +102,306 @@ public class TestG1BarrierGeneration {
         framework.start();
     }
 
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testStore(Outer o, Object o1) {
+        o.f = o1;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testStoreNull(Outer o) {
+        o.f = null;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testStoreNotNull(Outer o, Object o1) {
+        if (o1.hashCode() == 42) {
+            return;
+        }
+        o.f = o1;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testStoreTwice(Outer o, Outer p, Object o1) {
+        o.f = o1;
+        p.f = o1;
+    }
+
+    @Test
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_P},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
+        phase = CompilePhase.FINAL_CODE)
+    public static Outer testStoreOnNewObject(Object o1) {
+        Outer o = new Outer();
+        o.f = o1;
+        return o;
+    }
+
+    @Run(test = {"testStore",
+                 "testStoreNull",
+                 "testStoreNotNull",
+                 "testStoreTwice",
+                 "testStoreOnNewObject"})
+    public void runStoreTests() {
+        {
+            Outer o = new Outer();
+            Object o1 = new Object();
+            testStore(o, o1);
+            Asserts.assertEquals(o1, o.f);
+        }
+        {
+            Outer o = new Outer();
+            testStoreNull(o);
+            Asserts.assertNull(o.f);
+        }
+        {
+            Outer o = new Outer();
+            Object o1 = new Object();
+            testStoreNotNull(o, o1);
+            Asserts.assertEquals(o1, o.f);
+        }
+        {
+            Outer o = new Outer();
+            Outer p = new Outer();
+            Object o1 = new Object();
+            testStoreTwice(o, p, o1);
+            Asserts.assertEquals(o1, o.f);
+            Asserts.assertEquals(o1, p.f);
+        }
+        {
+            Object o1 = new Object();
+            Outer o = testStoreOnNewObject(o1);
+            Asserts.assertEquals(o1, o.f);
+        }
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testArrayStore(Object[] a, int index, Object o1) {
+        a[index] = o1;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testArrayStoreNull(Object[] a, int index) {
+        a[index] = null;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testArrayStoreNotNull(Object[] a, int index, Object o1) {
+        if (o1.hashCode() == 42) {
+            return;
+        }
+        a[index] = o1;
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testArrayStoreTwice(Object[] a, Object[] b, int index, Object o1) {
+        a[index] = o1;
+        b[index] = o1;
+    }
+
+    @Test
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_P},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
+        phase = CompilePhase.FINAL_CODE)
+    public static Object[] testStoreOnNewArray(Object o1) {
+        Object[] a = new Object[10];
+        // The index needs to be concrete for C2 to detect that it is safe to
+        // remove the pre-barrier.
+        a[4] = o1;
+        return a;
+    }
+
+    @Run(test = {"testArrayStore",
+                 "testArrayStoreNull",
+                 "testArrayStoreNotNull",
+                 "testArrayStoreTwice",
+                 "testStoreOnNewArray"})
+    public void runArrayStoreTests() {
+        {
+            Object[] a = new Object[10];
+            Object o1 = new Object();
+            testArrayStore(a, 4, o1);
+            Asserts.assertEquals(o1, a[4]);
+        }
+        {
+            Object[] a = new Object[10];
+            testArrayStoreNull(a, 4);
+            Asserts.assertNull(a[4]);
+        }
+        {
+            Object[] a = new Object[10];
+            Object o1 = new Object();
+            testArrayStoreNotNull(a, 4, o1);
+            Asserts.assertEquals(o1, a[4]);
+        }
+        {
+            Object[] a = new Object[10];
+            Object[] b = new Object[10];
+            Object o1 = new Object();
+            testArrayStoreTwice(a, b, 4, o1);
+            Asserts.assertEquals(o1, a[4]);
+            Asserts.assertEquals(o1, b[4]);
+        }
+        {
+            Object o1 = new Object();
+            Object[] a = testStoreOnNewArray(o1);
+            Asserts.assertEquals(o1, a[4]);
+        }
+    }
+
+    @Test
+    public static Object[] testCloneArrayOfObjects(Object[] a) {
+        Object[] a1 = null;
+        try {
+            a1 = a.clone();
+        } catch (Exception e) {}
+        return a1;
+    }
+
+    @Test
+    @IR(applyIf = {"ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_P, IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"ReduceInitialCardMarks", "false", "UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, POST_ONLY, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"ReduceInitialCardMarks", "false", "UseCompressedOops", "true"},
+        counts = {IRNode.G1_STORE_N_WITH_BARRIER_FLAG, POST_ONLY, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    public static OuterWithFewFields testCloneObjectWithFewFields(OuterWithFewFields o) {
+        Object o1 = null;
+        try {
+            o1 = o.clone();
+        } catch (Exception e) {}
+        return (OuterWithFewFields)o1;
+    }
+
+    @Test
+    @IR(applyIf = {"ReduceInitialCardMarks", "true"},
+        counts = {IRNode.CALL_OF, "jlong_disjoint_arraycopy", "1"})
+    @IR(applyIf = {"ReduceInitialCardMarks", "false"},
+        counts = {IRNode.CALL_OF, "G1BarrierSetRuntime::clone", "1"})
+    public static OuterWithManyFields testCloneObjectWithManyFields(OuterWithManyFields o) {
+        Object o1 = null;
+        try {
+            o1 = o.clone();
+        } catch (Exception e) {}
+        return (OuterWithManyFields)o1;
+    }
+
+    @Run(test = {"testCloneArrayOfObjects",
+                 "testCloneObjectWithFewFields",
+                 "testCloneObjectWithManyFields"})
+    public void runCloneTests() {
+        {
+            Object o1 = new Object();
+            Object[] a = new Object[4];
+            for (int i = 0; i < 4; i++) {
+                a[i] = o1;
+            }
+            Object[] a1 = testCloneArrayOfObjects(a);
+            for (int i = 0; i < 4; i++) {
+                Asserts.assertEquals(o1, a1[i]);
+            }
+        }
+        {
+            Object a = new Object();
+            Object b = new Object();
+            OuterWithFewFields o = new OuterWithFewFields();
+            o.f1 = a;
+            o.f2 = b;
+            OuterWithFewFields o1 = testCloneObjectWithFewFields(o);
+            Asserts.assertEquals(a, o1.f1);
+            Asserts.assertEquals(b, o1.f2);
+        }
+        {
+            Object a = new Object();
+            Object b = new Object();
+            Object c = new Object();
+            Object d = new Object();
+            Object e = new Object();
+            Object f = new Object();
+            Object g = new Object();
+            Object h = new Object();
+            Object i = new Object();
+            Object j = new Object();
+            OuterWithManyFields o = new OuterWithManyFields();
+            o.f1 = a;
+            o.f2 = b;
+            o.f3 = c;
+            o.f4 = d;
+            o.f5 = e;
+            o.f6 = f;
+            o.f7 = g;
+            o.f8 = h;
+            o.f9 = i;
+            o.f10 = j;
+            OuterWithManyFields o1 = testCloneObjectWithManyFields(o);
+            Asserts.assertEquals(a, o1.f1);
+            Asserts.assertEquals(b, o1.f2);
+            Asserts.assertEquals(c, o1.f3);
+            Asserts.assertEquals(d, o1.f4);
+            Asserts.assertEquals(e, o1.f5);
+            Asserts.assertEquals(f, o1.f6);
+            Asserts.assertEquals(g, o1.f7);
+            Asserts.assertEquals(h, o1.f8);
+            Asserts.assertEquals(i, o1.f9);
+            Asserts.assertEquals(j, o1.f10);
+        }
+    }
 
     @Test
     @IR(applyIf = {"UseCompressedOops", "false"},
@@ -166,6 +466,45 @@ public class TestG1BarrierGeneration {
             Object oldVal2 = testGetAndSet(o, newVal);
             Asserts.assertEquals(oldVal, oldVal2);
             Asserts.assertEquals(o.f, newVal);
+        }
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_LOAD_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_LOAD_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    static Object testLoadSoftReference(SoftReference<Object> ref) {
+        return ref.get();
+    }
+
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_LOAD_P_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_LOAD_N_WITH_BARRIER_FLAG, PRE_ONLY, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    static Object testLoadWeakReference(WeakReference<Object> ref) {
+        return ref.get();
+    }
+
+    @Run(test = {"testLoadSoftReference",
+                 "testLoadWeakReference"})
+    public void runReferenceTests() {
+        {
+            Object o1 = new Object();
+            SoftReference<Object> sref = new SoftReference<Object>(o1);
+            Object o2 = testLoadSoftReference(sref);
+            Asserts.assertTrue(o2 == o1 || o2 == null);
+        }
+        {
+            Object o1 = new Object();
+            WeakReference<Object> wref = new WeakReference<Object>(o1);
+            Object o2 = testLoadWeakReference(wref);
+            Asserts.assertTrue(o2 == o1 || o2 == null);
         }
     }
 }
