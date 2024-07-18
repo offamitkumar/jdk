@@ -113,78 +113,76 @@ public class TestG1BarrierGeneration {
         o.f = null;
     }
 
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testStoreNotNull(Outer o, Object o1) {
-//         if (o1.hashCode() == 42) {
-//             return;
-//         }
-//         o.f = o1;
-//     }
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST_NOT_NULL, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testStoreNotNull(Outer o, Object o1) {
+        if (o1.hashCode() == 42) {
+            return;
+        }
+        o.f = o1;
+    }
 
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static void testStoreTwice(Outer o, Outer p, Object o1) {
-//         o.f = o1;
-//         p.f = o1;
-//     }
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_STORE_P_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_ENCODE_P_AND_STORE_N_WITH_BARRIER_FLAG, PRE_AND_POST, "2"},
+        phase = CompilePhase.FINAL_CODE)
+    public static void testStoreTwice(Outer o, Outer p, Object o1) {
+        o.f = o1;
+        p.f = o1;
+    }
 
-//     @Test
-//     @IR(applyIfAnd = {"UseCompressedOops", "false", "ReduceInitialCardMarks", "true"},
-//         failOn = {IRNode.G1_STORE_P},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIfAnd = {"UseCompressedOops", "true", "ReduceInitialCardMarks", "true"},
-//         failOn = {IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
-//         phase = CompilePhase.FINAL_CODE)
-//     public static Outer testStoreOnNewObject(Object o1) {
-//         Outer o = new Outer();
-//         o.f = o1;
-//         return o;
-//     }
+    @Test
+    @IR(applyIfAnd = {"UseCompressedOops", "false", "ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_P},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIfAnd = {"UseCompressedOops", "true", "ReduceInitialCardMarks", "true"},
+        failOn = {IRNode.G1_STORE_N, IRNode.G1_ENCODE_P_AND_STORE_N},
+        phase = CompilePhase.FINAL_CODE)
+    public static Outer testStoreOnNewObject(Object o1) {
+        Outer o = new Outer();
+        o.f = o1;
+        return o;
+    }
 
     @Run(test = {
-                 "testStoreNull"}) // ,
-                 //"testStoreNotNull",
-                 //"testStoreTwice",
-                 //"testStoreOnNewObject"}) */
+                 "testStoreNotNull",
+                 "testStoreTwice",
+                 "testStoreOnNewObject"})
     public void runStoreTests() {
         {
             Outer o = new Outer();
             testStoreNull(o);
             Asserts.assertNull(o.f);
         }
+        {
+            Outer o = new Outer();
+            Object o1 = new Object();
+            testStoreNotNull(o, o1);
+            Asserts.assertEquals(o1, o.f);
+        }
+        {
+            Outer o = new Outer();
+            Outer p = new Outer();
+            Object o1 = new Object();
+            testStoreTwice(o, p, o1);
+            Asserts.assertEquals(o1, o.f);
+            Asserts.assertEquals(o1, p.f);
+        }
+        {
+            Object o1 = new Object();
+            Outer o = testStoreOnNewObject(o1);
+            Asserts.assertEquals(o1, o.f);
+        }
     }
 }
-//         {
-//             Outer o = new Outer();
-//             Object o1 = new Object();
-//             testStoreNotNull(o, o1);
-//             Asserts.assertEquals(o1, o.f);
-//         }
-//         {
-//             Outer o = new Outer();
-//             Outer p = new Outer();
-//             Object o1 = new Object();
-//             testStoreTwice(o, p, o1);
-//             Asserts.assertEquals(o1, o.f);
-//             Asserts.assertEquals(o1, p.f);
-//         }
-//         {
-//             Object o1 = new Object();
-//             Outer o = testStoreOnNewObject(o1);
-//             Asserts.assertEquals(o1, o.f);
-//         }
-//     }
 
 //     @Test
 //     @IR(applyIf = {"UseCompressedOops", "false"},
