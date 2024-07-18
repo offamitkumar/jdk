@@ -64,7 +64,7 @@ class G1BarrierSetAssembler: public ModRefBarrierSetAssembler {
 
   void generate_c1_pre_barrier_runtime_stub(StubAssembler* sasm);
   void generate_c1_post_barrier_runtime_stub(StubAssembler* sasm);
-#endif
+#endif // COMPILER1
 
 #ifdef COMPILER2
   void g1_write_barrier_pre_c2(MacroAssembler* masm,
@@ -85,7 +85,7 @@ class G1BarrierSetAssembler: public ModRefBarrierSetAssembler {
                                 G1PostBarrierStubC2* c2_stub);
   void generate_c2_post_barrier_stub(MacroAssembler* masm,
                                      G1PostBarrierStubC2* stub) const;
-#endif
+#endif // COMPILER2
 
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        const Address& src, Register dst, Register tmp1, Register tmp2, Label *L_handle_null = nullptr);
