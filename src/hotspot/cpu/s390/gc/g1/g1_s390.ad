@@ -312,7 +312,7 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
 %}
 
 // Load narrow oop
-instruct g1LoadN(iRegN dst, memory mem, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1LoadN(iRegN dst, memory mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadN mem));
   effect(TEMP dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
