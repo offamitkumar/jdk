@@ -114,31 +114,31 @@ public class TestG1BarrierGeneration {
         return fVarHandle.compareAndExchange(o, oldVal, newVal);
     }
 
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_COMPARE_AND_SWAP_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_COMPARE_AND_SWAP_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     static boolean testCompareAndSwap(Outer o, Object oldVal, Object newVal) {
-//         return fVarHandle.compareAndSet(o, oldVal, newVal);
-//     }
-//
-//     @Test
-//     @IR(applyIf = {"UseCompressedOops", "false"},
-//         counts = {IRNode.G1_GET_AND_SET_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     @IR(applyIf = {"UseCompressedOops", "true"},
-//         counts = {IRNode.G1_GET_AND_SET_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
-//         phase = CompilePhase.FINAL_CODE)
-//     static Object testGetAndSet(Outer o, Object newVal) {
-//         return fVarHandle.getAndSet(o, newVal);
-//     }
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_COMPARE_AND_SWAP_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_COMPARE_AND_SWAP_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    static boolean testCompareAndSwap(Outer o, Object oldVal, Object newVal) {
+        return fVarHandle.compareAndSet(o, oldVal, newVal);
+    }
 
-    @Run(test = {"testCompareAndExchange"})//,
-                 //"testCompareAndSwap",
-                 //"testGetAndSet"}*/)
+    @Test
+    @IR(applyIf = {"UseCompressedOops", "false"},
+        counts = {IRNode.G1_GET_AND_SET_P_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    @IR(applyIf = {"UseCompressedOops", "true"},
+        counts = {IRNode.G1_GET_AND_SET_N_WITH_BARRIER_FLAG, PRE_AND_POST, "1"},
+        phase = CompilePhase.FINAL_CODE)
+    static Object testGetAndSet(Outer o, Object newVal) {
+        return fVarHandle.getAndSet(o, newVal);
+    }
+
+    @Run(test = {"testCompareAndExchange",
+                 "testCompareAndSwap",
+                 "testGetAndSet"})
     public void runAtomicTests() {
         {
             Outer o = new Outer();
@@ -149,23 +149,23 @@ public class TestG1BarrierGeneration {
             Asserts.assertEquals(oldVal, oldVal2);
             Asserts.assertEquals(o.f, newVal);
         }
+        {
+            Outer o = new Outer();
+            Object oldVal = new Object();
+            o.f = oldVal;
+            Object newVal = new Object();
+            boolean b = testCompareAndSwap(o, oldVal, newVal);
+            Asserts.assertTrue(b);
+            Asserts.assertEquals(o.f, newVal);
         }
+        {
+            Outer o = new Outer();
+            Object oldVal = new Object();
+            o.f = oldVal;
+            Object newVal = new Object();
+            Object oldVal2 = testGetAndSet(o, newVal);
+            Asserts.assertEquals(oldVal, oldVal2);
+            Asserts.assertEquals(o.f, newVal);
         }
-//         {
-//             Outer o = new Outer();
-//             Object oldVal = new Object();
-//             o.f = oldVal;
-//             Object newVal = new Object();
-//             boolean b = testCompareAndSwap(o, oldVal, newVal);
-//             Asserts.assertTrue(b);
-//             Asserts.assertEquals(o.f, newVal);
-//         }
-//         {
-//             Outer o = new Outer();
-//             Object oldVal = new Object();
-//             o.f = oldVal;
-//             Object newVal = new Object();
-//             Object oldVal2 = testGetAndSet(o, newVal);
-//             Asserts.assertEquals(oldVal, oldVal2);
-//             Asserts.assertEquals(o.f, newVal);
-//         }
+    }
+}
