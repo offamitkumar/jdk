@@ -163,11 +163,11 @@ public class TestG1BarrierGeneration {
 //         return o;
 //     }
 
-    @Run(test = {"testStore"}) /*,
-                 "testStoreNull",
-                 "testStoreNotNull",
-                 "testStoreTwice",
-                 "testStoreOnNewObject"}) */
+    @Run(test = {"testStore"}) //,
+                 //"testStoreNull",
+                 //"testStoreNotNull",
+                 //"testStoreTwice",
+                 //"testStoreOnNewObject"}) */
     public void runStoreTests() {
         {
             Outer o = new Outer();
@@ -176,6 +176,7 @@ public class TestG1BarrierGeneration {
             Asserts.assertEquals(o1, o.f);
         }
     }
+}
 //         {
 //             Outer o = new Outer();
 //             testStoreNull(o);
@@ -468,5 +469,3 @@ public class TestG1BarrierGeneration {
 //             Asserts.assertEquals(oldVal, oldVal2);
 //             Asserts.assertEquals(o.f, newVal);
 //         }
-    }
-}
