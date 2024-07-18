@@ -284,13 +284,13 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
     Register Rres = reg_to_register_object($res$$reg);
     assert_different_registers(Rres, $mem_ptr$$Register);
 
-    Label    retry;
+    //Label    retry;
 
     // Iterate until swap succeeds.
-    __ bind(retry);
+    //__ bind(retry);
     // Calculate incremented value.
     __ z_csy(Rcomp, Rnew, 0, Raddr); // Try to store new value.
-    __ z_brne(retry);                    // Yikes, concurrent update, need to retry.
+    //__ z_brne(retry);                    // Yikes, concurrent update, need to retry.
 
     __ z_lgr(Rres, Rcomp);  // previous contents
 
@@ -479,11 +479,11 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
 
     __ z_lgr($tmp1$$Register, $oldval$$Register);
     __ z_lgr($tmp2$$Register, $newval$$Register);
-    Label retry; 
-    
-    __ bind(retry);
-    __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr); 
-    __ z_brne(retry); // Raddr contents got changed, need to retry
+    //Label retry;
+
+    //__ bind(retry);
+    __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr);
+    //__ z_brne(retry); // Raddr contents got changed, need to retry
 
     Register Rres = reg_to_register_object($res$$reg);
     __ z_lgr(Rres, $tmp1$$Register); // previous content
