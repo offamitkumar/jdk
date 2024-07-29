@@ -51,6 +51,7 @@
 
 #define BLOCK_COMMENT(str) __ block_comment(str)
 
+//long fubar2 = 0;
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count) {
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
@@ -116,6 +117,11 @@ static void generate_c2_barrier_runtime_call(MacroAssembler* masm, G1BarrierStub
 //  __ z_lgr(Z_ARG2, Z_thread);
 //  __ load_const(Z_R1_scratch, runtime_path);
 //  __ call(Z_R1_scratch);
+  if(UseNewCode)
+    __ stop("no more runtime calls");
+  //__ stop("damn it");
+  //__ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar2);
+  //__ z_agsi(0, Z_R1_scratch, 1);
   __ call_VM_leaf(runtime_path, pre_val, Z_thread);
   BLOCK_COMMENT("} generate_c2_barrier_runtime_call");
 }
