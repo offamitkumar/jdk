@@ -89,7 +89,7 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
     __ block_comment("g1StoreP {");
-    //__ stop("g1StoreP {");
+    __ stop("g1StoreP {");
     g1_pre_write_barrier(masm, this,
                           $dst$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,
@@ -146,7 +146,7 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
 
   ins_encode %{
     __ block_comment("g1StoreN {");
-    //__ stop("g1StoreN {");
+    __ stop("g1StoreN {");
     assert($tmp1$$Register != noreg, "what");
     //__ z_la($tmp4$$Register, $mem$$Address);
     g1_pre_write_barrier(masm, this,
@@ -214,7 +214,7 @@ instruct g1CompareAndSwapN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iR
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
     __ block_comment("g1compareAndSwapN {");
-    //__ stop("g1compareAndSwapN {");
+    __ stop("g1compareAndSwapN {");
     //__ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar1);
     //__ z_agsi(0, Z_R1_scratch, 1);
     g1_pre_write_barrier(masm, this,
@@ -272,7 +272,7 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
     __ block_comment("g1CompareAndExchangeN {");
-    //__ stop("g1CompareAndExchangeN {");
+    __ stop("g1CompareAndExchangeN {");
 //    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar1);
 //    __ z_agsi(0, Z_R1_scratch, 1);
     g1_pre_write_barrier(masm, this,
@@ -327,7 +327,7 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
   //opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadN {");
-    //__ stop("g1LoadN {");
+    __ stop("g1LoadN {");
 //    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar3);
 //    __ z_agsi(0, Z_R1_scratch, 1);
 //    int isize = $secondary > 1L << 32 ? 48 : 32;
@@ -378,7 +378,7 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
   format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
   ins_encode %{
     __ block_comment("g1XChgN {");
-    //__ stop("g1XChgN {");
+    __ stop("g1XChgN {");
     assert_different_registers($mem$$Register, $dst$$Register);
     g1_pre_write_barrier(masm, this,
                          $mem$$Register  /* obj */,
@@ -423,7 +423,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndSwapP {");
-    //__ stop("g1CompareAndSwapP");
+    __ stop("g1CompareAndSwapP");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -475,7 +475,7 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
-    //__ stop("g1CompareAndExchangeP {");
+    __ stop("g1CompareAndExchangeP {");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -525,7 +525,7 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadP {");
-    //__ stop("g1LoadP {");
+    __ stop("g1LoadP {");
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $mem$$index$$Register;
     if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -570,7 +570,7 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
   format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
     __ block_comment("g1XChgP {");
-    //__ stop("g1XChgP {");
+    __ stop("g1XChgP {");
 
     g1_pre_write_barrier(masm, this,
                          $mem$$Register /* obj */,
@@ -613,7 +613,7 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
             "st  $tmp1, $mem\t# compressed ptr" %}
   ins_encode %{
     __ block_comment("g1EncodePAndStoreN {");
-    //__ stop("g1EncodePAndStoreN {");
+    __ stop("g1EncodePAndStoreN {");
     g1_pre_write_barrier(masm, this,
                          $mem$$Register /* obj */,
                          $tmp1$$Register /* pre_val */,
