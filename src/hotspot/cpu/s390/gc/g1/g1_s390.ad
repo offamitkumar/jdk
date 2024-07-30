@@ -89,7 +89,7 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
     __ block_comment("g1StoreP {");
-    __ stop("g1StoreP {");
+    //__ stop("g1StoreP {");
     g1_pre_write_barrier(masm, this,
                           $dst$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,
@@ -425,7 +425,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndSwapP {");
-    __ stop("g1CompareAndSwapP");
+    //__ stop("g1CompareAndSwapP");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -477,7 +477,7 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
-    __ stop("g1CompareAndExchangeP {");
+    //__ stop("g1CompareAndExchangeP {");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -527,7 +527,7 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadP {");
-    __ stop("g1LoadP {");
+    //__ stop("g1LoadP {");
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $mem$$index$$Register;
     if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -572,7 +572,7 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
   format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
     __ block_comment("g1XChgP {");
-    __ stop("g1XChgP {");
+    //__ stop("g1XChgP {");
 
     g1_pre_write_barrier(masm, this,
                          $mem$$Register /* obj */,
