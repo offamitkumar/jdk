@@ -3905,7 +3905,6 @@ instruct loadP(iRegP dst, memory mem) %{
 %}
 
 // LoadP + CastP2L
-// FIXME: does this match rule need load/store barrier for G1 ?
 instruct castP2X_loadP(iRegL dst, memory mem) %{
   match(Set dst (CastP2X (LoadP mem)));
   predicate(n->as_Load()->barrier_data() == 0);
