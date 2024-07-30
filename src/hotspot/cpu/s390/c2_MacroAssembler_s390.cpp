@@ -179,6 +179,7 @@ unsigned int C2_MacroAssembler::string_compress(Register result, Register src, R
 
     assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
+    StubRoutines::zarch::vec_string_compress();
     z_srak(Rix, Rcnt, log_min_vcnt);       // # vector loop iterations
     z_brz(VectorDone);                     // not enough data for vector loop
     // {FIXME} stub generator
@@ -462,6 +463,7 @@ unsigned int C2_MacroAssembler::string_inflate(Register src, Register dst, Regis
     Label      VectorLoop, VectorDone;
 
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
+    StubRoutines::zarch::vec_string_inflate();
     z_srak(Rix, Rcnt, log_min_vcnt);       // calculate # vector loop iterations
     z_brz(VectorDone);                     // skip if none
 
@@ -663,6 +665,7 @@ unsigned int C2_MacroAssembler::string_inflate_const(Register src, Register dst,
     nprocessed             += iterations << log_min_vcnt;
     assert(iterations == 1, "must be!");
 
+    StubRoutines::zarch::vec_string_inflate_const();
     z_vl(Z_V20, 0+src_off, Z_R0, Rsrc);    // get next 16 characters (single-byte)
     z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
     z_vupllb(Z_V23, Z_V20);                // V3 <- (expand) V0(low)
