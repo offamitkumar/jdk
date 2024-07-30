@@ -33,9 +33,6 @@ source %{
 
 #include "gc/g1/g1BarrierSetAssembler_s390.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
-  //long fubar = 0;
-  ////long fubar1 = 0;
-  //long fubar3 = 0;
 
 static void g1_pre_write_barrier(MacroAssembler* masm,
                                  const MachNode* node,
@@ -48,7 +45,6 @@ static void g1_pre_write_barrier(MacroAssembler* masm,
   if (!G1PreBarrierStubC2::needs_barrier(node)) {
     return;
   }
-  assert(pre_val != noreg, "fuck");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   G1BarrierSetAssembler* g1_asm = static_cast<G1BarrierSetAssembler*>(BarrierSet::barrier_set()->barrier_set_assembler());
   G1PreBarrierStubC2* const stub = G1PreBarrierStubC2::create(node);
@@ -89,7 +85,6 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
   opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
     __ block_comment("g1StoreP {");
-    //__ stop("g1StoreP {");
     g1_pre_write_barrier(masm, this,
                           $dst$$Register  /* obj */,
                           $tmp1$$Register /* pre_val */,
@@ -146,11 +141,9 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
 
   ins_encode %{
     __ block_comment("g1StoreN {");
-    //__ stop("g1StoreN {");
-    assert($tmp1$$Register != noreg, "what");
     //__ z_la($tmp4$$Register, $mem$$Address);
     g1_pre_write_barrier(masm, this,
-                          $mem$$Register /* obj     */,
+                          $mem$$Register  /* obj     */,
                           $tmp1$$Register /* pre_val */,
                           $tmp2$$Register /* tmp1    */,
                           $tmp3$$Register /* tmp2    */,
@@ -185,7 +178,6 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
 //          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
 //    }
 //
-    // FIXME: is decoding correct ?
     if ((barrier_data() & G1C2BarrierPost) != 0) {
       if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
         __ oop_decoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
@@ -195,7 +187,7 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
     }
 
     g1_post_write_barrier(masm, this,
-                           $mem$$Register,/* store_addr */
+                           $mem$$Register, /* store_addr */
                            $tmp1$$Register /* new_val    */,
                            $tmp2$$Register /* tmp1       */,
                            $tmp3$$Register /* tmp2       */);
@@ -216,9 +208,6 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
     __ block_comment("g1compareAndSwapN {");
-    //__ stop("g1compareAndSwapN {");
-    //__ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar1);
-    //__ z_agsi(0, Z_R1_scratch, 1);
     g1_pre_write_barrier(masm, this,
                          $mem_ptr$$Register /* obj     */,
                          $tmp1$$Register    /* pre_val */,
@@ -247,10 +236,6 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
       __ bind(done);
     }
 
-    // FIXME: for now loading newval into temp, But I have doubt
-    // do we need to load the value, which we have stored at the mem_ptr address, because if that the case
-    // then it depends on the CC.
-    // FOR NOW make things simple and load newval
     __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
 
     g1_post_write_barrier(masm, this,
@@ -274,9 +259,6 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
     __ block_comment("g1CompareAndExchangeN {");
-    //__ stop("g1CompareAndExchangeN {");
-//    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar1);
-//    __ z_agsi(0, Z_R1_scratch, 1);
     g1_pre_write_barrier(masm, this,
                          $mem_ptr$$Register /* obj     */,
                          $tmp1$$Register    /* pre_val */,
@@ -292,20 +274,9 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
     Register Rres = reg_to_register_object($res$$reg);
     assert_different_registers(Rres, $mem_ptr$$Register);
 
-    //Label    retry;
-
     __ z_lgr(Rres, Rcomp);  // previous contents
-    // Iterate until swap succeeds.
-    //__ bind(retry);
-    // Calculate incremented value.
     __ z_csy(Rres, Rnew, 0, Raddr); // Try to store new value.
-    //__ z_brne(retry);                    // Yikes, concurrent update, need to retry.
 
-
-    // FIXME: for now loading newval into temp, But I have doubt
-    // do we need to load the value, which we have stored at the mem_ptr address, because if that the case
-    // then it depends on the CC.
-    // FOR NOW make things simple and load newval
     __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
 
     g1_post_write_barrier(masm, this,
@@ -329,9 +300,6 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
   //opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadN {");
-    //__ stop("g1LoadN {");
-//    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar3);
-//    __ z_agsi(0, Z_R1_scratch, 1);
 //    int isize = $secondary > 1L << 32 ? 48 : 32;
 //    Register Ridx = $mem$$index$$Register;
 //    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -380,7 +348,6 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
   format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
   ins_encode %{
     __ block_comment("g1XChgN {");
-    //__ stop("g1XChgN {");
     assert_different_registers($mem$$Register, $dst$$Register);
     g1_pre_write_barrier(masm, this,
                          $mem$$Register  /* obj */,
@@ -425,7 +392,6 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndSwapP {");
-    //__ stop("g1CompareAndSwapP");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -477,7 +443,6 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
-    //__ stop("g1CompareAndExchangeP {");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
 
@@ -498,13 +463,8 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
 
     Register Rres = reg_to_register_object($res$$reg);
     __ z_lgr(Rres, $tmp1$$Register); // previous content
-    //Label retry;
-
-    //__ bind(retry);
+    
     __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr);
-    //__ z_brne(retry); // Raddr contents got changed, need to retry
-
-
 
     g1_post_write_barrier(masm, this,
                           $mem_ptr$$Register /* store_addr */,
@@ -527,7 +487,6 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadP {");
-    //__ stop("g1LoadP {");
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $mem$$index$$Register;
     if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -572,11 +531,10 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
   format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
     __ block_comment("g1XChgP {");
-    //__ stop("g1XChgP {");
 
     g1_pre_write_barrier(masm, this,
-                         $mem$$Register /* obj */,
-                         $tmp$$Register /* pre_val (as a temporary register) */,
+                         $mem$$Register  /* obj  */,
+                         $tmp$$Register  /* pre_val (as a temporary register) */,
                          $tmp1$$Register /* tmp1 */,
                          $tmp2$$Register /* tmp2 */,
                          RegSet::of($mem$$Register, $dst$$Register) /* preserve */);
@@ -596,10 +554,10 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
     __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
 
     g1_post_write_barrier(masm, this,
-                          $mem$$Register /* store_addr */,
-                          $tmp1$$Register /* new_val */,
-                          $tmp2$$Register /* tmp1 */,
-                          $tmp$$Register /* tmp2 */);
+                          $mem$$Register  /* store_addr */,
+                          $tmp1$$Register /* new_val    */,
+                          $tmp2$$Register /* tmp1       */,
+                          $tmp$$Register  /* tmp2       */);
     __ block_comment("} g1XChgP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -615,12 +573,11 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
             "st  $tmp1, $mem\t# compressed ptr" %}
   ins_encode %{
     __ block_comment("g1EncodePAndStoreN {");
-    //__ stop("g1EncodePAndStoreN {");
     g1_pre_write_barrier(masm, this,
-                         $mem$$Register /* obj */,
+                         $mem$$Register  /* obj     */,
                          $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp1 */,
-                         $tmp3$$Register /* tmp2 */,
+                         $tmp2$$Register /* tmp1    */,
+                         $tmp3$$Register /* tmp2    */,
                          RegSet::of($mem$$Register, $src$$Register) /* preserve */);
     if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
       // FIXME:: can we update the macroAssembler method and look more aarch64 type ?
@@ -631,43 +588,11 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
     }
     __ z_st($tmp1$$Register, Address($mem$$Register));
     g1_post_write_barrier(masm, this,
-                          $mem$$Register /* store_addr */,
-                          $src$$Register /* new_val */,
-                          $tmp2$$Register /* tmp1 */,
-                          $tmp3$$Register /* tmp2 */);
+                          $mem$$Register  /* store_addr */,
+                          $src$$Register  /* new_val    */,
+                          $tmp2$$Register /* tmp1       */,
+                          $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1EncodePAndStoreN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
-
-//// Add Immediate to 8-byte memory operand and result
-//instruct g1addP_mem_imm(memoryRSY mem, immL8 src, flagsReg cr) %{
-//  predicate(UseG1GC && VM_Version::has_MemWithImmALUOps() && n->as_LoadStore()->barrier_data() != 0);
-//  match(Set mem (StoreP mem (AddP (LoadP mem) src)));
-//  effect(KILL cr);
-//  ins_cost(MEMORY_REF_COST);
-//  size(6);
-//  format %{ "AGSI    $mem,$src\t # direct mem add 8 (ptr)" %}
-//  opcode(AGSI_ZOPC);
-//  ins_encode %{
-//    __ stop("g1addP_mem_imm not yet implemented");
-//    // ins_encode(z_siyform(mem, src));
-//  %}
-//  ins_pipe(pipe_class_dummy);
-//%}
-//
-//// LoadP + CastP2L
-//instruct g1castP2X_loadP(iRegL dst, memory mem) %{
-//  predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
-//  match(Set dst (CastP2X (LoadP mem)));
-//  ins_cost(MEMORY_REF_COST);
-//  size(Z_DISP3_SIZE);
-//  format %{ "LG      $dst,$mem\t # ptr + p2x" %}
-//  opcode(LG_ZOPC, LG_ZOPC);
-//  ins_encode %{
-//    __ stop("g1castP2X_loadP not yet implemented");
-//    // z_form_rt_mem_opt(dst, mem)
-//  %}
-//  ins_pipe(pipe_class_dummy);
-//%}
-
