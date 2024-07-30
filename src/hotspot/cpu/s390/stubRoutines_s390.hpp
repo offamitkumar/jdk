@@ -73,6 +73,10 @@ class zarch {
   static int _atomic_memory_operation_lock;
 
   static address _partial_subtype_check;
+  static address _vec_string_inflate_const;
+  static address _vec_string_inflate;
+  static address _vec_string_compress;
+
   static juint   _crc_table[CRC32_TABLES][CRC32_COLUMN_SIZE];
   static juint   _crc32c_table[CRC32_TABLES][CRC32_COLUMN_SIZE];
 
@@ -93,6 +97,9 @@ class zarch {
   static void set_atomic_memory_operation_lock(int value) { _atomic_memory_operation_lock = value; }
 
   static address partial_subtype_check()                  { return _partial_subtype_check; }
+  static address vec_string_inflate_const()               { return _vec_string_inflate_const; }
+  static address vec_string_inflate()                     { return _vec_string_inflate; }
+  static address vec_string_compress()                    { return _vec_string_compress; }
 
   static void generate_load_absolute_address(MacroAssembler* masm, Register table, address table_addr, uint64_t table_contents);
   static void generate_load_crc_table_addr(MacroAssembler* masm, Register table);

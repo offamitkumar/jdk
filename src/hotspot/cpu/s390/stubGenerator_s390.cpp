@@ -748,6 +748,37 @@ class StubGenerator: public StubCodeGenerator {
 
     return start;
   }
+  
+  static address generate_vec_string_inflate_const() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const");
+    
+    address start = __ pc();
+    
+    __ stop("vec_string_inflate_const stub is not ready yet");
+    
+    return start;
+  }
+  
+  static address generate_vec_string_inflate() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate");
+    
+    address start = __ pc();
+    
+    __ stop("vec_string_inflate stub is not ready yet");
+    
+    return start;
+  }
+  
+  
+  static address generate_vec_string_compress() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_compress");
+    
+    address start = __ pc();
+    
+    __ stop("vec_string_compress stub is not ready yet");
+    
+    return start;
+  }
 
 #if !defined(PRODUCT)
   // Wrapper which calls oopDesc::is_oop_or_null()
@@ -3299,7 +3330,13 @@ class StubGenerator: public StubCodeGenerator {
         }
       }
     }
-#endif
+    
+    if (VM_Version::has_VectorFacility()) {
+      StubRoutines::zarch::_vec_string_inflate_const = generate_vec_string_inflate_const();
+      StubRoutines::zarch::_vec_string_inflate       = generate_vec_string_inflate();
+      StubRoutines::zarch::_vec_string_compress      = generate_vec_string_compress();
+    }
+#endif // COMPILER2
 #endif // COMPILER2_OR_JVMCI
   }
 
