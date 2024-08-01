@@ -777,6 +777,54 @@ class StubGenerator: public StubCodeGenerator {
     
     __ stop("vec_string_compress stub is not ready yet");
     
+    Label      VectorLoop, VectorDone, VectorBreak;
+    
+    VectorRegister Vtmp1      = Z_V16;
+    VectorRegister Vtmp2      = Z_V17;
+    VectorRegister Vmask      = Z_V18;
+    VectorRegister Vzero      = Z_V19;
+    VectorRegister Vsrc_first = Z_V20;
+    VectorRegister Vsrc_last  = Z_V23;
+    
+    assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
+    assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
+    
+    __ z_vzero(Vzero);                        // all zeroes
+    __ z_vgmh(Vmask, mask_ix_l, mask_ix_r);   // generate 0xff00/0xff80 mask for all 2-byte elements
+    __ z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
+    
+    __ bind(VectorLoop);
+    __ z_vlm(Vsrc_first, Vsrc_last, 0, Rsrc);
+    __ add2reg(Rsrc, min_vcnt*2);
+    
+    //---<  check for incompatible character  >---
+    __ z_vo(Vtmp1, Z_V20, Z_V21);
+    __ z_vo(Vtmp2, Z_V22, Z_V23);
+    __ z_vo(Vtmp1, Vtmp1, Vtmp2);
+    __ z_vn(Vtmp1, Vtmp1, Vmask);
+    __ z_vceqhs(Vtmp1, Vtmp1, Vzero);       // all bits selected by mask must be zero for successful compress.
+    __ z_bvnt(VectorBreak);                 // break vector loop if not all vector elements compare eq -> incompatible character found.
+    // re-process data from current iteration in break handler.
+    
+    //---<  pack & store characters  >---
+    __ z_vpkh(Vtmp1, Z_V20, Z_V21);         // pack (src1, src2) -> tmp1
+    __ z_vpkh(Vtmp2, Z_V22, Z_V23);         // pack (src3, src4) -> tmp2
+    __ z_vstm(Vtmp1, Vtmp2, 0, Rdst);       // store packed string
+    __ add2reg(Rdst, min_vcnt);
+    
+    __ z_brct(Rix, VectorLoop);
+    
+    __ z_bru(VectorDone);
+    
+    __ bind(VectorBreak);
+    __ add2reg(Rsrc, -min_vcnt*2);          // Fix Rsrc. Rsrc was already updated, but Rdst and Rix are not.
+    __ z_sll(Rix, log_min_vcnt);            // # chars processed so far in VectorLoop, excl. current iteration.
+    __ z_sr(Z_R0, Rix);                     // correct # chars processed in total.
+    
+    __ bind(VectorDone);
+    
+    __ z_br(Z_R14);
+    
     return start;
   }
 
