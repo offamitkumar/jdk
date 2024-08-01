@@ -179,9 +179,10 @@ unsigned int C2_MacroAssembler::string_compress(Register result, Register src, R
 
     assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
-    StubRoutines::zarch::vec_string_compress();
     z_srak(Rix, Rcnt, log_min_vcnt);       // # vector loop iterations
     z_brz(VectorDone);                     // not enough data for vector loop
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_compress()); 
+    call(Z_R1);
     // {FIXME} stub generator
     z_vzero(Vzero);                        // all zeroes
     z_vgmh(Vmask, mask_ix_l, mask_ix_r);   // generate 0xff00/0xff80 mask for all 2-byte elements
@@ -463,10 +464,11 @@ unsigned int C2_MacroAssembler::string_inflate(Register src, Register dst, Regis
     Label      VectorLoop, VectorDone;
 
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
-    StubRoutines::zarch::vec_string_inflate();
     z_srak(Rix, Rcnt, log_min_vcnt);       // calculate # vector loop iterations
     z_brz(VectorDone);                     // skip if none
-
+    stop("[debug]crash vec_string_inflate");
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate()); 
+    call(Z_R1);
     z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
 
     bind(VectorLoop);
@@ -664,8 +666,9 @@ unsigned int C2_MacroAssembler::string_inflate_const(Register src, Register dst,
     const int  iterations   = (len - nprocessed) >> log_min_vcnt;
     nprocessed             += iterations << log_min_vcnt;
     assert(iterations == 1, "must be!");
-
-    StubRoutines::zarch::vec_string_inflate_const();
+    stop("[debug]crash vec_string_inflate_const");
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate_const()); 
+    call(Z_R1);
     z_vl(Z_V20, 0+src_off, Z_R0, Rsrc);    // get next 16 characters (single-byte)
     z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
     z_vupllb(Z_V23, Z_V20);                // V3 <- (expand) V0(low)

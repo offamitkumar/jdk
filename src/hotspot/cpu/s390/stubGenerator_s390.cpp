@@ -749,7 +749,7 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
   
-  static address generate_vec_string_inflate_const() {
+  address generate_vec_string_inflate_const() {
     StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const");
     
     address start = __ pc();
@@ -759,7 +759,7 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
   
-  static address generate_vec_string_inflate() {
+  address generate_vec_string_inflate() {
     StubCodeMark mark(this, "StubRoutines", "vec_string_inflate");
     
     address start = __ pc();
@@ -770,7 +770,7 @@ class StubGenerator: public StubCodeGenerator {
   }
   
   
-  static address generate_vec_string_compress() {
+  address generate_vec_string_compress() {
     StubCodeMark mark(this, "StubRoutines", "vec_string_compress");
     
     address start = __ pc();
