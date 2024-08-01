@@ -8249,7 +8249,6 @@ instruct compP_decode_reg_imm0(flagsReg cr, iRegN op1, immP0 op2) %{
 %}
 
 instruct compP_reg_mem(iRegP dst, memory src, flagsReg cr)%{
-  predicate(n->as_Load()->barrier_data() == 0);
   match(Set cr (CmpP dst (LoadP src)));
   ins_cost(MEMORY_REF_COST);
   size(Z_DISP3_SIZE);
