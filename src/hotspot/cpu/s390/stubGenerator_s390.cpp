@@ -779,7 +779,8 @@ class StubGenerator: public StubCodeGenerator {
     
     Label      VectorLoop, VectorDone, VectorBreak;
     
-    const int  min_vcnt     = 32;
+    const int  min_vcnt      = 32;
+    const int  log_min_vcnt  = exact_log2(min_vcnt);
     unsigned int   mask_ix_l = 0;       // leftmost one bit pos in mask
     unsigned int   mask_ix_r = 7;       // rightmost one bit pos in mask
     
@@ -791,6 +792,7 @@ class StubGenerator: public StubCodeGenerator {
     VectorRegister Vsrc_last  = Z_V23;
     
     Register Rsrc = Z_ARG1;
+    Register Rdst = Z_ARG2;
     Register Rix  = Z_R10;
     
     assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
