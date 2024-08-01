@@ -10076,7 +10076,7 @@ instruct string_compress(rarg1RegP src, rarg2RegP dst, iRegI result, iRegI len, 
 //%}
 
 // byte[] to char[] inflation
-instruct string_inflate(Universe dummy, iRegP src, iRegP dst, iRegI len, iRegI tmp, flagsReg cr) %{
+instruct string_inflate(Universe dummy, rarg1RegP src, rarg2RegP dst, iRegI len, r10TempRegP tmp, flagsReg cr) %{
   match(Set dummy (StrInflatedCopy src (Binary dst len)));
   effect(TEMP tmp, KILL cr); // R0, R1 are killed, too.
   ins_cost(300);

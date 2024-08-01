@@ -426,23 +426,8 @@ unsigned int C2_MacroAssembler::string_inflate(Register src, Register dst, Regis
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
     z_srak(Rix, Rcnt, log_min_vcnt);       // calculate # vector loop iterations
     z_brz(VectorDone);                     // skip if none
-    stop("[debug]crash vec_string_inflate");
     load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate());
     call(Z_R1);
-    z_sllg(Z_R0, Rix, log_min_vcnt);       // remember #chars that will be processed by vector loop
-
-    bind(VectorLoop);
-      z_vlm(Z_V20, Z_V21, 0, Rsrc);        // get next 32 characters (single-byte)
-      add2reg(Rsrc, min_vcnt);
-
-      z_vuplhb(Z_V22, Z_V20);              // V2 <- (expand) V0(high)
-      z_vupllb(Z_V23, Z_V20);              // V3 <- (expand) V0(low)
-      z_vuplhb(Z_V24, Z_V21);              // V4 <- (expand) V1(high)
-      z_vupllb(Z_V25, Z_V21);              // V5 <- (expand) V1(low)
-      z_vstm(Z_V22, Z_V25, 0, Rdst);       // store next 32 bytes
-      add2reg(Rdst, min_vcnt*2);
-
-      z_brct(Rix, VectorLoop);
 
     bind(VectorDone);
   }
