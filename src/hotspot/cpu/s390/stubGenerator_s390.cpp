@@ -784,9 +784,9 @@ class StubGenerator: public StubCodeGenerator {
     __ z_vstm(Z_V22, Z_V25, 0, Rdst);       // store next 32 bytes
     __ add2reg(Rdst, min_vcnt*2);
     __ z_brct(Rix, VectorLoop);
-    if (UseNewCode) {
-      __ z_br(Z_R14);
-    }
+
+    __ z_br(Z_R14);
+    
     return start;
   }
 
@@ -850,9 +850,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ bind(VectorDone);
 
-    if (UseNewCode) {
-      __ z_br(Z_R14);
-    }
+    __ z_br(Z_R14);
 
     return start;
   }
