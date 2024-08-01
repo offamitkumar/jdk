@@ -779,12 +779,19 @@ class StubGenerator: public StubCodeGenerator {
     
     Label      VectorLoop, VectorDone, VectorBreak;
     
+    const int  min_vcnt     = 32;
+    unsigned int   mask_ix_l = 0;       // leftmost one bit pos in mask
+    unsigned int   mask_ix_r = 7;       // rightmost one bit pos in mask
+    
     VectorRegister Vtmp1      = Z_V16;
     VectorRegister Vtmp2      = Z_V17;
     VectorRegister Vmask      = Z_V18;
     VectorRegister Vzero      = Z_V19;
     VectorRegister Vsrc_first = Z_V20;
     VectorRegister Vsrc_last  = Z_V23;
+    
+    Register Rsrc = Z_ARG1;
+    Register Rix  = Z_R10;
     
     assert((Vsrc_last->encoding() - Vsrc_first->encoding() + 1) == min_vcnt/8, "logic error");
     assert(VM_Version::has_DistinctOpnds(), "Assumption when has_VectorFacility()");
