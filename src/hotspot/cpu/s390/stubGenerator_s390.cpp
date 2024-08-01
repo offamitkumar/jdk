@@ -749,12 +749,22 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_vec_string_inflate_const() {
-    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const");
+  address generate_vec_string_inflate_const_32() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const_32");
 
     address start = __ pc();
 
-    __ stop("vec_string_inflate_const stub is not ready yet");
+    __ stop("vec_string_inflate_const_32 stub is not ready yet");
+
+    return start;
+  }
+
+  address generate_vec_string_inflate_const_16() {
+    StubCodeMark mark(this, "StubRoutines", "vec_string_inflate_const_16");
+
+    address start = __ pc();
+
+    __ stop("vec_string_inflate_const_16 stub is not ready yet");
 
     return start;
   }
@@ -3406,9 +3416,10 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     if (VM_Version::has_VectorFacility()) {
-      StubRoutines::zarch::_vec_string_inflate_const = generate_vec_string_inflate_const();
-      StubRoutines::zarch::_vec_string_inflate       = generate_vec_string_inflate();
-      StubRoutines::zarch::_vec_string_compress      = generate_vec_string_compress();
+      StubRoutines::zarch::_vec_string_inflate_const_32 = generate_vec_string_inflate_const_32();
+      StubRoutines::zarch::_vec_string_inflate_const_16 = generate_vec_string_inflate_const_16();
+      StubRoutines::zarch::_vec_string_inflate          = generate_vec_string_inflate();
+      StubRoutines::zarch::_vec_string_compress         = generate_vec_string_compress();
     }
 #endif // COMPILER2
 #endif // COMPILER2_OR_JVMCI

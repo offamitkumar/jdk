@@ -73,7 +73,8 @@ class zarch {
   static int _atomic_memory_operation_lock;
 
   static address _partial_subtype_check;
-  static address _vec_string_inflate_const;
+  static address _vec_string_inflate_const_32;
+  static address _vec_string_inflate_const_16;
   static address _vec_string_inflate;
   static address _vec_string_compress;
 
@@ -97,7 +98,8 @@ class zarch {
   static void set_atomic_memory_operation_lock(int value) { _atomic_memory_operation_lock = value; }
 
   static address partial_subtype_check()                  { return _partial_subtype_check; }
-  static address vec_string_inflate_const()               { return _vec_string_inflate_const; }
+  static address vec_string_inflate_const_32()               { return _vec_string_inflate_const_32; }
+  static address vec_string_inflate_const_16()               { return _vec_string_inflate_const_16; }
   static address vec_string_inflate()                     { return _vec_string_inflate; }
   static address vec_string_compress()                    { return _vec_string_compress; }
 
