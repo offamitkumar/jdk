@@ -573,7 +573,10 @@ unsigned int C2_MacroAssembler::string_inflate_const(Register src, Register dst,
     const int  iterations   = (len - nprocessed) >> log_min_vcnt;
     nprocessed             += iterations << log_min_vcnt;
     Label      VectorLoop;
-
+    
+    stop("[debug]crash vec_string_inflate_const_32");
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate_const_32());
+    call(Z_R1);
     if (iterations == 1) {
       z_vlm(Z_V20, Z_V21, 0+src_off, Rsrc);  // get next 32 characters (single-byte)
       z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
@@ -611,8 +614,8 @@ unsigned int C2_MacroAssembler::string_inflate_const(Register src, Register dst,
     const int  iterations   = (len - nprocessed) >> log_min_vcnt;
     nprocessed             += iterations << log_min_vcnt;
     assert(iterations == 1, "must be!");
-    stop("[debug]crash vec_string_inflate_const");
-    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate_const());
+    stop("[debug]crash vec_string_inflate_const_16");
+    load_const_optimized(Z_R1, StubRoutines::zarch::vec_string_inflate_const_16());
     call(Z_R1);
     z_vl(Z_V20, 0+src_off, Z_R0, Rsrc);    // get next 16 characters (single-byte)
     z_vuplhb(Z_V22, Z_V20);                // V2 <- (expand) V0(high)
