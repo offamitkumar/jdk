@@ -764,7 +764,6 @@ class StubGenerator: public StubCodeGenerator {
 
     address start = __ pc();
 
-    __ stop("vec_string_inflate stub is not ready yet");
     const int  min_vcnt     = 32;          // Minimum #characters required to use vector instructions.
     // Otherwise just do nothing in vector mode.
     // Must be multiple of vector register length (16 bytes = 128 bits).
