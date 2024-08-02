@@ -51,7 +51,7 @@
 
 #define BLOCK_COMMENT(str) __ block_comment(str)
 
-static Assembler::branch_condition generate_marking_active_test(MacroAssembler* masm, const Register thread) {
+static Assembler::branch_condition generate_marking_active_test(MacroAssembler* masm, const Register thread, Register tmp1) {
   const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
   // Is marking active?
   // Note: value is loaded for test purposes only. No further use here.
@@ -145,7 +145,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
   stub->initialize_registers(obj, pre_val, thread, tmp1, tmp2);
   
   if (UseNewCode) {
-  Assembler::branch_condition bcond = generate_marking_active_test(masm, thread);
+  Assembler::branch_condition bcond = generate_marking_active_test(masm, thread, tmp1);
   __ branch_optimized(bcond, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
   } else {
   // FIXME: Below code could be moved to a function, for now it's fine :-)
