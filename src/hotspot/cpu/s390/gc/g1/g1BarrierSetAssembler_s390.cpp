@@ -297,10 +297,11 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
 
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
-
+//  __ z_lg(Rbuffer, buffer_offset, Z_thread);
+  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
+  
   // Record the previous value.
-  __ z_stg(pre_val, 0, Rbuffer, Rindex);
+  __ z_stg(pre_val, 0, Rindex);
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
   
   __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
@@ -413,7 +414,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
   Register Rbuffer = Rtmp1, Rindex = Rtmp2;
   assert_different_registers(Rbuffer, Rindex, Rpre_val);
 
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
+//  __ z_lg(Rbuffer, buffer_offset, Z_thread);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
   __ z_bre(callRuntime); // If index == 0, goto runtime.
@@ -422,7 +423,8 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
   __ z_stg(Rindex, index_offset, Z_thread);
 
   // Record the previous value.
-  __ z_stg(Rpre_val, 0, Rbuffer, Rindex);
+  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
+  __ z_stg(Rpre_val, 0, Rindex);
   __ z_bru(filtered);  // We are done.
 
   Rbuffer = noreg;  // end of life
@@ -553,12 +555,13 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
   __ load_and_test_long(Rqueue_index, Address(Z_thread, qidx_off));
   __ z_bre(callRuntime); // Index == 0 then jump to runtime.
 
-  __ z_lg(Rqueue_buf, qbuf_off, Z_thread);
+//  __ z_lg(Rqueue_buf, qbuf_off, Z_thread);
 
   __ add2reg(Rqueue_index, -wordSize); // Decrement index.
   __ z_stg(Rqueue_index, qidx_off, Z_thread);
 
-  __ z_stg(Rcard_addr_x, 0, Rqueue_index, Rqueue_buf); // Store card.
+  __ z_ag(Rqueue_index, Address(Z_thread, qbuf_off));
+  __ z_stg(Rcard_addr_x, 0, Rqueue_index); // Store card.
   __ z_bru(filtered);
 
   __ bind(callRuntime);
@@ -721,10 +724,11 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   // index == 0?
   __ z_brz(refill);
 
-  __ z_lg(tmp2, satb_q_buf_byte_offset, Z_thread);
+//  __ z_lg(tmp2, satb_q_buf_byte_offset, Z_thread);
   __ add2reg(tmp, -oopSize);
 
-  __ z_stg(pre_val, 0, tmp, tmp2); // [_buf + index] := <address_of_card>
+  __ z_ag(tmp, Address(Z_thread, satb_q_buf_byte_offset));
+  __ z_stg(pre_val, 0, tmp); // [_buf + index] := <address_of_card>
   __ z_stg(tmp, satb_q_index_byte_offset, Z_thread);
 
   __ bind(marking_not_active);
