@@ -119,9 +119,6 @@ instruct g1StoreN(memory mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3,
                           $tmp2$$Register /* tmp1    */,
                           RegSet::of($tmp4$$Register, $src$$Register) /* preserve */);
     
-    // FIXME: need to find a way to use st & sty on need basis. Like it is done below
-    // in the commented code; 
-//    __ z_sty($src$$Register, Address($mem$$Register));
     int isize = $secondary > 1L << 32 ? 48 : 32;
     Register Ridx = $mem$$index$$Register;
     if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
@@ -172,7 +169,6 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapN mem_ptr (Binary oldval newval)));
   effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
-  // size(16);
   format %{ "$res = CompareAndSwapN $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
@@ -217,12 +213,10 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
   ins_pipe(pipe_class_dummy);
 %}
 
-// FIXME: this is exact replica of above match rule, only saves the previous value in res
 instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegN res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeN mem_ptr (Binary oldval newval)));
   effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
-  // size(16);
   format %{ "$res = CompareAndExchangeN $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
@@ -263,37 +257,9 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
   match(Set dst (LoadN mem));
   effect(TEMP dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
-  // size(Z_DISP3_SIZE);
   format %{ "LoadN   $dst,$mem\t # (cOop)" %}
-  //opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadN {");
-//    int isize = $secondary > 1L << 32 ? 48 : 32;
-//    Register Ridx = $mem$$index$$Register;
-//    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
-//
-//    if (Displacement::is_shortDisp((long)$mem$$disp)) {
-//      z_emit_inst(masm, $secondary |
-//                  Assembler::reg($dst$$reg, 8, isize) |
-//                  Assembler::uimm12($mem$$disp, 20, isize) |
-//                  Assembler::reg(Ridx, 12, isize) |
-//                  Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-//    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
-//      z_emit_inst(masm, $primary |
-//                  Assembler::reg($dst$$reg, 8, 48) |
-//                  Assembler::simm20($mem$$disp) |
-//                  Assembler::reg(Ridx, 12, 48) |
-//                  Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
-//    } else {
-//        __ load_const_optimized(Z_R1_scratch, $mem$$disp);
-//        if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
-//        z_emit_inst(masm, $secondary |
-//                    Assembler::reg($dst$$reg, 8, isize) |
-//                    Assembler::uimm12(0, 20, isize) |
-//                    Assembler::reg(Z_R1_scratch, 12, isize) |
-//                    Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-//    }
-
     __ z_llgf($dst$$Register, Address($mem$$Register));
     if ((barrier_data() & G1C2BarrierPre) != 0) {
       __ oop_decoder($tmp1$$Register, $dst$$Register, true);
@@ -307,7 +273,6 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
   ins_pipe(pipe_class_dummy);
 %}
 
-// FIXME: try to switch back to memoryRSY instead of indirect
 instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetN mem dst));
@@ -317,9 +282,9 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
     __ block_comment("g1XChgN {");
     assert_different_registers($mem$$Register, $dst$$Register);
     g1_pre_write_barrier(masm, this,
-                         $mem$$Register  /* obj */,
+                         $mem$$Register  /* obj     */,
                          $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp1 */,
+                         $tmp2$$Register /* tmp1    */,
                          RegSet::of($mem$$Register, $dst$$Register) /* preserve */);
 
     Register Rdst = reg_to_register_object($dst$$reg);
@@ -336,7 +301,7 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
 
     __ oop_decoder($tmp1$$Register, $dst$$Register, true /* maybe_null */);
 
-    __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
+    __ z_lgr(Rdst, Rtmp);  // Exchanged value from memory is return value.
 
     g1_post_write_barrier(masm, this,
                           $mem$$Register  /* store_addr */,
@@ -354,7 +319,6 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem_ptr (Binary oldval newval)));
   effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
-  //size(18);
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndSwapP {");
@@ -366,9 +330,9 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     g1_pre_write_barrier(masm, this,
-                         $mem_ptr$$Register /* obj */,
-                         $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp1 */,
+                         $mem_ptr$$Register /* obj     */,
+                         $tmp1$$Register    /* pre_val */,
+                         $tmp2$$Register    /* tmp1    */,
                          RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                          RegSet::of($res$$Register) /* no_preserve */);
 
@@ -404,7 +368,6 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
   effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
-  //size(18);
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
@@ -416,9 +379,9 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     g1_pre_write_barrier(masm, this,
-                         $mem_ptr$$Register /* obj */,
-                         $tmp1$$Register /* pre_val */,
-                         $tmp2$$Register /* tmp1 */,
+                         $mem_ptr$$Register /* obj     */,
+                         $tmp1$$Register    /* pre_val */,
+                         $tmp2$$Register    /* tmp1    */,
                          RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                          RegSet::of($res$$Register) /* no_preserve */);
 
@@ -446,7 +409,6 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   match(Set dst (LoadP mem));
   effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
   ins_cost(MEMORY_REF_COST);
-  // size(Z_DISP3_SIZE);
   format %{ "LG      $dst,$mem\t # ptr" %}
   opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
@@ -486,7 +448,6 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-// FIXME:: can we switch back to memoryRSY from indirect
 instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetP mem dst));
@@ -530,7 +491,6 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem (EncodeP src)));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-  // ins_cost(INSN_COST);
   format %{ "encode_heap_oop $tmp1, $src\n\t"
             "st  $tmp1, $mem\t# compressed ptr" %}
   ins_encode %{
@@ -541,8 +501,6 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
                          $tmp2$$Register /* tmp1    */,
                          RegSet::of($mem$$Register, $src$$Register) /* preserve */);
     if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
-      // FIXME:: can we update the macroAssembler method and look more aarch64 type ?
-      // is it worth, doing ?
       __ oop_encoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
     } else {
       __ oop_encoder($tmp1$$Register, $src$$Register, false /* maybe_null */);
