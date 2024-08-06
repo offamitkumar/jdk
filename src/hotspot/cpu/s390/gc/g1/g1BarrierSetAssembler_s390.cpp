@@ -285,8 +285,8 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_dirty_card");
 
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register pre_val = tmp1, Rbuffer = Z_R1_scratch, Rindex = tmp2;
-  assert_different_registers(Rbuffer, Rindex, pre_val);
+  Register pre_val = tmp1, Rindex = tmp2;
+  assert_different_registers(Rindex, pre_val);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
   __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
@@ -294,7 +294,6 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
 
-//  __ z_lg(Rbuffer, buffer_offset, Z_thread);
   __ z_ag(Rindex, Address(Z_thread, buffer_offset));
 
   // Record the previous value.
