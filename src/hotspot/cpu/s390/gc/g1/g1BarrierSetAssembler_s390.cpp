@@ -120,7 +120,6 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register pre_val,
                                                     Register thread,
                                                     Register tmp1,
-                                                    Register tmp2,
                                                     G1PreBarrierStubC2* stub) {
   
   BLOCK_COMMENT("g1_write_barrier_pre_c2 {");
@@ -129,7 +128,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
   assert_different_registers(obj, pre_val, tmp1);
   assert(pre_val != noreg && tmp1 != noreg, "expecting a register");
 
-  stub->initialize_registers(obj, pre_val, thread, tmp1);
+  stub->initialize_registers(obj, pre_val, thread, tmp1, noreg);
   
   const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
   // Is marking active?
@@ -176,7 +175,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
   Register Rindex = tmp1;
-  assert_different_registers(Rbuffer, Rindex, pre_val);
+  assert_different_registers(Rindex, pre_val);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
   __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
