@@ -185,11 +185,10 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
 
-//  __ z_lg(Rbuffer, buffer_offset, Z_thread);
-  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
+  __ z_lg(Rbuffer, buffer_offset, Z_thread);
 
   // Record the previous value.
-  __ z_stg(pre_val, 0, Rindex);
+  __ z_stg(pre_val, 0, Rbuffer, Rindex);
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
   
   __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
