@@ -259,13 +259,13 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
     __ block_comment("g1CompareAndExchangeN {");
-    write_barrier_pre(masm, this,
-                      $mem_ptr$$Register /* obj     */,
-                      $tmp1$$Register    /* pre_val */,
-                      $tmp2$$Register    /* tmp1    */,
-                      $tmp3$$Register    /* tmp2    */,
-                      RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
-                      RegSet::of($res$$Register) /* no_preserve */);
+    write_barrier_post(masm, this,
+                       $mem_ptr$$Register /* obj     */,
+                       $tmp1$$Register    /* pre_val */,
+                       $tmp2$$Register    /* tmp1    */,
+                       $tmp3$$Register    /* tmp2    */,
+                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
+                       RegSet::of($res$$Register) /* no_preserve */);
 
     Register Rcomp = reg_to_register_object($oldval$$reg);
     Register Rnew  = reg_to_register_object($newval$$reg);
