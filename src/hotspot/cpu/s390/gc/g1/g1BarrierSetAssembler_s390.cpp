@@ -128,7 +128,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register pre_val,
                                                     Register thread,
                                                     Register tmp1,
-                                                    Register tmp2,
+  //                                                  Register tmp2,
                                                     G1PreBarrierStubC2* stub) {
   
   BLOCK_COMMENT("g1_write_barrier_pre_c2 {");
@@ -137,7 +137,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
   assert_different_registers(obj, pre_val, tmp1);
   assert(pre_val != noreg && tmp1 != noreg, "expecting a register");
 
-  stub->initialize_registers(obj, pre_val, thread, tmp1, tmp2);
+  stub->initialize_registers(obj, pre_val, thread, tmp1, noreg);
 
   generate_pre_barrier_fast_path(masm, thread, tmp1);
   __ branch_optimized(Assembler::bcondNotEqual, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
@@ -162,7 +162,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   Register pre_val = stub->pre_val();
   Register thread  = stub->thread();
   Register tmp1    = stub->tmp1();
-  Register tmp2    = stub->tmp2();
+  //Register tmp2    = stub->tmp2();
   
   __ bind(*stub->entry());
   
@@ -176,8 +176,8 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register Rbuffer = tmp2, Rindex = tmp1;
-  assert_different_registers(Rbuffer, Rindex, pre_val);
+  Register /*Rbuffer = tmp2,*/Rindex = tmp1;
+  assert_different_registers(Rindex, pre_val);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
   __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
@@ -185,10 +185,11 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ add2reg(Rindex, -wordSize); // Decrement index.
   __ z_stg(Rindex, index_offset, Z_thread);
 
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
+  //__ z_lg(Rbuffer, buffer_offset, Z_thread);
+  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
 
   // Record the previous value.
-  __ z_stg(pre_val, 0, Rbuffer, Rindex);
+  __ z_stg(pre_val, 0, Rindex);
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
   
   __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
