@@ -75,14 +75,12 @@ static void write_barrier_post(MacroAssembler* masm,
 %} // source
 
 // store pointer
-// FIXME: can we switch back to memory instead of going with indirect ?
 instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set dst (StoreP dst src));
   effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
   format %{ "STG     $src,$dst\t # ptr" %}
-  opcode(STG_ZOPC, STG_ZOPC);
   ins_encode %{
     __ block_comment("g1StoreP {");
     write_barrier_pre(masm, this,
@@ -93,31 +91,6 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
                       RegSet::of($dst$$Register, $src$$Register) /* preserve */);
 
     __ z_stg($src$$Register, Address($dst$$Register));
-//    int isize = $secondary > 1L << 32 ? 48 : 32;
-//    Register Ridx = $dst$$index$$Register;
-//    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
-//
-//    if (Displacement::is_shortDisp((long)$dst$$disp)) {
-//      z_emit_inst(masm, $secondary |
-//          Assembler::reg($src$$reg, 8, isize) |
-//          Assembler::uimm12($dst$$disp, 20, isize) |
-//          Assembler::reg(Ridx, 12, isize) |
-//          Assembler::regz(reg_to_register_object($dst$$base), 16, isize));
-//    } else if (Displacement::is_validDisp((long)$dst$$disp)) {
-//      z_emit_inst(masm, $primary |
-//          Assembler::reg($src$$reg, 8, 48) |
-//          Assembler::simm20($dst$$disp) |
-//          Assembler::reg(Ridx, 12, 48) |
-//          Assembler::regz(reg_to_register_object($dst$$base), 16, 48));
-//    } else {
-//      __ load_const_optimized(Z_R1_scratch, $dst$$disp);
-//      if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
-//      z_emit_inst(masm, $secondary |
-//          Assembler::reg($src$$reg, 8, isize) |
-//          Assembler::uimm12(0, 20, isize) |
-//          Assembler::reg(Z_R1_scratch, 12, isize) |
-//          Assembler::regz(reg_to_register_object($dst$$base), 16, isize));
-//    }
 
     write_barrier_post(masm, this,
                        $dst$$Register, /* store_addr */
@@ -295,37 +268,9 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
   match(Set dst (LoadN mem));
   effect(TEMP dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
-  // size(Z_DISP3_SIZE);
   format %{ "LoadN   $dst,$mem\t # (cOop)" %}
-  //opcode(LLGF_ZOPC, LLGF_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadN {");
-//    int isize = $secondary > 1L << 32 ? 48 : 32;
-//    Register Ridx = $mem$$index$$Register;
-//    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
-//
-//    if (Displacement::is_shortDisp((long)$mem$$disp)) {
-//      z_emit_inst(masm, $secondary |
-//                  Assembler::reg($dst$$reg, 8, isize) |
-//                  Assembler::uimm12($mem$$disp, 20, isize) |
-//                  Assembler::reg(Ridx, 12, isize) |
-//                  Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-//    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
-//      z_emit_inst(masm, $primary |
-//                  Assembler::reg($dst$$reg, 8, 48) |
-//                  Assembler::simm20($mem$$disp) |
-//                  Assembler::reg(Ridx, 12, 48) |
-//                  Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
-//    } else {
-//        __ load_const_optimized(Z_R1_scratch, $mem$$disp);
-//        if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
-//        z_emit_inst(masm, $secondary |
-//                    Assembler::reg($dst$$reg, 8, isize) |
-//                    Assembler::uimm12(0, 20, isize) |
-//                    Assembler::reg(Z_R1_scratch, 12, isize) |
-//                    Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-//    }
-
     __ z_llgf($dst$$Register, Address($mem$$Register));
     if ((barrier_data() & G1C2BarrierPre) != 0) {
       __ oop_decoder($tmp1$$Register, $dst$$Register, true);
@@ -340,7 +285,6 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
   ins_pipe(pipe_class_dummy);
 %}
 
-// FIXME: try to switch back to memoryRSY instead of indirect
 instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetN mem dst));
@@ -523,7 +467,6 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-// FIXME:: can we switch back to memoryRSY from indirect
 instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetP mem dst));
@@ -550,8 +493,8 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
     __ bind(retry);
     // Calculate incremented value.
     __ z_csg(Rtmp, Rdst, Address($mem$$Register)); // Try to store new value.
-    __ z_brne(retry);                    // Yikes, concurrent update, need to retry.
-    __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
+    __ z_brne(retry);                              // Yikes, concurrent update, need to retry.
+    __ z_lgr(Rdst, Rtmp);                          // Exchanged value from memory is return value.
 
     write_barrier_post(masm, this,
                        $mem$$Register  /* store_addr */,
@@ -580,8 +523,6 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
                       $tmp3$$Register /* tmp2    */,
                       RegSet::of($mem$$Register, $src$$Register) /* preserve */);
     if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
-      // FIXME:: can we update the macroAssembler method and look more aarch64 type ?
-      // is it worth, doing ?
       __ oop_encoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
     } else {
       __ oop_encoder($tmp1$$Register, $src$$Register, false /* maybe_null */);
