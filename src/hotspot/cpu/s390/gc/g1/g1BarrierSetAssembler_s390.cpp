@@ -128,7 +128,6 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
                                                     Register pre_val,
                                                     Register thread,
                                                     Register tmp1,
-  //                                                  Register tmp2,
                                                     G1PreBarrierStubC2* stub) {
   
   BLOCK_COMMENT("g1_write_barrier_pre_c2 {");
@@ -162,7 +161,6 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   Register pre_val = stub->pre_val();
   Register thread  = stub->thread();
   Register tmp1    = stub->tmp1();
-  //Register tmp2    = stub->tmp2();
   
   __ bind(*stub->entry());
   
@@ -176,7 +174,7 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
   
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register /*Rbuffer = tmp2,*/Rindex = tmp1;
+  Register Rindex = tmp1;
   assert_different_registers(Rindex, pre_val);
 
   __ load_and_test_long(Rindex, Address(Z_thread, index_offset));

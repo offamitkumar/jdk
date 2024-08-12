@@ -39,7 +39,6 @@ static void write_barrier_pre(MacroAssembler* masm,
                               Register obj,
                               Register pre_val,
                               Register tmp1,
-          //                    Register tmp2,
                               RegSet preserve = RegSet(),
                               RegSet no_preserve = RegSet()) {
   if (!G1PreBarrierStubC2::needs_barrier(node)) {
@@ -54,7 +53,7 @@ static void write_barrier_pre(MacroAssembler* masm,
   for (RegSetIterator<Register> reg = no_preserve.begin(); *reg != noreg; ++reg) {
     stub->dont_preserve(*reg);
   }
-  g1_asm->g1_write_barrier_pre_c2(masm, obj, pre_val, Z_thread, tmp1,/* tmp2,*/stub);
+  g1_asm->g1_write_barrier_pre_c2(masm, obj, pre_val, Z_thread, tmp1, stub);
 }
 
 static void write_barrier_post(MacroAssembler* masm,
@@ -87,7 +86,6 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
                       $dst$$Register  /* obj */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1 */,
-   //                   $tmp3$$Register /* tmp2 */,
                       RegSet::of($dst$$Register, $src$$Register) /* preserve */);
 
     __ z_stg($src$$Register, Address($dst$$Register));
@@ -103,6 +101,7 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
 %}
 
 // Store Compressed Pointer
+// TODO tmp4 can be removed
 instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem src));
@@ -119,7 +118,6 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
                       $mem$$Register  /* obj     */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1    */,
-    //                  $tmp3$$Register /* tmp2    */,
                       RegSet::of($mem$$Register, $src$$Register) /* preserve */);
     
     // FIXME: need to find a way to use st & sty on need basis. Like it is done below
@@ -185,7 +183,6 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
                       $mem_ptr$$Register /* obj     */,
                       $tmp1$$Register    /* pre_val */,
                       $tmp2$$Register    /* tmp1    */,
-    //                  $tmp3$$Register    /* tmp2    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
@@ -236,7 +233,6 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
                       $mem_ptr$$Register /* obj     */,
                       $tmp1$$Register    /* pre_val */,
                       $tmp2$$Register    /* tmp1    */,
-    //                  $tmp3$$Register    /* tmp2    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
@@ -263,10 +259,10 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
 %}
 
 // Load narrow oop
-instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, flagsReg cr) %{
+instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadN mem));
-  effect(TEMP dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
   ins_cost(MEMORY_REF_COST);
   format %{ "LoadN   $dst,$mem\t # (cOop)" %}
   ins_encode %{
@@ -277,8 +273,7 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, iRegP tmp3, fl
       write_barrier_pre(masm, this,
                         noreg           /* obj     */,
                         $tmp1$$Register /* pre_val */,
-                        $tmp2$$Register /* tmp1    */
-                       /* $tmp3$$Register /* tmp2    */);
+                        $tmp2$$Register );
     }
     __ block_comment("} g1LoadN");
   %}
@@ -297,7 +292,6 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
                       $mem$$Register  /* obj */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1 */,
-    //                  $tmp3$$Register /* tmp2 */,
                       RegSet::of($mem$$Register, $dst$$Register) /* preserve */);
 
     Register Rdst = reg_to_register_object($dst$$reg);
@@ -347,7 +341,6 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
                       $mem_ptr$$Register /* obj */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1 */,
-    //                  $tmp3$$Register /* tmp2 */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
@@ -398,7 +391,6 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
                       $mem_ptr$$Register /* obj */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1 */,
-    //                  $tmp3$$Register /* tmp2 */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
@@ -421,12 +413,11 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
 %}
 
 // Load Pointer
-instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, flagsReg cr) %{
   predicate(UseG1GC && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadP mem));
-  effect(TEMP dst, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP dst, TEMP tmp1, KILL cr);
   ins_cost(MEMORY_REF_COST);
-  // size(Z_DISP3_SIZE);
   format %{ "LG      $dst,$mem\t # ptr" %}
   opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
@@ -460,8 +451,7 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
     write_barrier_pre(masm, this,
                       noreg /* obj */,
                       $dst$$Register /* pre_val */,
-                      $tmp1$$Register /* tmp1 */
-                      /*$tmp2$$Register /* tmp2 */);
+                      $tmp1$$Register );
     __ block_comment("} g1LoadP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -479,7 +469,6 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
                       $mem$$Register  /* obj  */,
                       $tmp$$Register  /* pre_val (as a temporary register) */,
                       $tmp1$$Register /* tmp1 */,
-    //                  $tmp2$$Register /* tmp2 */,
                       RegSet::of($mem$$Register, $dst$$Register) /* preserve */);
 
     __ z_lgr($tmp1$$Register, $dst$$Register);
@@ -520,7 +509,6 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
                       $mem$$Register  /* obj     */,
                       $tmp1$$Register /* pre_val */,
                       $tmp2$$Register /* tmp1    */,
-    //                  $tmp3$$Register /* tmp2    */,
                       RegSet::of($mem$$Register, $src$$Register) /* preserve */);
     if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
       __ oop_encoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
