@@ -698,7 +698,7 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ z_stg(tmp,  0*BytesPerWord + FrameMap::first_available_sp_in_frame, Z_SP);
   __ z_stg(tmp2, 1*BytesPerWord + FrameMap::first_available_sp_in_frame, Z_SP);
   
-  generate_pre_barrier_fast_path(masm, Z_thread, tmp);
+  generate_pre_barrier_fast_path(sasm, Z_thread, tmp);
   __ z_bre(marking_not_active); // Activity indicator is zero, so there is no marking going on currently.
 
   __ bind(restart);
