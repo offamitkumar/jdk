@@ -62,7 +62,13 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
     assert_different_registers(addr,  Z_R0_scratch);  // would be destroyed by push_frame()
     assert_different_registers(count, Z_R0_scratch);  // would be destroyed by push_frame()
     Register Rtmp1 = Z_R0_scratch;
-    generate_pre_barrier_fast_path(masm, Z_thread, Rtmp1);
+    const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
+    if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+      __ load_and_test_int(Rtmp1, Address(Z_thread, active_offset));
+    } else {
+      guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+      __ load_and_test_byte(Rtmp1, Address(Z_thread, active_offset));
+    }
     __ z_bre(filtered); // Activity indicator is zero, so there is no marking going on currently.
 
     RegisterSaver::save_live_registers(masm, RegisterSaver::arg_registers); // Creates frame.
@@ -97,20 +103,6 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
   }
 }
 
-static void generate_pre_barrier_fast_path(MacroAssembler* masm,
-                                           const Register thread,
-                                           const Register tmp1) {
-  __ block_comment("generate_pre_barrier_fast_path {");
-  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
-  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-    __ load_and_test_int(tmp1, Address(thread, active_offset));
-  } else {
-    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-    __ load_and_test_byte(tmp1, Address(thread, active_offset));
-  }
-  __ block_comment("} generate_pre_barrier_fast_path");
-}
-
 #if defined(COMPILER2)
 
 #undef __
@@ -139,7 +131,15 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
 
   stub->initialize_registers(obj, pre_val, thread, tmp1, tmp2);
   
-  generate_pre_barrier_fast_path(masm, thread, tmp1);
+  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
+  // Is marking active?
+  // Note: value is loaded for test purposes only. No further use here.
+  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+    __ load_and_test_int(tmp1, Address(Z_thread, active_offset));
+  } else {
+    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+    __ load_and_test_byte(tmp1, Address(Z_thread, active_offset));
+  }
   __ branch_optimized(Assembler::bcondNotEqual, *stub->entry()); // Activity indicator is zero, so there is no marking going on currently.
 
   __ bind(*stub->continuation());
@@ -353,6 +353,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
 
   const Register Robj = obj ? obj->base() : noreg,
                  Roff = obj ? obj->index() : noreg;
+  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
   const int buffer_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset());
   const int index_offset  = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
   assert_different_registers(Rtmp1, Rtmp2, Z_R0_scratch); // None of the Rtmp<i> must be Z_R0!!
@@ -362,8 +363,15 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
   Label callRuntime, filtered;
 
   BLOCK_COMMENT("g1_write_barrier_pre {");
-  
-  generate_pre_barrier_fast_path(masm, Z_thread, Rtmp1);
+
+  // Is marking active?
+  // Note: value is loaded for test purposes only. No further use here.
+  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+    __ load_and_test_int(Rtmp1, Address(Z_thread, active_offset));
+  } else {
+    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+    __ load_and_test_byte(Rtmp1, Address(Z_thread, active_offset));
+  }
   __ z_bre(filtered); // Activity indicator is zero, so there is no marking going on currently.
 
   assert(Rpre_val != noreg, "must have a real register");
@@ -691,14 +699,21 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   Register tmp2 = Z_R7;
 
   Label refill, restart, marking_not_active;
+  int satb_q_active_byte_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
   int satb_q_index_byte_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
   int satb_q_buf_byte_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset());
 
   // Save tmp registers (see assertion in G1PreBarrierStub::emit_code()).
   __ z_stg(tmp,  0*BytesPerWord + FrameMap::first_available_sp_in_frame, Z_SP);
   __ z_stg(tmp2, 1*BytesPerWord + FrameMap::first_available_sp_in_frame, Z_SP);
-  
-  generate_pre_barrier_fast_path(masm, Z_thread, tmp);
+
+  // Is marking still active?
+  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+    __ load_and_test_int(tmp, Address(Z_thread, satb_q_active_byte_offset));
+  } else {
+    assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+    __ load_and_test_byte(tmp, Address(Z_thread, satb_q_active_byte_offset));
+  }
   __ z_bre(marking_not_active); // Activity indicator is zero, so there is no marking going on currently.
 
   __ bind(restart);
