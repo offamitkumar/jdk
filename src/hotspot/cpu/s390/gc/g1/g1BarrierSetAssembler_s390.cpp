@@ -51,20 +51,6 @@
 
 #define BLOCK_COMMENT(str) __ block_comment(str)
 
-static void generate_pre_barrier_fast_path(MacroAssembler* masm,
-                                           const Register thread,
-                                           const Register tmp1) {
-  __ block_comment("generate_pre_barrier_fast_path {");
-  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
-  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-    __ load_and_test_int(tmp1, Address(thread, active_offset));
-  } else {
-    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-    __ load_and_test_byte(tmp1, Address(thread, active_offset));
-  }
-  __ block_comment("} generate_pre_barrier_fast_path");
-}
-
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count) {
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
@@ -109,6 +95,20 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
     __ load_const(Z_R1, entry_point);
     __ z_br(Z_R1); // Branch without linking, callee will return to stub caller.
   }
+}
+
+static void generate_pre_barrier_fast_path(MacroAssembler* masm,
+                                           const Register thread,
+                                           const Register tmp1) {
+  __ block_comment("generate_pre_barrier_fast_path {");
+  const int active_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
+  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+    __ load_and_test_int(tmp1, Address(thread, active_offset));
+  } else {
+    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+    __ load_and_test_byte(tmp1, Address(thread, active_offset));
+  }
+  __ block_comment("} generate_pre_barrier_fast_path");
 }
 
 #if defined(COMPILER2)
