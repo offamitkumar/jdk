@@ -57,12 +57,12 @@ static void write_barrier_pre(MacroAssembler* masm,
   g1_asm->g1_write_barrier_pre_c2(masm, obj, pre_val, Z_thread, tmp1, tmp2, stub);
 }
 
-static void g1_post_write_barrier(MacroAssembler* masm,
-                                  const MachNode* node,
-                                  Register store_addr,
-                                  Register new_val,
-                                  Register tmp1,
-                                  Register tmp2) {
+static void write_barrier_post(MacroAssembler* masm,
+                               const MachNode* node,
+                               Register store_addr,
+                               Register new_val,
+                               Register tmp1,
+                               Register tmp2) {
   if (!G1PostBarrierStubC2::needs_barrier(node)) {
     return;
   }
@@ -119,11 +119,11 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
 //          Assembler::regz(reg_to_register_object($dst$$base), 16, isize));
 //    }
 
-    g1_post_write_barrier(masm, this,
-                           $dst$$Register, /* store_addr */
-                           $src$$Register  /* new_val    */,
-                           $tmp2$$Register /* tmp1       */,
-                           $tmp3$$Register /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $dst$$Register, /* store_addr */
+                       $src$$Register  /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1StoreP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -186,11 +186,11 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
       }
     }
 
-    g1_post_write_barrier(masm, this,
-                           $mem$$Register, /* store_addr */
-                           $tmp1$$Register /* new_val    */,
-                           $tmp2$$Register /* tmp1       */,
-                           $tmp3$$Register /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem$$Register, /* store_addr */
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1StoreN");
   %}
 
@@ -238,11 +238,11 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
 
     __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
 
-    g1_post_write_barrier(masm, this,
-                          $mem_ptr$$Register /* store_addr */,
-                          $tmp2$$Register    /* new_val    */,
-                          $tmp1$$Register    /* tmp1       */,
-                          $tmp3$$Register    /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem_ptr$$Register /* store_addr */,
+                       $tmp2$$Register    /* new_val    */,
+                       $tmp1$$Register    /* tmp1       */,
+                       $tmp3$$Register    /* tmp2       */);
     __ block_comment("} g1compareAndSwapN");
   %}
   ins_pipe(pipe_class_dummy);
@@ -279,11 +279,11 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
 
     __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
 
-    g1_post_write_barrier(masm, this,
-                          $mem_ptr$$Register /* store_addr */,
-                          $tmp2$$Register    /* new_val    */,
-                          $tmp1$$Register    /* tmp1       */,
-                          $tmp3$$Register    /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem_ptr$$Register /* store_addr */,
+                       $tmp2$$Register    /* new_val    */,
+                       $tmp1$$Register    /* tmp1       */,
+                       $tmp3$$Register    /* tmp2       */);
     __ block_comment("} g1CompareAndExchangeN");
   %}
   ins_pipe(pipe_class_dummy);
@@ -372,11 +372,11 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
 
     __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
 
-    g1_post_write_barrier(masm, this,
-                          $mem$$Register  /* store_addr */,
-                          $tmp1$$Register /* new_val    */,
-                          $tmp2$$Register /* tmp1       */,
-                          $tmp3$$Register /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem$$Register  /* store_addr */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
 
     __ block_comment("} g1XChgN");
   %}
@@ -425,11 +425,11 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
       __ bind(done);
     }
 
-    g1_post_write_barrier(masm, this,
-                          $mem_ptr$$Register /* store_addr */,
-                          $tmp2$$Register    /* new_val    */,
-                          $tmp1$$Register    /* tmp1       */,
-                          $tmp3$$Register    /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem_ptr$$Register /* store_addr */,
+                       $tmp2$$Register    /* new_val    */,
+                       $tmp1$$Register    /* tmp1       */,
+                       $tmp3$$Register    /* tmp2       */);
     __ block_comment("} g1CompareAndSwapP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -466,11 +466,11 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
     
     __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr);
 
-    g1_post_write_barrier(masm, this,
-                          $mem_ptr$$Register /* store_addr */,
-                          $tmp2$$Register    /* new_val    */,
-                          $tmp1$$Register    /* tmp1       */,
-                          $tmp3$$Register    /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem_ptr$$Register /* store_addr */,
+                       $tmp2$$Register    /* new_val    */,
+                       $tmp1$$Register    /* tmp1       */,
+                       $tmp3$$Register    /* tmp2       */);
     __ block_comment("} g1CompareAndExchangeP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -553,11 +553,11 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
     __ z_brne(retry);                    // Yikes, concurrent update, need to retry.
     __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
 
-    g1_post_write_barrier(masm, this,
-                          $mem$$Register  /* store_addr */,
-                          $tmp1$$Register /* new_val    */,
-                          $tmp2$$Register /* tmp1       */,
-                          $tmp$$Register  /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem$$Register  /* store_addr */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp$$Register  /* tmp2       */);
     __ block_comment("} g1XChgP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -587,11 +587,11 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
       __ oop_encoder($tmp1$$Register, $src$$Register, false /* maybe_null */);
     }
     __ z_st($tmp1$$Register, Address($mem$$Register));
-    g1_post_write_barrier(masm, this,
-                          $mem$$Register  /* store_addr */,
-                          $src$$Register  /* new_val    */,
-                          $tmp2$$Register /* tmp1       */,
-                          $tmp3$$Register /* tmp2       */);
+    write_barrier_post(masm, this,
+                       $mem$$Register  /* store_addr */,
+                       $src$$Register  /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1EncodePAndStoreN");
   %}
   ins_pipe(pipe_class_dummy);
