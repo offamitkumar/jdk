@@ -83,9 +83,9 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
   ins_encode %{
     __ block_comment("g1StoreP {");
     write_barrier_pre(masm, this,
-                      $dst$$Register  /* obj */,
+                      $dst$$Register  /* obj     */,
                       $tmp1$$Register /* pre_val */,
-                      $tmp2$$Register /* tmp1 */,
+                      $tmp2$$Register /* tmp1    */,
                       RegSet::of($dst$$Register, $src$$Register) /* preserve */);
 
     __ z_stg($src$$Register, Address($dst$$Register));
@@ -253,9 +253,9 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
     __ block_comment("g1XChgN {");
     assert_different_registers($mem$$Register, $dst$$Register);
     write_barrier_pre(masm, this,
-                      $mem$$Register  /* obj */,
+                      $mem$$Register  /* obj     */,
                       $tmp1$$Register /* pre_val */,
-                      $tmp2$$Register /* tmp1 */,
+                      $tmp2$$Register /* tmp1    */,
                       RegSet::of($mem$$Register, $dst$$Register) /* preserve */);
 
     Register Rdst = reg_to_register_object($dst$$reg);
@@ -264,15 +264,15 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
     Label    retry;
 
     // Iterate until swap succeeds.
-    __ z_llgf(Rtmp, Address($mem$$Register));  // current contents
+    __ z_llgf(Rtmp, Address($mem$$Register)); // current contents
     __ bind(retry);
     // Calculate incremented value.
     __ z_csy(Rtmp, Rdst, Address($mem$$Register)); // Try to store new value.
-    __ z_brne(retry);                    // Yikes, concurrent update, need to retry.
+    __ z_brne(retry); // Yikes, concurrent update, need to retry.
 
     __ oop_decoder($tmp1$$Register, $dst$$Register, true /* maybe_null */);
 
-    __ z_lgr(Rdst, Rtmp);                  // Exchanged value from memory is return value.
+    __ z_lgr(Rdst, Rtmp);  // Exchanged value from memory is return value.
 
     write_barrier_post(masm, this,
                        $mem$$Register  /* store_addr */,
@@ -290,7 +290,6 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem_ptr (Binary oldval newval)));
   effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
-  //size(18);
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndSwapP {");
@@ -302,9 +301,9 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     write_barrier_pre(masm, this,
-                      $mem_ptr$$Register /* obj */,
-                      $tmp1$$Register /* pre_val */,
-                      $tmp2$$Register /* tmp1 */,
+                      $mem_ptr$$Register /* obj     */,
+                      $tmp1$$Register    /* pre_val */,
+                      $tmp2$$Register    /* tmp1    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
@@ -340,7 +339,6 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
   effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
-  //size(18);
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
@@ -352,9 +350,9 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     write_barrier_pre(masm, this,
-                      $mem_ptr$$Register /* obj */,
-                      $tmp1$$Register /* pre_val */,
-                      $tmp2$$Register /* tmp1 */,
+                      $mem_ptr$$Register /* obj     */,
+                      $tmp1$$Register    /* pre_val */,
+                      $tmp2$$Register    /* tmp1    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
