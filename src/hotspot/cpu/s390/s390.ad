@@ -430,6 +430,17 @@ reg_class z_rarg4_ptr_reg(Z_R5_H,Z_R5);
 reg_class z_rarg5_ptr_reg(Z_R6_H,Z_R6);
 reg_class z_thread_ptr_reg(Z_R8_H,Z_R8);
 
+reg_class z_vr16_tmp(Z_VR16);
+reg_class z_vr17_tmp(Z_VR17);
+reg_class z_vr18_tmp(Z_VR18);
+reg_class z_vr19_tmp(Z_VR19);
+reg_class z_vr20_tmp(Z_VR20);
+reg_class z_vr21_tmp(Z_VR21);
+reg_class z_vr22_tmp(Z_VR22);
+reg_class z_vr23_tmp(Z_VR23);
+reg_class z_vr24_tmp(Z_VR24);
+reg_class z_vr25_tmp(Z_VR25);
+
 reg_class z_ptr_reg(
 /*Z_R0_H,Z_R0*/     // R0
 /*Z_R1_H,Z_R1*/
