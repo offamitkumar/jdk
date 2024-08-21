@@ -301,9 +301,9 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     write_barrier_pre(masm, this,
-                      $mem_ptr$$Register /* obj     */,
-                      $tmp1$$Register    /* pre_val */,
-                      $tmp2$$Register    /* tmp1    */,
+                      noreg             /* obj     */,
+                      $oldval$$Register /* pre_val */,
+                      $tmp2$$Register   /* tmp1    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
@@ -349,10 +349,13 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
     Register Rnew  = reg_to_register_object($newval$$reg);
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
+    // Pass $oldval to the pre-barrier (instead of loading from $mem), because
+    // $oldval is the only value that can be overwritten.
+    // The same holds for g1CompareAndSwapP.
     write_barrier_pre(masm, this,
-                      $mem_ptr$$Register /* obj     */,
-                      $tmp1$$Register    /* pre_val */,
-                      $tmp2$$Register    /* tmp1    */,
+                      noreg             /* obj     */,
+                      $oldval$$Register /* pre_val */,
+                      $tmp2$$Register   /* tmp1    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
