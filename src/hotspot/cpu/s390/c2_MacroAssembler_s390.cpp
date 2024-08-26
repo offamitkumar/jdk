@@ -77,7 +77,8 @@ void C2_MacroAssembler::fast_unlock_lightweight(Register obj, Register box, Regi
 // If precise is false, a few characters more than indicated by the return value may have been
 // written to the dst array. In any failure case, The result value indexes the first invalid character.
 unsigned int C2_MacroAssembler::string_compress(Register result, Register src, Register dst, Register cnt,
-                                                Register tmp,    bool precise, bool toASCII) {
+                                                Register tmp, bool precise, bool toASCII) {
+  // TODO: assert vector registers
   assert_different_registers(Z_R0, Z_R1, result, src, dst, cnt, tmp);
 
   unsigned short char_mask = 0xff00;  // all selected bits must be '0' for a char to be valid

@@ -43,7 +43,7 @@
   //   Early clobber: result.
   //   Boolean precise controls accuracy of result value.
   unsigned int string_compress(Register result, Register src, Register dst, Register cnt,
-                               Register tmp,    bool precise, bool toASCII);
+                               Register tmp, bool precise, bool toASCII);
 
   // Inflate byte[] to char[].
   unsigned int string_inflate_trot(Register src, Register dst, Register cnt, Register tmp);
