@@ -244,13 +244,13 @@ instruct g1LoadN(iRegN dst, indirect mem, iRegP tmp1, iRegP tmp2, flagsReg cr) %
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1GetAndSetN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetN mem dst));
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2, TEMP tmp3); // USE_DEF dst by match rule.
   format %{ "XCHGN   $dst,[$mem]\t # EXCHANGE (coop, atomic), temp $tmp" %}
   ins_encode %{
-    __ block_comment("g1XChgN {");
+    __ block_comment("g1GetAndSetN {");
     assert_different_registers($mem$$Register, $dst$$Register);
     write_barrier_pre(masm, this,
                       $mem$$Register  /* obj     */,
@@ -280,7 +280,7 @@ instruct g1XChgN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2, iRe
                        $tmp2$$Register /* tmp1       */,
                        $tmp3$$Register /* tmp2       */);
 
-    __ block_comment("} g1XChgN");
+    __ block_comment("} g1GetAndSetN");
   %}
   ins_pipe(pipe_class_dummy);
 %}
@@ -422,13 +422,13 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, flagsReg cr) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1GetAndSetP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set dst (GetAndSetP mem dst));
   effect(KILL cr, TEMP tmp, TEMP tmp1, TEMP tmp2); // USE_DEF dst by match rule.
   format %{ "XCHGP   $dst,[$mem]\t # EXCHANGE (oop, atomic), temp $tmp" %}
   ins_encode %{
-    __ block_comment("g1XChgP {");
+    __ block_comment("g1GetAndSetP {");
 
     write_barrier_pre(masm, this,
                       $mem$$Register  /* obj  */,
@@ -455,7 +455,7 @@ instruct g1XChgP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2, fla
                        $tmp1$$Register /* new_val    */,
                        $tmp2$$Register /* tmp1       */,
                        $tmp$$Register  /* tmp2       */);
-    __ block_comment("} g1XChgP");
+    __ block_comment("} g1GetAndSetP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
