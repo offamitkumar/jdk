@@ -266,7 +266,6 @@ class relocInfo {
     poll_return_type        = 11, // polling instruction for safepoints at return
     metadata_type           = 12, // metadata that used to be oops
     trampoline_stub_type    = 13, // stub-entry for trampoline
-    runtime_call_w_cp_type  = 14, // Runtime call which may load its target from the constant pool
     data_prefix_tag         = 15, // tag for a prefix (carries data arguments)
     post_call_nop_type      = 16, // A tag for post call nop relocations
     entry_guard_type        = 17, // A tag for an nmethod entry barrier guard value
@@ -303,7 +302,6 @@ class relocInfo {
     visitor(static_call) \
     visitor(static_stub) \
     visitor(runtime_call) \
-    visitor(runtime_call_w_cp) \
     visitor(external_word) \
     visitor(internal_word) \
     visitor(poll) \
@@ -1218,37 +1216,6 @@ class runtime_call_Relocation : public CallRelocation {
  private:
   friend class RelocationHolder;
   runtime_call_Relocation() : CallRelocation(relocInfo::runtime_call_type) { }
-};
-
-
-class runtime_call_w_cp_Relocation : public CallRelocation {
- public:
-  static RelocationHolder spec() {
-    return RelocationHolder::construct<runtime_call_w_cp_Relocation>();
-  }
-
-  void copy_into(RelocationHolder& holder) const override;
-
- private:
-  friend class RelocationHolder;
-  runtime_call_w_cp_Relocation()
-    : CallRelocation(relocInfo::runtime_call_w_cp_type),
-      _offset(-4) /* <0 = invalid */ { }
-
-  // On z/Architecture, runtime calls are either a sequence
-  // of two instructions (load destination of call from constant pool + do call)
-  // or a pc-relative call. The pc-relative call is faster, but it can only
-  // be used if the destination of the call is not too far away.
-  // In order to be able to patch a pc-relative call back into one using
-  // the constant pool, we have to remember the location of the call's destination
-  // in the constant pool.
-  int _offset;
-
- public:
-  void set_constant_pool_offset(int offset) { _offset = offset; }
-  int get_constant_pool_offset() { return _offset; }
-  void pack_data_to(CodeSection * dest) override;
-  void unpack_data() override;
 };
 
 // Trampoline Relocations.

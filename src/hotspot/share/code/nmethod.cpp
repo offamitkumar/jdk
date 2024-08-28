@@ -1442,8 +1442,6 @@ nmethod::nmethod(
 
     _num_stack_arg_slots = entry_bci != InvocationEntryBci ? 0 : _method->constMethod()->num_stack_arg_slots();
 
-    set_ctable_begin(header_begin() + content_offset());
-
 #if INCLUDE_JVMCI
     if (compiler->is_jvmci()) {
       // JVMCI might not produce any stub sections
@@ -3010,8 +3008,7 @@ void nmethod::verify_scopes() {
         stub = iter.static_call_reloc()->static_stub();
         verify_interrupt_point(iter.addr(), false /* is_inline_cache */);
         break;
-      case relocInfo::runtime_call_type:
-      case relocInfo::runtime_call_w_cp_type: {
+      case relocInfo::runtime_call_type: {
         address destination = iter.reloc()->value();
         // Right now there is no way to find out which entries support
         // an interrupt point.  It would be nice if we had this
@@ -3574,8 +3571,7 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
           st.print(")");
           return st.as_string();
         }
-        case relocInfo::runtime_call_type:
-        case relocInfo::runtime_call_w_cp_type: {
+        case relocInfo::runtime_call_type: {
           stringStream st;
           st.print("runtime_call");
           CallRelocation* r = (CallRelocation*)iter.reloc();

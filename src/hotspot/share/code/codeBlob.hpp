@@ -112,8 +112,6 @@ protected:
   int      _data_offset;           // offset to where data region begins
   int      _frame_size;            // size of stack frame in words (NOT slots. On x64 these are 64bit words)
 
-  S390_ONLY(int _ctable_offset;)
-
   uint16_t _header_size;           // size of header (depends on subclass)
   int16_t  _frame_complete_offset; // instruction offsets in [0.._frame_complete_offset) have
                                    // not finished setting up their frame. Beware of pc's in
@@ -187,12 +185,6 @@ public:
   int content_offset() const                  { return _content_offset; }
   int code_offset() const                     { return _code_offset; }
   int data_offset() const                     { return _data_offset; }
-
-  // This field holds the beginning of the const section in the old code buffer.
-  // It is needed to fix relocations of pc-relative loads when resizing the
-  // the constant pool or moving it.
-  S390_ONLY(address ctable_begin() const { return header_begin() + _ctable_offset; })
-  void set_ctable_begin(address ctable) { S390_ONLY(_ctable_offset = ctable - header_begin();) }
 
   // Sizes
   int size() const               { return _size; }
