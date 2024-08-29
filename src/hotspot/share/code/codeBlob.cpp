@@ -83,7 +83,6 @@ CodeBlob::CodeBlob(const char* name, CodeBlobKind kind, CodeBuffer* cb, int size
   _code_offset(_content_offset + cb->total_offset_of(cb->insts())),
   _data_offset(_content_offset + align_up(cb->total_content_size(), oopSize)),
   _frame_size(frame_size),
-  S390_ONLY(_ctable_offset(0) COMMA)
   _header_size(header_size),
   _frame_complete_offset(frame_complete_offset),
   _kind(kind),
@@ -112,7 +111,6 @@ CodeBlob::CodeBlob(const char* name, CodeBlobKind kind, int size, uint16_t heade
   _code_offset(_content_offset),
   _data_offset(size),
   _frame_size(0),
-  S390_ONLY(_ctable_offset(0) COMMA)
   _header_size(header_size),
   _frame_complete_offset(CodeOffsets::frame_never_safe),
   _kind(kind),

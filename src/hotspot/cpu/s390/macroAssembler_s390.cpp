@@ -2530,7 +2530,7 @@ bool MacroAssembler::call_far_patchable(address target, int64_t tocOffset) {
       // the pc-relative version. It will be patched anyway, when the code
       // buffer is copied.
       // Relocation is not needed when !ReoptimizeCallSequences.
-      relocInfo::relocType rt = ReoptimizeCallSequences ? relocInfo::runtime_call_w_cp_type : relocInfo::none;
+      relocInfo::relocType rt = relocInfo::none;
       AddressLiteral dest(target, rt);
       // Store_oop_in_toc() adds dest to the constant table. As side effect, this kills
       // inst_mark(). Reset if possible.
@@ -4844,10 +4844,6 @@ int MacroAssembler::store_oop_in_toc(AddressLiteral& oop) {
     RelocationHolder rsp = oop.rspec();
     Relocation      *rel = rsp.reloc();
 
-    // Store toc_offset in relocation, used by call_far_patchable.
-    if ((relocInfo::relocType)rel->type() == relocInfo::runtime_call_w_cp_type) {
-      ((runtime_call_w_cp_Relocation *)(rel))->set_constant_pool_offset(tocOffset);
-    }
     // Relocate at the load's pc.
     relocate(rsp);
 
@@ -4888,14 +4884,7 @@ intptr_t MacroAssembler::get_const_from_toc(address pc) {
 
   long    offset  = get_load_const_from_toc_offset(pc);
   address dataLoc = nullptr;
-  if (is_load_const_from_toc_pcrelative(pc)) {
-    dataLoc = pc + offset;
-  } else {
-    CodeBlob* cb = CodeCache::find_blob(pc);
-    assert(cb && cb->is_nmethod(), "sanity");
-    nmethod* nm = (nmethod*)cb;
-    dataLoc = nm->ctable_begin() + offset;
-  }
+  dataLoc = pc + offset;
   return *(intptr_t *)dataLoc;
 }
 
@@ -4907,13 +4896,7 @@ void MacroAssembler::set_const_in_toc(address pc, unsigned long new_data, CodeBl
 
   long    offset = MacroAssembler::get_load_const_from_toc_offset(pc);
   address dataLoc = nullptr;
-  if (is_load_const_from_toc_pcrelative(pc)) {
-    dataLoc = pc+offset;
-  } else {
-    nmethod* nm = CodeCache::find_nmethod(pc);
-    assert((cb == nullptr) || (nm == (nmethod*)cb), "instruction address should be in CodeBlob");
-    dataLoc = nm->ctable_begin() + offset;
-  }
+  dataLoc = pc+offset;
   if (*(unsigned long *)dataLoc != new_data) { // Prevent cache invalidation: update only if necessary.
     *(unsigned long *)dataLoc = new_data;
   }

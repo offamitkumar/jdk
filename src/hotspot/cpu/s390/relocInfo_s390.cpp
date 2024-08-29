@@ -139,9 +139,6 @@ void Relocation::pd_set_call_destination(address x) {
       return;
     }
     int toc_offset = -1;
-    if (type() == relocInfo::runtime_call_w_cp_type) {
-      toc_offset = ((runtime_call_w_cp_Relocation *)this)->get_constant_pool_offset();
-    }
     if (toc_offset>=0) {
       NativeFarCall* call = nativeFarCall_at(inst_addr);
       call->set_destination(x, toc_offset);

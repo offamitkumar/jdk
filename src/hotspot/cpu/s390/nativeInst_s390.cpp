@@ -267,33 +267,25 @@ void NativeFarCall::set_destination(address dest, int toc_offset) {
   // Set new destination (implementation of call may change here).
   assert(MacroAssembler::is_call_far_patchable_at(inst_addr), "unexpected call type");
 
-  if (!MacroAssembler::is_call_far_patchable_pcrelative_at(inst_addr)) {
-    address ctable = CodeCache::find_blob(inst_addr)->ctable_begin();
-    // Need distance of TOC entry from current instruction.
-    toc_offset = (ctable + toc_offset) - inst_addr;
-    // Call is via constant table entry.
-    MacroAssembler::set_dest_of_call_far_patchable_at(inst_addr, dest, toc_offset);
-  } else {
-    // Here, we have a pc-relative call (brasl).
-    // Be aware: dest may have moved in this case, so really patch the displacement,
-    // when necessary!
-    // This while loop will also consume the nop which always precedes a call_far_pcrelative.
-    // We need to revert this after the loop. Pc-relative calls are always assumed to have a leading nop.
-    unsigned int nop_sz    = MacroAssembler::nop_size();
-    unsigned int nop_bytes = 0;
-    while(MacroAssembler::is_z_nop(inst_addr+nop_bytes)) {
-      nop_bytes += nop_sz;
-    }
-    if (nop_bytes > 0) {
-      inst_addr += nop_bytes - nop_sz;
-    }
+  // Here, we have a pc-relative call (brasl).
+  // Be aware: dest may have moved in this case, so really patch the displacement,
+  // when necessary!
+  // This while loop will also consume the nop which always precedes a call_far_pcrelative.
+  // We need to revert this after the loop. Pc-relative calls are always assumed to have a leading nop.
+  unsigned int nop_sz    = MacroAssembler::nop_size();
+  unsigned int nop_bytes = 0;
+  while(MacroAssembler::is_z_nop(inst_addr+nop_bytes)) {
+    nop_bytes += nop_sz;
+  }
+  if (nop_bytes > 0) {
+    inst_addr += nop_bytes - nop_sz;
+  }
 
-    assert(MacroAssembler::is_call_far_pcrelative(inst_addr), "not a pc-relative call");
-    address target = MacroAssembler::get_target_addr_pcrel(inst_addr + nop_sz);
-    if (target != dest) {
-      NativeCall *call = nativeCall_at(inst_addr);
-      call->set_destination_mt_safe(dest);
-    }
+  assert(MacroAssembler::is_call_far_pcrelative(inst_addr), "not a pc-relative call");
+  address target = MacroAssembler::get_target_addr_pcrel(inst_addr + nop_sz);
+  if (target != dest) {
+    NativeCall *call = nativeCall_at(inst_addr);
+    call->set_destination_mt_safe(dest);
   }
 }
 

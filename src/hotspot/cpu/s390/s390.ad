@@ -731,21 +731,12 @@ int emit_call_reloc(C2_MacroAssembler *masm, intptr_t entry_point, relocInfo::re
     ShouldNotReachHere();
   }
 
-  if (rtype == relocInfo::runtime_call_w_cp_type) {
-    assert((__ offset() & 2) == 0, "misaligned emit_call_reloc");
-    address call_addr = __ call_c_opt((address)entry_point);
-    if (call_addr == nullptr) {
-      Compile::current()->env()->record_out_of_memory_failure();
-      return -1;
-    }
-  } else {
-    assert(rtype == relocInfo::none || rtype == relocInfo::opt_virtual_call_type ||
-           rtype == relocInfo::static_call_type, "unexpected rtype");
-    __ relocate(rtype);
-    // BRASL must be prepended with a nop to identify it in the instruction stream.
-    __ z_nop();
-    __ z_brasl(Z_R14, (address)entry_point);
-  }
+  assert(rtype == relocInfo::none || rtype == relocInfo::opt_virtual_call_type ||
+      rtype == relocInfo::static_call_type, "unexpected rtype");
+  __ relocate(rtype);
+  // BRASL must be prepended with a nop to identify it in the instruction stream.
+  __ z_nop();
+  __ z_brasl(Z_R14, (address)entry_point);
 
   unsigned int ret_off = __ offset();
 
@@ -2059,7 +2050,7 @@ encode %{
 
     if (!_method) {
       ret_offset = emit_call_reloc(masm, $meth$$method,
-                                   relocInfo::runtime_call_w_cp_type, ra_);
+                                   relocInfo::none, ra_);
     } else {
       int method_index = resolved_method_index(masm);
       if (_optimized_virtual) {

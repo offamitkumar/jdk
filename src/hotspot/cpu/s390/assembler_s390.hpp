@@ -279,8 +279,6 @@ class AddressLiteral {
       return opt_virtual_call_Relocation::spec();
     case relocInfo::static_call_type:
       return static_call_Relocation::spec();
-    case relocInfo::runtime_call_w_cp_type:
-      return runtime_call_w_cp_Relocation::spec();
     case relocInfo::none:
       return RelocationHolder();
     default:
