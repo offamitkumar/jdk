@@ -146,21 +146,22 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
     __ block_comment("g1compareAndSwapN {");
-    write_barrier_pre(masm, this,
-                      $mem_ptr$$Register /* obj     */,
-                      $tmp1$$Register    /* pre_val */,
-                      $tmp2$$Register    /* tmp1    */,
-                      RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
-                      RegSet::of($res$$Register) /* no_preserve */);
 
     Register Rcomp = reg_to_register_object($oldval$$reg);
     Register Rnew  = reg_to_register_object($newval$$reg);
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
+    Register Rres  = reg_to_register_object($res$$reg);
+
+    write_barrier_pre(masm, this,
+                      Raddr           /* obj     */,
+                      $tmp1$$Register /* pre_val */,
+                      $tmp2$$Register /* tmp1    */,
+                      RegSet::of(Raddr, Rcomp, Rnew) /* preserve */,
+                      RegSet::of(Rres) /* no_preserve */);
 
     __ z_cs(Rcomp, Rnew, 0, Raddr);
 
-    Register Rres = reg_to_register_object($res$$reg);
-    assert_different_registers(Rres, $mem_ptr$$Register);
+    assert_different_registers(Rres, Raddr);
     if (VM_Version::has_LoadStoreConditional()) {
       __ load_const_optimized(Z_R0_scratch, 0L); // false (failed)
       __ load_const_optimized(Rres, 1L);         // true  (succeed)
@@ -173,13 +174,13 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
       __ bind(done);
     }
 
-    __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
+    __ oop_decoder($tmp3$$Register, Rnew, true /* maybe_null */);
 
     write_barrier_post(masm, this,
-                       $mem_ptr$$Register /* store_addr */,
-                       $tmp2$$Register    /* new_val    */,
-                       $tmp1$$Register    /* tmp1       */,
-                       $tmp3$$Register    /* tmp2       */);
+                       Raddr            /* store_addr */,
+                       $tmp3$$Register  /* new_val    */,
+                       $tmp1$$Register  /* tmp1       */,
+                       $tmp2$$Register  /* tmp2       */);
     __ block_comment("} g1compareAndSwapN");
   %}
   ins_pipe(pipe_class_dummy);
@@ -300,7 +301,7 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
     Register Rcomp = reg_to_register_object($oldval$$reg);
     Register Rnew  = reg_to_register_object($newval$$reg);
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
-    Register Rres  = reg_to_register_object($res$reg);
+    Register Rres  = reg_to_register_object($res$$reg);
 
     write_barrier_pre(masm, this,
                       noreg           /* obj     */,
