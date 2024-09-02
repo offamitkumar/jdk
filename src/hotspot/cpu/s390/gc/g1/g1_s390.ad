@@ -74,10 +74,10 @@ static void write_barrier_post(MacroAssembler* masm,
 %} // source
 
 // store pointer
-instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set dst (StoreP dst src));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP tmp1, TEMP tmp2, KILL cr);
   ins_cost(MEMORY_REF_COST);
   format %{ "STG     $src,$dst\t # ptr" %}
   ins_encode %{
@@ -93,18 +93,18 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, iRegL tm
     write_barrier_post(masm, this,
                        $dst$$Register, /* store_addr */
                        $src$$Register  /* new_val    */,
-                       $tmp2$$Register /* tmp1       */,
-                       $tmp3$$Register /* tmp2       */);
+                       $tmp1$$Register /* tmp1       */,
+                       $tmp2$$Register /* tmp2       */);
     __ block_comment("} g1StoreP");
   %}
   ins_pipe(pipe_class_dummy);
 %}
 
 // Store Compressed Pointer
-instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem src));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP tmp1, TEMP tmp2, KILL cr);
   ins_cost(MEMORY_REF_COST);
   format %{ "STY     $src,$mem\t # (cOop)" %}
   ins_encode %{
@@ -118,17 +118,17 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp
     __ z_sty($src$$Register, Address($mem$$Register));
     if ((barrier_data() & G1C2BarrierPost) != 0) {
       if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
-        __ oop_decoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
+        __ oop_decoder($src$$Register, $src$$Register, true /* maybe_null */);
       } else {
-        __ oop_decoder($tmp1$$Register, $src$$Register, false /* maybe_null */);
+        __ oop_decoder($src$$Register, $src$$Register, false /* maybe_null */);
       }
     }
 
     write_barrier_post(masm, this,
                        $mem$$Register, /* store_addr */
-                       $tmp1$$Register /* new_val    */,
-                       $tmp2$$Register /* tmp1       */,
-                       $tmp3$$Register /* tmp2       */);
+                       $src$$Registern /* new_val    */,
+                       $tmp1$$Register /* tmp1       */,
+                       $tmp2$$Register /* tmp2       */);
     __ block_comment("} g1StoreN");
   %}
 
@@ -335,19 +335,15 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
-  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, USE mem_ptr, USE_KILL oldval, KILL cr);
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
-
-    Register Rcomp = reg_to_register_object($oldval$$reg);
-    Register Rnew  = reg_to_register_object($newval$$reg);
-    Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     // Pass $oldval to the pre-barrier (instead of loading from $mem), because
     // $oldval is the only value that can be overwritten.
@@ -355,23 +351,19 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
     write_barrier_pre(masm, this,
                       noreg             /* obj     */,
                       $oldval$$Register /* pre_val */,
-                      $tmp2$$Register   /* tmp1    */,
+                      $tmp1$$Register   /* tmp1    */,
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
-    __ z_lgr($tmp1$$Register, $oldval$$Register);
-    __ z_lgr($tmp2$$Register, $newval$$Register);
-
-    Register Rres = reg_to_register_object($res$$reg);
-    __ z_lgr(Rres, $tmp1$$Register); // previous content
+    __ z_lgr($res$$reg, $oldval$$Register); // previous content
     
-    __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr);
+    __ z_csg($oldval$$Register, $newval$$Register, 0, $mem_ptr$$reg);
 
     write_barrier_post(masm, this,
                        $mem_ptr$$Register /* store_addr */,
-                       $tmp2$$Register    /* new_val    */,
+                       $newval$$Register  /* new_val    */,
                        $tmp1$$Register    /* tmp1       */,
-                       $tmp3$$Register    /* tmp2       */);
+                       $tmp2$$Register    /* tmp2       */);
     __ block_comment("} g1CompareAndExchangeP");
   %}
   ins_pipe(pipe_class_dummy);
@@ -460,11 +452,11 @@ instruct g1GetAndSetP(indirect mem, iRegP dst, iRegL tmp, iRegL tmp1, iRegL tmp2
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr)
+instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, flagsReg cr)
 %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem (EncodeP src)));
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP tmp1, TEMP tmp2, KILL cr);
   // ins_cost(INSN_COST);
   format %{ "encode_heap_oop $tmp1, $src\n\t"
             "st  $tmp1, $mem\t# compressed ptr" %}
@@ -484,8 +476,8 @@ instruct g1EncodePAndStoreN(indirect mem, iRegP src, iRegL tmp1, iRegL tmp2, iRe
     write_barrier_post(masm, this,
                        $mem$$Register  /* store_addr */,
                        $src$$Register  /* new_val    */,
-                       $tmp2$$Register /* tmp1       */,
-                       $tmp3$$Register /* tmp2       */);
+                       $tmp1$$Register /* tmp1       */,
+                       $tmp2$$Register /* tmp2       */);
     __ block_comment("} g1EncodePAndStoreN");
   %}
   ins_pipe(pipe_class_dummy);
