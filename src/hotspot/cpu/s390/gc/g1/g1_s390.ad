@@ -336,19 +336,15 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
-  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE mem_ptr, USE_KILL oldval, KILL cr);
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, USE mem_ptr, USE_KILL oldval, KILL cr);
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
     assert_different_registers($newval$$Register, $mem_ptr$$Register);
-
-    Register Rcomp = reg_to_register_object($oldval$$reg);
-    Register Rnew  = reg_to_register_object($newval$$reg);
-    Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     // Pass $oldval to the pre-barrier (instead of loading from $mem), because
     // $oldval is the only value that can be overwritten.
@@ -360,19 +356,15 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
                       RegSet::of($mem_ptr$$Register, $oldval$$Register, $newval$$Register) /* preserve */,
                       RegSet::of($res$$Register) /* no_preserve */);
 
-    __ z_lgr($tmp1$$Register, $oldval$$Register);
-    __ z_lgr($tmp2$$Register, $newval$$Register);
-
-    Register Rres = reg_to_register_object($res$$reg);
-    __ z_lgr(Rres, $tmp1$$Register); // previous content
+    __ z_lgr($res$$Register, $oldval$$Register); // previous content
     
-    __ z_csg($tmp1$$Register, $tmp2$$Register, 0, Raddr);
+    __ z_csg($oldval$$Register, $newval$$Register, 0, $mem_ptr$$reg);
 
     write_barrier_post(masm, this,
                        $mem_ptr$$Register /* store_addr */,
-                       $tmp2$$Register    /* new_val    */,
+                       $newval$$Register  /* new_val    */,
                        $tmp1$$Register    /* tmp1       */,
-                       $tmp3$$Register    /* tmp2       */);
+                       $tmp2$$Register    /* tmp2       */);
     __ block_comment("} g1CompareAndExchangeP");
   %}
   ins_pipe(pipe_class_dummy);
