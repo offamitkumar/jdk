@@ -375,35 +375,9 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, flagsReg cr) %{
   effect(TEMP dst, TEMP tmp1, KILL cr);
   ins_cost(MEMORY_REF_COST);
   format %{ "LG      $dst,$mem\t # ptr" %}
-  opcode(LG_ZOPC, LG_ZOPC);
   ins_encode %{
     __ block_comment("g1LoadP {");
-    int isize = $secondary > 1L << 32 ? 48 : 32;
-    Register Ridx = $mem$$index$$Register;
-    if (Ridx == noreg) { Ridx = Z_R0; } // Index is 0.
-
-    if (Displacement::is_shortDisp((long)$mem$$disp)) {
-      z_emit_inst(masm, $secondary |
-          Assembler::reg($dst$$reg, 8, isize) |
-          Assembler::uimm12($mem$$disp, 20, isize) |
-          Assembler::reg(Ridx, 12, isize) |
-          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-    } else if (Displacement::is_validDisp((long)$mem$$disp)) {
-      z_emit_inst(masm, $primary |
-          Assembler::reg($dst$$reg, 8, 48) |
-          Assembler::simm20($mem$$disp) |
-          Assembler::reg(Ridx, 12, 48) |
-          Assembler::regz(reg_to_register_object($mem$$base), 16, 48));
-    } else {
-      __ load_const_optimized(Z_R1_scratch, $mem$$disp);
-      if (Ridx != Z_R0) { __ z_agr(Z_R1_scratch, Ridx); }
-      z_emit_inst(masm, $secondary |
-          Assembler::reg($dst$$reg, 8, isize) |
-          Assembler::uimm12(0, 20, isize) |
-          Assembler::reg(Z_R1_scratch, 12, isize) |
-          Assembler::regz(reg_to_register_object($mem$$base), 16, isize));
-    }
-
+    __ z_lg($dst$$Register, $mem$$Address)
     write_barrier_pre(masm, this,
                       noreg /* obj */,
                       $dst$$Register /* pre_val */,
