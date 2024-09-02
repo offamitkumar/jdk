@@ -206,18 +206,18 @@ instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval
     Register Raddr = reg_to_register_object($mem_ptr$$reg);
 
     Register Rres = reg_to_register_object($res$$reg);
-    assert_different_registers(Rres, $mem_ptr$$Register);
+    assert_different_registers(Rres, Raddr);
 
     __ z_lgr(Rres, Rcomp);  // previous contents
     __ z_csy(Rres, Rnew, 0, Raddr); // Try to store new value.
 
-    __ oop_decoder($tmp2$$Register, $newval$$Register, true /* maybe_null */);
+    __ oop_decoder($tmp1$$Register, Rnew, true /* maybe_null */);
 
     write_barrier_post(masm, this,
-                       $mem_ptr$$Register /* store_addr */,
-                       $tmp2$$Register    /* new_val    */,
-                       $tmp1$$Register    /* tmp1       */,
-                       $tmp3$$Register    /* tmp2       */);
+                       Raddr           /* store_addr */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1CompareAndExchangeN");
   %}
   ins_pipe(pipe_class_dummy);
