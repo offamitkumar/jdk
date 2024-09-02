@@ -101,10 +101,10 @@ instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, flagsReg
 %}
 
 // Store Compressed Pointer
-instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
   match(Set mem (StoreN mem src));
-  effect(TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
   ins_cost(MEMORY_REF_COST);
   format %{ "STY     $src,$mem\t # (cOop)" %}
   ins_encode %{
@@ -119,17 +119,17 @@ instruct g1StoreN(indirect mem, iRegN_P2N src, iRegL tmp1, iRegL tmp2, flagsReg 
 
     if ((barrier_data() & G1C2BarrierPost) != 0) {
       if ((barrier_data() & G1C2BarrierPostNotNull) == 0) {
-        __ oop_decoder($src$$Register, $src$$Register, true /* maybe_null */);
+        __ oop_decoder($tmp1$$Register, $src$$Register, true /* maybe_null */);
       } else {
-        __ oop_decoder($src$$Register, $src$$Register, false /* maybe_null */);
+        __ oop_decoder($tmp1$$Register, $src$$Register, false /* maybe_null */);
       }
     }
 
     write_barrier_post(masm, this,
-                       $mem$$Register, /* store_addr */
-                       $src$$Register  /* new_val    */,
-                       $tmp1$$Register /* tmp1       */,
-                       $tmp2$$Register /* tmp2       */);
+                       $mem$$Register  /* store_addr */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
     __ block_comment("} g1StoreN");
   %}
 
