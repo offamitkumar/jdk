@@ -113,6 +113,9 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
 
 #if defined(COMPILER2)
 
+#undef __
+#define __ masm->
+
 static void generate_c2_barrier_runtime_call(MacroAssembler* masm, G1BarrierStubC2* stub, const Register pre_val, const address runtime_path) {
   BLOCK_COMMENT("generate_c2_barrier_runtime_call {");
   SaveLiveRegisters save_registers(masm, stub);
