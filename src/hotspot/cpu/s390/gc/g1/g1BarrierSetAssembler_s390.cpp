@@ -297,7 +297,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
                                     G1ThreadLocalData::dirty_card_queue_index_offset(),
                                     G1ThreadLocalData::dirty_card_queue_buffer_offset(),
                                     runtime,
-                                    Z_thread, pre_val, tmp2);
+                                    Z_thread, tmp1, tmp2);
   
   __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
 
