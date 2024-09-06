@@ -377,7 +377,7 @@ instruct g1LoadP(iRegP dst, memory mem, iRegL tmp1, flagsReg cr) %{
   format %{ "LG      $dst,$mem\t # ptr" %}
   ins_encode %{
     __ block_comment("g1LoadP {");
-    __ z_lg($dst$$Register, $mem$$Address)
+    __ z_lg($dst$$Register, $mem$$Address);
     write_barrier_pre(masm, this,
                       noreg /* obj */,
                       $dst$$Register /* pre_val */,
