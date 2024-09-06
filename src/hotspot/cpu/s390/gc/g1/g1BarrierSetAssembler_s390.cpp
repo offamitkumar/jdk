@@ -65,21 +65,22 @@ static void generate_pre_barrier_fast_path(MacroAssembler* masm,
 }
 
 static void generate_queue_test_and_insertion(MacroAssembler* masm, ByteSize index_offset, ByteSize buffer_offset, Label& runtime,
-                                              const Register Z_thread, const Register pre_val, const Register tmp1) {
+                                              const Register Z_thread, const Register value, const Register temp) {
   BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register Rindex = tmp1;
-  assert_different_registers(Rindex, pre_val);
 
-  __ load_and_test_long(Rindex, Address(Z_thread, in_bytes(index_offset)));
-  __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
+  assert_different_registers(temp, value);
+  // Can we store a value in the given thread's buffer?
+  // (The index field is typed as size_t.)
 
-  __ add2reg(Rindex, -wordSize); // Decrement index.
-  __ z_stg(Rindex, in_bytes(index_offset), Z_thread);
+  __ load_and_test_long(temp, Address(Z_thread, in_bytes(index_offset))); // temp := *(index address)
+  __ branch_optimized(Assembler::bcondEqual, runtime);                      // jump to runtime if index == 0 (full buffer)
 
-  __ z_ag(Rindex, Address(Z_thread, in_bytes(buffer_offset)));
+  // The buffer is not full, store value into it.
+  __ add2reg(temp, -wordSize);                                              // temp := next index
+  __ z_stg(temp, in_bytes(index_offset), Z_thread);                      // *(index address) := next index
 
-  // Record the previous value.
-  __ z_stg(pre_val, 0, Rindex);
+  __ z_ag(temp, Address(Z_thread, in_bytes(buffer_offset)));             // temp := buffer address + next index
+  __ z_stg(value, 0, temp);                                                // *(buffer address + next index) := value
   BLOCK_COMMENT("} generate_queue_test_and_insertion");
 }
 
