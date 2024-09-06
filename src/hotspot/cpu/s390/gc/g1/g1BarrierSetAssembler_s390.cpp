@@ -173,9 +173,6 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   
-  const int buffer_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset());
-  const int index_offset  = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
-  
   Label runtime;
   Register obj     = stub->obj();
   Register pre_val = stub->pre_val();
@@ -185,7 +182,6 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ bind(*stub->entry());
   
   BLOCK_COMMENT("generate_pre_val_not_null_test {");
-  assert(pre_val != noreg, "why noreg");
   if (obj != noreg) {
     __ load_heap_oop(pre_val, Address(obj), noreg, noreg, AS_RAW);
   }
@@ -270,10 +266,7 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Label runtime;
-  
-  const int buffer_offset = in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset());
-  const int index_offset  = in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset());
-  
+
   Register thread     = stub->thread();
   Register tmp1       = stub->tmp1(); // tmp1 holds the card address.
   Register tmp2       = stub->tmp2();
@@ -349,8 +342,6 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
 
   const Register Robj = obj ? obj->base() : noreg,
                  Roff = obj ? obj->index() : noreg;
-  const int buffer_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset());
-  const int index_offset  = in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset());
   assert_different_registers(Rtmp1, Rtmp2, Z_R0_scratch); // None of the Rtmp<i> must be Z_R0!!
   assert_different_registers(Robj, Z_R0_scratch);         // Used for addressing. Furthermore, push_frame destroys Z_R0!!
   assert_different_registers(Rval, Z_R0_scratch);         // push_frame destroys Z_R0!!
@@ -399,23 +390,12 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
   // We can store the original value in the thread's buffer
   // only if index > 0. Otherwise, we need runtime to handle.
   // (The index field is typed as size_t.)
-  Register Rbuffer = Rtmp1, Rindex = Rtmp2;
-  assert_different_registers(Rbuffer, Rindex, Rpre_val);
 
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
-
-  __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
-  __ z_bre(callRuntime); // If index == 0, goto runtime.
-
-  __ add2reg(Rindex, -wordSize); // Decrement index.
-  __ z_stg(Rindex, index_offset, Z_thread);
-
-  // Record the previous value.
-  __ z_stg(Rpre_val, 0, Rbuffer, Rindex);
+  generate_queue_test_and_insertion(masm,
+                                    G1ThreadLocalData::satb_mark_queue_index_offset(),
+                                    G1ThreadLocalData::satb_mark_queue_buffer_offset(),
+                                    callRuntime, Rtmp1, Rtmp2);
   __ z_bru(filtered);  // We are done.
-
-  Rbuffer = noreg;  // end of life
-  Rindex  = noreg;  // end of life
 
   __ bind(callRuntime);
 
