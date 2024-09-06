@@ -394,7 +394,8 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
   generate_queue_test_and_insertion(masm,
                                     G1ThreadLocalData::satb_mark_queue_index_offset(),
                                     G1ThreadLocalData::satb_mark_queue_buffer_offset(),
-                                    callRuntime, Rtmp1, Rtmp2);
+                                    callRuntime,
+                                    Z_thread, Rpre_val, Rtmp2);
   __ z_bru(filtered);  // We are done.
 
   __ bind(callRuntime);
@@ -511,23 +512,16 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
 
   Register Rcard_addr_x = Rcard_addr;
   Register Rqueue_index = (Rtmp2 != Z_R0_scratch) ? Rtmp2 : Rtmp1;
-  Register Rqueue_buf   = (Rtmp3 != Z_R0_scratch) ? Rtmp3 : Rtmp1;
-  const int qidx_off    = in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset());
-  const int qbuf_off    = in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset());
-  if ((Rcard_addr == Rqueue_buf) || (Rcard_addr == Rqueue_index)) {
+  if (Rcard_addr == Rqueue_index) {
     Rcard_addr_x = Z_R0_scratch;  // Register shortage. We have to use Z_R0.
   }
   __ lgr_if_needed(Rcard_addr_x, Rcard_addr);
 
-  __ load_and_test_long(Rqueue_index, Address(Z_thread, qidx_off));
-  __ z_bre(callRuntime); // Index == 0 then jump to runtime.
-
-  __ z_lg(Rqueue_buf, qbuf_off, Z_thread);
-
-  __ add2reg(Rqueue_index, -wordSize); // Decrement index.
-  __ z_stg(Rqueue_index, qidx_off, Z_thread);
-
-  __ z_stg(Rcard_addr_x, 0, Rqueue_index, Rqueue_buf); // Store card.
+  generate_queue_test_and_insertion(masm,
+                                    G1ThreadLocalData::dirty_card_queue_index_offset(),
+                                    G1ThreadLocalData::dirty_card_queue_buffer_offset(),
+                                    callRuntime,
+                                    Z_thread, Rcard_addr_x, Rqueue_index);
   __ z_bru(filtered);
 
   __ bind(callRuntime);
