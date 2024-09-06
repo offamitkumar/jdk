@@ -70,13 +70,13 @@ static void generate_queue_test_and_insertion(MacroAssembler* masm, ByteSize ind
   Register Rindex = tmp1;
   assert_different_registers(Rindex, pre_val);
 
-  __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
+  __ load_and_test_long(Rindex, Address(Z_thread, in_bytes(index_offset)));
   __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
 
   __ add2reg(Rindex, -wordSize); // Decrement index.
-  __ z_stg(Rindex, index_offset, Z_thread);
+  __ z_stg(Rindex, in_bytes(index_offset), Z_thread);
 
-  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
+  __ z_ag(Rindex, Address(Z_thread, in_bytes(buffer_offset)));
 
   // Record the previous value.
   __ z_stg(pre_val, 0, Rindex);
@@ -193,8 +193,8 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
 
   generate_queue_test_and_insertion(masm,
-                                    in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset()),
-                                    in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset()),
+                                    G1ThreadLocalData::satb_mark_queue_index_offset(),
+                                    G1ThreadLocalData::satb_mark_queue_buffer_offset(),
                                     runtime,
                                     Z_thread, pre_val, tmp1);
   
@@ -294,8 +294,8 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   BLOCK_COMMENT("} generate_dirty_card");
 
   generate_queue_test_and_insertion(masm,
-                                    in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset()),
-                                    in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset()),
+                                    G1ThreadLocalData::dirty_card_queue_index_offset(),
+                                    G1ThreadLocalData::dirty_card_queue_buffer_offset(),
                                     runtime,
                                     Z_thread, pre_val, tmp2);
   
