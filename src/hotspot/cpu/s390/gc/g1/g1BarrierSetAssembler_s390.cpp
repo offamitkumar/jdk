@@ -64,6 +64,25 @@ static void generate_pre_barrier_fast_path(MacroAssembler* masm,
   }
 }
 
+static void generate_queue_test_and_insertion(MacroAssembler* masm, ByteSize index_offset, ByteSize buffer_offset, Label& runtime,
+                                              const Register Z_thread, const Register pre_val, const Register tmp1) {
+  BLOCK_COMMENT("generate_queue_test_and_insertion {");
+  Register Rindex = tmp1;
+  assert_different_registers(Rindex, pre_val);
+
+  __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
+  __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
+
+  __ add2reg(Rindex, -wordSize); // Decrement index.
+  __ z_stg(Rindex, index_offset, Z_thread);
+
+  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
+
+  // Record the previous value.
+  __ z_stg(pre_val, 0, Rindex);
+  BLOCK_COMMENT("} generate_queue_test_and_insertion");
+}
+
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count) {
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
@@ -172,23 +191,12 @@ void G1BarrierSetAssembler::generate_c2_pre_barrier_stub(MacroAssembler* masm,
   __ z_ltgr(pre_val, pre_val);
   __ branch_optimized(Assembler::bcondEqual, *stub->continuation());
   BLOCK_COMMENT("} generate_pre_val_not_null_test");
-  
-  BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register Rindex = tmp1;
-  assert_different_registers(Rindex, pre_val);
 
-  __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
-  __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
-
-  __ add2reg(Rindex, -wordSize); // Decrement index.
-  __ z_stg(Rindex, index_offset, Z_thread);
-
-  //__ z_lg(Rbuffer, buffer_offset, Z_thread);
-  __ z_ag(Rindex, Address(Z_thread, buffer_offset));
-
-  // Record the previous value.
-  __ z_stg(pre_val, 0, Rindex);
-  BLOCK_COMMENT("} generate_queue_test_and_insertion");
+  generate_queue_test_and_insertion(masm,
+                                    in_bytes(G1ThreadLocalData::satb_mark_queue_index_offset()),
+                                    in_bytes(G1ThreadLocalData::satb_mark_queue_buffer_offset()),
+                                    runtime,
+                                    Z_thread, pre_val, tmp1);
   
   __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
   
@@ -285,21 +293,11 @@ void G1BarrierSetAssembler::generate_c2_post_barrier_stub(MacroAssembler* masm,
   __ z_mvi(0, Rcard_addr, CardTable::dirty_card_val());
   BLOCK_COMMENT("} generate_dirty_card");
 
-  BLOCK_COMMENT("generate_queue_test_and_insertion {");
-  Register pre_val = tmp1, Rbuffer = Z_R1_scratch, Rindex = tmp2;
-  assert_different_registers(Rbuffer, Rindex, pre_val);
-
-  __ load_and_test_long(Rindex, Address(Z_thread, index_offset));
-  __ branch_optimized(Assembler::bcondEqual, runtime); // If index == 0, goto runtime.
-
-  __ add2reg(Rindex, -wordSize); // Decrement index.
-  __ z_stg(Rindex, index_offset, Z_thread);
-
-  __ z_lg(Rbuffer, buffer_offset, Z_thread);
-
-  // Record the previous value.
-  __ z_stg(pre_val, 0, Rbuffer, Rindex);
-  BLOCK_COMMENT("} generate_queue_test_and_insertion");
+  generate_queue_test_and_insertion(masm,
+                                    in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset()),
+                                    in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset()),
+                                    runtime,
+                                    Z_thread, pre_val, tmp2);
   
   __ branch_optimized(Assembler::bcondAlways, *stub->continuation());
 
