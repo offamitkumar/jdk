@@ -9599,9 +9599,9 @@ instruct partialSubtypeCheck(rarg1RegP index, rarg2RegP sub, rarg3RegP super, fl
 // for. The second, far more common, is used when we do know: this is
 // used for instanceof, checkcast, and any case where C2 can determine
 // it by constant propagation.
-instruct partialSubtypeCheckVarSuper(rarg1RegP sub, rarg2RegP super,
+instruct partialSubtypeCheckVarSuper(rarg2RegP sub, rarg3RegP super,
                                      r11TempRegP result,
-                                     rarg5RegP temp1, rarg4RegP temp2, rarg3RegP temp3, r10TempRegP temp4,
+                                     rarg1RegP temp1, rarg4RegP temp2, rarg5RegP temp3, r10TempRegP temp4,
                                      flagsReg pcc) %{
   match(Set result (PartialSubtypeCheck sub super));
   predicate(UseSecondarySupersTable);

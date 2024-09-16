@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -552,7 +552,13 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       __ z_lg(Rsubklass,   0*BytesPerWord + FrameMap::first_available_sp_in_frame + frame_size, Z_SP);
       __ z_lg(Rsuperklass, 1*BytesPerWord + FrameMap::first_available_sp_in_frame + frame_size, Z_SP);
 
-      __ check_klass_subtype_slow_path(Rsubklass, Rsuperklass, Rarray_ptr, Rlength, nullptr, &miss);
+      __ check_klass_subtype_slow_path(/*sub_klass*/   Rsubklass,
+                                       /*super_klass*/ Rsuperklass,
+                                       /*temp_reg*/    Rarray_ptr,
+                                       /*temp2_reg*/   Rlength,
+                                       /*L_success*/   nullptr,
+                                       /*L_failure*/   &miss);
+      // need extra registers for table lookup.
 
       // Match falls through here.
       i = 0;
