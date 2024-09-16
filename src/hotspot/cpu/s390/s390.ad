@@ -9613,6 +9613,7 @@ instruct partialSubtypeCheckVarSuper(rarg1RegP sub, rarg2RegP super,
                                          $temp1$$Register, $temp2$$Register, $temp3$$Register, $temp4$$Register,
                                          $result$$Register, /*L_success*/nullptr );
   %}
+  ins_pipe(pipe_class_dummy);
 %}
 
 instruct partialSubtypeCheckConstSuper(rarg2RegP sub, rarg1RegP super, immP super_con,
