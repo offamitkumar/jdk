@@ -77,7 +77,7 @@ void C2_MacroAssembler::fast_unlock_lightweight(Register obj, Register box, Regi
 // If precise is false, a few characters more than indicated by the return value may have been
 // written to the dst array. In any failure case, The result value indexes the first invalid character.
 unsigned int C2_MacroAssembler::string_compress(Register result, Register src, Register dst, Register cnt,
-                                                Register tmp, bool precise, bool toASCII, VectorRegister Vtmp1, VectorRegister v17,
+                                                Register tmp, bool precise, bool toASCII, VectorRegister Vtmp1, VectorRegister Vtmp2,
 						VectorRegister v18, VectorRegister v19, VectorRegister v20, VectorRegister v21,
 						VectorRegister v22, VectorRegister v23) {	
   assert_different_registers(Z_R0, Z_R1, result, src, dst, cnt, tmp);
@@ -172,7 +172,6 @@ unsigned int C2_MacroAssembler::string_compress(Register result, Register src, R
     const int  log_min_vcnt = exact_log2(min_vcnt);
     Label      VectorLoop, VectorDone, VectorBreak;
 
-    VectorRegister Vtmp2      = v17;
     VectorRegister Vmask      = v18;
     VectorRegister Vzero      = v19;
     VectorRegister Vsrc_first = v20;
