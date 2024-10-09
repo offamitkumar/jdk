@@ -43,7 +43,7 @@
   //   Early clobber: result.
   //   Boolean precise controls accuracy of result value.
 unsigned int string_compress(Register result, Register src, Register dst, Register cnt,
-                                                Register tmp, bool precise, bool toASCII, VectorRegister v16, VectorRegister v17,
+                                                Register tmp, bool precise, bool toASCII, VectorRegister Vtmp1, VectorRegister v17,
                                                 VectorRegister v18, VectorRegister v19, VectorRegister v20, VectorRegister v21,
                                                 VectorRegister v22, VectorRegister v23);
 

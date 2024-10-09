@@ -762,11 +762,6 @@ reg_class z_v_reg(
 	Z_VR31, Z_VR31_H, Z_VR31_J, Z_VR31_K
 );
 
-// class for vector register v16
-reg_class z_vreg_16(
-   Z_VR16, Z_VR16_H, Z_VR16_J, Z_VR16_K
-);
-
 // class for vector register v17
 reg_class z_vreg_17(
    Z_VR17, Z_VR17_H, Z_VR17_J, Z_VR17_K
@@ -2735,7 +2730,6 @@ ins_attrib ins_should_rematerialize(false);
 operand vecX() %{
   constraint(ALLOC_IN_RC(z_v_reg));
   match(VecX);
-  match(v16TempReg);
   match(v17TempReg);
   match(v18TempReg);
   match(v19TempReg);
@@ -2745,14 +2739,6 @@ operand vecX() %{
   match(v23TempReg);
   match(v24TempReg);
   match(v25TempReg);
-
-  format %{ %}
-  interface(REG_INTER);
-%}
-
-operand v16TempReg() %{
-  constraint(ALLOC_IN_RC(z_vreg_16));
-  match(VecX);
 
   format %{ %}
   interface(REG_INTER);
@@ -10503,16 +10489,16 @@ instruct indexOf_UL(iRegP haystack, rarg2RegI haycnt, iRegP needle, rarg5RegI ne
 
 // char[] to byte[] compression
 instruct string_compress(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tmp,
-			 v16TempReg v16, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
+			 vecX Vtmp1, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
 			 v22TempReg v22, v23TempReg v23, flagsReg cr) %{
   match(Set result (StrCompressedCopy src (Binary dst len)));
-  effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP v16, TEMP v17, TEMP v18, TEMP v19,
+  effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP Vtmp1, TEMP v17, TEMP v18, TEMP v19,
 	 TEMP v20, TEMP v21, TEMP v22, TEMP v23); // R0, R1 are killed, too.
   ins_cost(300);
   format %{ "String Compress $src->$dst($len) -> $result" %}
   ins_encode %{
   __ string_compress($result$$Register, $src$$Register, $dst$$Register, $len$$Register,
-                       $tmp$$Register, true, false, $v16$$VectorRegister, $v17$$VectorRegister, $v18$$VectorRegister, $v19$$VectorRegister,
+                       $tmp$$Register, true, false, $Vtmp1$$VectorRegister, $v17$$VectorRegister, $v18$$VectorRegister, $v19$$VectorRegister,
 		       $v20$$VectorRegister, $v21$$VectorRegister, $v22$$VectorRegister, $v23$$VectorRegister);
   %}
   ins_pipe(pipe_class_dummy);
@@ -10576,17 +10562,17 @@ instruct count_positives(iRegP ary1, iRegI len, iRegI result, iRegI tmp, flagsRe
 
 // encode char[] to byte[] in ISO_8859_1
 instruct encode_iso_array(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tmp,
-                         v16TempReg v16, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
+                         vecX Vtmp1, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
                          v22TempReg v22, v23TempReg v23, flagsReg cr) %{
   predicate(!((EncodeISOArrayNode*)n)->is_ascii());
   match(Set result (EncodeISOArray src (Binary dst len)));
-  effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP v16, TEMP v17, TEMP v18, TEMP v19,
+  effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP Vtmp1, TEMP v17, TEMP v18, TEMP v19,
          TEMP v20, TEMP v21, TEMP v22, TEMP v23); // R0, R1 are killed, too.
   ins_cost(300);
   format %{ "Encode iso array $src->$dst($len) -> $result" %}
   ins_encode %{
   __ string_compress($result$$Register, $src$$Register, $dst$$Register, $len$$Register,
-                       $tmp$$Register, true, false, $v16$$VectorRegister, $v17$$VectorRegister, $v18$$VectorRegister, $v19$$VectorRegister,
+                       $tmp$$Register, true, false, $Vtmp1$$VectorRegister, $v17$$VectorRegister, $v18$$VectorRegister, $v19$$VectorRegister,
                        $v20$$VectorRegister, $v21$$VectorRegister, $v22$$VectorRegister, $v23$$VectorRegister);
   %}
   ins_pipe(pipe_class_dummy);
@@ -10594,17 +10580,17 @@ instruct encode_iso_array(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI t
 
 // encode char[] to byte[] in ASCII
 instruct encode_ascii_array(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tmp,
-                         v16TempReg v16, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
+                         vecX Vtmp1, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
                          v22TempReg v22, v23TempReg v23, flagsReg cr) %{
   predicate(((EncodeISOArrayNode*)n)->is_ascii());
   match(Set result (EncodeISOArray src (Binary dst len)));
-  effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP v16, TEMP v17, TEMP v18, TEMP v19,
+  effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP Vtmp1, TEMP v17, TEMP v18, TEMP v19,
          TEMP v20, TEMP v21, TEMP v22, TEMP v23); // R0, R1 are killed, too.
   ins_cost(300);
   format %{ "Encode ascii array $src->$dst($len) -> $result" %}
   ins_encode %{
   __ string_compress($result$$Register, $src$$Register, $dst$$Register, $len$$Register,
-                       $tmp$$Register, true, false, $v16$$VectorRegister, $v17$$VectorRegister, $v18$$VectorRegister, $v19$$VectorRegister,
+                       $tmp$$Register, true, false, $Vtmp1$$VectorRegister, $v17$$VectorRegister, $v18$$VectorRegister, $v19$$VectorRegister,
                        $v20$$VectorRegister, $v21$$VectorRegister, $v22$$VectorRegister, $v23$$VectorRegister);
   %}
   ins_pipe(pipe_class_dummy);
