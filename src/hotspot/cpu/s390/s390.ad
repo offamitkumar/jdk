@@ -10503,8 +10503,8 @@ instruct indexOf_UL(iRegP haystack, rarg2RegI haycnt, iRegP needle, rarg5RegI ne
 
 // char[] to byte[] compression
 instruct string_compress(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tmp,
-			 v16TempReg v16, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
-			 v22TempReg v22, v23TempReg v23, flagsReg cr) %{
+			 vecX v16, vecX v17, vecX v18, vecX v19, vecX v20, vecX v21,
+			 vecX v22, vecX v23, flagsReg cr) %{
   match(Set result (StrCompressedCopy src (Binary dst len)));
   effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP v16, TEMP v17, TEMP v18, TEMP v19,
 	 TEMP v20, TEMP v21, TEMP v22, TEMP v23); // R0, R1 are killed, too.
@@ -10533,8 +10533,8 @@ instruct string_compress(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tm
 
 // byte[] to char[] inflation
 instruct string_inflate(Universe dummy, iRegP src, iRegP dst, iRegI len, iRegI tmp,
-                        v20TempReg v20, v21TempReg v21, v22TempReg v22, v23TempReg v23,
-                        v24TempReg v24, v25TempReg v25, flagsReg cr) %{
+                        vecX v20, vecX v21, vecX v22, vecX v23,
+                        vecX v24, vecX v25, flagsReg cr) %{
   match(Set dummy (StrInflatedCopy src (Binary dst len)));
   effect(TEMP tmp, KILL cr); // R0, R1 are killed, too.
   ins_cost(300);
@@ -10548,8 +10548,8 @@ instruct string_inflate(Universe dummy, iRegP src, iRegP dst, iRegI len, iRegI t
 
 // byte[] to char[] inflation
 instruct string_inflate_const(Universe dummy, iRegP src, iRegP dst, iRegI tmp, immI len,
-                              v20TempReg v20, v21TempReg v21, v22TempReg v22, v23TempReg v23,
-                              v24TempReg v24, v25TempReg v25, flagsReg cr) %{
+                              vecX v20, vecX v21, vecX v22, vecX v23,
+                              vecX v24, vecX v25, flagsReg cr) %{
   match(Set dummy (StrInflatedCopy src (Binary dst len)));
   effect(TEMP tmp, KILL cr); // R0, R1 are killed, too.
   ins_cost(300);
@@ -10576,8 +10576,8 @@ instruct count_positives(iRegP ary1, iRegI len, iRegI result, iRegI tmp, flagsRe
 
 // encode char[] to byte[] in ISO_8859_1
 instruct encode_iso_array(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tmp,
-                         v16TempReg v16, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
-                         v22TempReg v22, v23TempReg v23, flagsReg cr) %{
+                         vecX v16, vecX v17, vecX v18, vecX v19, vecX v20, vecX v21,
+                         vecX v22, vecX v23, flagsReg cr) %{
   predicate(!((EncodeISOArrayNode*)n)->is_ascii());
   match(Set result (EncodeISOArray src (Binary dst len)));
   effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP v16, TEMP v17, TEMP v18, TEMP v19,
@@ -10594,8 +10594,8 @@ instruct encode_iso_array(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI t
 
 // encode char[] to byte[] in ASCII
 instruct encode_ascii_array(iRegP src, iRegP dst, iRegI result, iRegI len, iRegI tmp,
-                         v16TempReg v16, v17TempReg v17, v18TempReg v18, v19TempReg v19, v20TempReg v20, v21TempReg v21,
-                         v22TempReg v22, v23TempReg v23, flagsReg cr) %{
+                         vecX v16, vecX v17, vecX v18, vecX v19, vecX v20, vecX v21,
+                         vecX v22, vecX v23, flagsReg cr) %{
   predicate(((EncodeISOArrayNode*)n)->is_ascii());
   match(Set result (EncodeISOArray src (Binary dst len)));
   effect(TEMP_DEF result, TEMP tmp, KILL cr, TEMP v16, TEMP v17, TEMP v18, TEMP v19,
