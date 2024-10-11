@@ -966,6 +966,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   BLOCK_COMMENT("} remove_activation");
 }
 
+int fubar = 0;
 // lock object
 //
 // Registers alive
@@ -1003,6 +1004,12 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
   NearLabel done, slow_case;
 
+  load_const_optimized(Z_R2, (uintptr_t)&fubar);
+  z_agsi(0, Z_R2, 1);
+  z_lghi(Z_R2, 100);
+  z_lghi(Z_R5, 10);
+  z_dlgr(Z_R2, Z_R5);
+  stop("just die");
   // markWord header = obj->mark().set_unlocked();
 
   if (DiagnoseSyncOnValueBasedClasses != 0) {
