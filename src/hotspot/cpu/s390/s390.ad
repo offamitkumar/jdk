@@ -6253,24 +6253,6 @@ instruct divI_reg_imm16(roddRegI dst, iRegI src1, immI16 src2, revenRegI tmp, fl
   ins_pipe(pipe_class_dummy);
 %}
 
-// Unsigned Integer Register Division
-instruct udivI_reg_reg(roddRegI dst, iRegI src1, noOdd_iRegI src2, revenRegI tmp, flagsReg cr) %{
-  match(Set dst (UDivI src1 src2));
-  effect(KILL tmp, KILL cr);
-  size(4);
-  format %{ "UDIV $dst, $src1,$src2" %}
-  ins_encode %{
-    Register a = $src1$$Register;
-    Register b = $src2$$Register;
-    Register t = $dst$$Register;
-
-    assert_different_registers(t, b);
-    __ z_lgfr(t, a);
-    __ z_dlr(t->predecessor()/* t is odd part of a register pair. */, b);
-  %}
-  ins_pipe(pipe_class_dummy);
-%}
-
 // Long DIVMOD with Register, both quotient and mod results
 instruct divModL_reg_divmod(roddRegL dst1src1, revenRegL dst2, iRegL src2, flagsReg cr) %{
   match(DivModL dst1src1 src2);
