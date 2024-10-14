@@ -6336,7 +6336,7 @@ instruct divL_reg_reg(roddRegL dst, iRegL src, revenRegL tmp, flagsReg cr) %{
 
 // Register Unsigned Long Division
 instruct udivL_reg_reg(roddRegL dst, iRegL src, revenRegL tmp, flagsReg cr) %{
-  match(Set dst (DivL dst src));
+  match(Set dst (UDivL dst src));
   effect(KILL tmp, KILL cr);
   ins_cost(DEFAULT_COST);
   // TODO: size(4);
