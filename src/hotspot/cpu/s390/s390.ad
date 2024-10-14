@@ -6341,6 +6341,7 @@ instruct udivL_reg_reg(roddRegL dst, iRegL src, revenRegL tmp, flagsReg cr) %{
     Register b = $src$$Register;
     Register t = $dst$$Register;
     __ block_comment("unsigned_div_long {");
+    __ z_lghi(t->predecessor(), 0);
     __ z_dlgr(t->predecessor()/* t is odd part of a register pair. */, b);
     __ block_comment("} unsigned_div_long");
   %}
@@ -6497,7 +6498,7 @@ instruct modL_reg_reg(revenRegL dst, roddRegL src1, iRegL src2, flagsReg cr) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-// Register Long Remainder
+// Register Unsigned Long Remainder
 instruct umodL_reg_reg(revenRegL dst, roddRegL src1, iRegL src2, flagsReg cr) %{
   match(Set dst (UModL src1 src2));
   effect(KILL src1, KILL cr); // R0 is killed, too.
@@ -6511,6 +6512,7 @@ instruct umodL_reg_reg(revenRegL dst, roddRegL src1, iRegL src2, flagsReg cr) %{
     assert(t->successor() == a, "(t,a) is an even-odd pair" );
 
     __ block_comment("unsigned_mod_long {");
+    __ z_lgfr(t->successor(), a);
     __ z_lghi(t, 0);
     __ z_dlgr(t, b);
     __ block_comment("} unsigned_mod_integer");
