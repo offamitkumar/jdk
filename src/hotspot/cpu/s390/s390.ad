@@ -6333,13 +6333,14 @@ instruct divL_reg_reg(roddRegL dst, iRegL src, revenRegL tmp, flagsReg cr) %{
 // Register Unsigned Long Division
 instruct udivL_reg_reg(roddRegL dst, iRegL src, revenRegL tmp, flagsReg cr) %{
   match(Set dst (UDivL dst src));
-  effect(KILL tmp, KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(DEFAULT_COST);
   // TODO: size(4);
   format %{ "UDIVG $dst, $src" %}
   ins_encode %{
     Register b = $src$$Register;
     Register t = $dst$$Register;
+    assert_different_registers($dst$$Register, $tmp$$Register, $src$$Register);
     __ block_comment("unsigned_div_long {");
     __ z_lghi(t->predecessor(), 0);
     __ z_dlgr(t->predecessor()/* t is odd part of a register pair. */, b);
