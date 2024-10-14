@@ -1309,6 +1309,7 @@ class CallStubImpl {
 %} // end source_hpp section
 
 source %{
+  long fubar = 0;
 
 #if !defined(PRODUCT)
 void MachUEPNode::format(PhaseRegAlloc *ra_, outputStream *os) const {
@@ -6263,10 +6264,12 @@ instruct udivI_reg_reg(roddRegI dst, iRegI src1, noOdd_iRegI src2, revenRegI tmp
     Register a = $src1$$Register;
     Register b = $src2$$Register;
     Register t = $dst$$Register;
-    assert_different_registers(t, b);
+    assert_different_registers(t, b, Z_R1_scratch);
 
     __ block_comment("unsigned_div {");
-    __ stop("fucked up in unsigned integer division !!");
+    //__ stop("fucked up in unsigned integer division !!");
+    __ load_const_optimized(Z_R1_scratch, (uintptr_t)&fubar);
+    __ z_agsi(0, Z_R1_scratch, 1);
     __ z_lghi(t->predecessor(), 0); // set left most 32 bit to 0, see instruction description
     __ lgr_if_needed(t, a);
     __ z_dlr(t->predecessor()/* t is odd part of a register pair. */, b);
