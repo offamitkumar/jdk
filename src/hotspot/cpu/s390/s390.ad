@@ -6417,7 +6417,7 @@ instruct modI_reg_reg(revenRegI dst, iRegI src1, noOdd_iRegI src2, roddRegI tmp,
   ins_pipe(pipe_class_dummy);
 %}
 
-// Register Remainder
+// Register Unsigned Integer Remainder
 instruct umodI_reg_reg(revenRegI dst, iRegI src1, noOdd_iRegI src2, roddRegI tmp, flagsReg cr) %{
   match(Set dst (UModI src1 src2));
   effect(KILL tmp, KILL cr);
@@ -6432,7 +6432,7 @@ instruct umodI_reg_reg(revenRegI dst, iRegI src1, noOdd_iRegI src2, roddRegI tmp
 
     __ block_comment("unsigned_mod_integer {");
     __ z_lgfr(t->successor(), a);
-    __ z_dsgfr(t/* t is even part of a register pair. */, b);
+    __ z_dlr(t/* t is even part of a register pair. */, b);
     __ block_comment("} unsigned_mod_integer");
   %}
   ins_pipe(pipe_class_dummy);
