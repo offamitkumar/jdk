@@ -6267,7 +6267,7 @@ instruct udivI_reg_reg(roddRegI dst, iRegI src1, noOdd_iRegI src2, revenRegI tmp
 
     __ block_comment("unsigned_div {");
     __ stop("fucked up in unsigned integer division !!");
-    __ z_lghi(t-predecessor(), 0); // set left most 32 bit to 0, see instruction description
+    __ z_lghi(t->predecessor(), 0); // set left most 32 bit to 0, see instruction description
     __ lgr_if_needed(t, a);
     __ z_dlr(t->predecessor()/* t is odd part of a register pair. */, b);
     __ block_comment("} unsigned_div");
