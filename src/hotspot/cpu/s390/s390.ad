@@ -6415,22 +6415,25 @@ instruct modI_reg_reg(revenRegI dst, iRegI src1, noOdd_iRegI src2, roddRegI tmp,
 %}
 
 // Register Unsigned Integer Remainder
-instruct umodI_reg_reg(revenRegI dst, iRegI src1, noOdd_iRegI src2, roddRegI tmp, flagsReg cr) %{
-  match(Set dst (UModI src1 src2));
-  effect(TEMP tmp, KILL cr);
+// NOTE: z_dlr required even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
+// for dividend, leftmost 32bits will be in r4 and rightmost 32bits will be in r5 register.
+instruct umodI_reg_reg(revenRegI r4_reven_dst, iRegI src2, roddRegI r5_rodd_tmp, flagsReg cr) %{
+  match(Set r4_reven_dst (UModI r4_reven_dst src2));
+  effect(TEMP r5_rodd_tmp, KILL cr);
   ins_cost(DEFAULT_COST);
   // TODO: s390 port size(VARIABLE_SIZE);
-  format %{ "UMOD   $dst,$src1,$src2" %}
+  format %{ "UMOD   $r4_reven_dst,$r4_reven_dst,$src2" %}
   ins_encode %{
-    Register a = $src1$$Register;
-    Register b = $src2$$Register;
-    Register t = $dst$$Register;
-    assert_different_registers(t->successor(), b);
+    Register b            = $src2$$Register;
+    Register r4_reven_dst = $r4_reven_dst$$Register;
+    Register r5_rodd_tmp  = $r5_rodd_tmp$$Register;
+    assert_different_registers(r4_reven_dst, r5_rodd_tmp, b);
+    assert(r4_reven_dst->successor() == r5_rodd_tmp, "must be an even-odd pair");
 
     __ block_comment("unsigned_mod_integer {");
-    __ z_lgfr(t->successor(), a);
-    __ z_lghi(t, 0);
-    __ z_dlr(t/* t is even part of a register pair. */, b);
+    __ z_lgfr(r5_rodd_tmp, r4_reven_dst); // load rightmost 32bits in odd register
+    __ z_lghi(r4_reven_dst, 0);           // make leftmost 32bits 0
+    __ z_dlr(r4_reven_dst, b);
     __ block_comment("} unsigned_mod_integer");
   %}
   ins_pipe(pipe_class_dummy);
@@ -6501,7 +6504,7 @@ instruct modL_reg_reg(revenRegL dst, roddRegL src1, iRegL src2, flagsReg cr) %{
 
 // Register Unsigned Long Remainder
 // NOTE: z_dlgr required even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
-// for dividend, leftmost 64bit will be in r4 and rightmost 64bit will be in r5 register.
+// for dividend, leftmost 64bits will be in r4 and rightmost 64bits will be in r5 register.
 instruct umodL_reg_reg(revenRegL r4_reven_dst, roddRegL r5_rodd_tmp, iRegL src2, flagsReg cr) %{
   match(Set r4_reven_dst (UModL r4_reven_dst src2));
   effect(TEMP r5_rodd_tmp, KILL cr);
@@ -6509,9 +6512,10 @@ instruct umodL_reg_reg(revenRegL r4_reven_dst, roddRegL r5_rodd_tmp, iRegL src2,
   // TODO: s390 port size(VARIABLE_SIZE);
   format %{ "UMODG   $r4_reven_dst,$r4_reven_dst,$src2" %}
   ins_encode %{
-    Register b = $src2$$Register;
+    Register b            = $src2$$Register;
     Register r4_reven_dst = $r4_reven_dst$$Register;
     Register r5_rodd_tmp  = $r5_rodd_tmp$$Register;
+    assert_different_registers(r4_reven_dst, r5_rodd_tmp, b);
     assert(r4_reven_dst->successor() == r5_rodd_tmp, "instruction requires an even-odd pair" );
 
     __ block_comment("unsigned_mod_long {");
