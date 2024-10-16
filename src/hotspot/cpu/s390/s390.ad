@@ -6415,7 +6415,7 @@ instruct modI_reg_reg(revenRegI dst, iRegI src1, noOdd_iRegI src2, roddRegI tmp,
 %}
 
 // Register Unsigned Integer Remainder
-// NOTE: z_dlr required even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
+// NOTE: z_dlr requires even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
 // for dividend, leftmost 32bits will be in r4 and rightmost 32bits will be in r5 register.
 instruct umodI_reg_reg(revenRegI r4_reven_dst, iRegI src2, roddRegI r5_rodd_tmp, flagsReg cr) %{
   match(Set r4_reven_dst (UModI r4_reven_dst src2));
@@ -6503,7 +6503,7 @@ instruct modL_reg_reg(revenRegL dst, roddRegL src1, iRegL src2, flagsReg cr) %{
 %}
 
 // Register Unsigned Long Remainder
-// NOTE: z_dlgr required even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
+// NOTE: z_dlgr requires even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
 // for dividend, leftmost 64bits will be in r4 and rightmost 64bits will be in r5 register.
 instruct umodL_reg_reg(revenRegL r4_reven_dst, roddRegL r5_rodd_tmp, iRegL src2, flagsReg cr) %{
   match(Set r4_reven_dst (UModL r4_reven_dst src2));
