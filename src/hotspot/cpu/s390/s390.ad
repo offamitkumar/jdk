@@ -6516,9 +6516,9 @@ instruct umodL_reg_reg(revenRegL r4_reven_dst, roddRegL r5_rodd_tmp, iRegL src2,
 
     __ block_comment("unsigned_mod_long {");
     __ z_lgr(r5_rodd_tmp, r4_reven_dst); // load rightmost 64bits in even register
-    __ z_lghi(r4_reven_dst, 0); // make leftmost 64bits 0
+    __ z_lghi(r4_reven_dst, 0);          // make leftmost 64bits 0
     __ z_dlgr(r4_reven_dst, b);
-    __ block_comment("} unsigned_mod_integer");
+    __ block_comment("} unsigned_mod_long");
   %}
   ins_pipe(pipe_class_dummy);
 %}
