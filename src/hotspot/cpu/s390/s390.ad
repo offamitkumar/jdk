@@ -6254,22 +6254,24 @@ instruct divI_reg_imm16(roddRegI dst, iRegI src1, immI16 src2, revenRegI tmp, fl
 %}
 
 // Unsigned Integer Register Division
-instruct udivI_reg_reg(roddRegI dst, iRegI src1, noOdd_iRegI src2, revenRegI tmp, flagsReg cr) %{
-  match(Set dst (UDivI src1 src2));
-  effect(TEMP tmp, KILL cr);
+// NOTE: z_dlr requires even-odd pair. remainder will be in even register(r4) & quotient will be stored in odd register(r5)
+// for dividend, leftmost 32bits will be in r4 and rightmost 32bits will be in r5 register.
+instruct udivI_reg_reg(roddRegI r5_rodd_dst, iRegI src2, revenRegI r4_reven_tmp, flagsReg cr) %{
+  match(Set r5_rodd_dst (UDivI r5_rodd_dst src2));
+  effect(TEMP r4_reven_tmp, KILL cr);
   // TODO: size(4);
-  format %{ "UDIV $dst, $src1,$src2" %}
+  format %{ "UDIV $r5_rodd_dst, $r5_rodd_dst,$src2" %}
   ins_encode %{
-    Register a = $src1$$Register;
     Register b = $src2$$Register;
-    Register t = $dst$$Register;
-    assert_different_registers(t, b, Z_R1_scratch);
+    Register r4_reven_tmp = $r4_reven_tmp$$Register;
+    Register r5_rodd_dst  = $r5_rodd_dst$$Register;
+    assert_different_registers(r4_reven_tmp, r5_rodd_dst, b);
+    assert(r4_reven_tmp->successor() == r5_rodd_dst, "even-odd pair required for the instruction");
 
-    __ block_comment("unsigned_div {");
-    __ z_lghi(t->predecessor(), 0); // set left most 32 bit to 0, see instruction description
-    __ lgr_if_needed(t, a);
-    __ z_dlr(t->predecessor()/* t is odd part of a register pair. */, b);
-    __ block_comment("} unsigned_div");
+    __ block_comment("unsigned_div_int {");
+    __ z_lghi(r4_reven_tmp, 0); // make leftmost 32bits 0 
+    __ z_dlr(r4_reven_tmp, b);
+    __ block_comment("} unsigned_div_int");
   %}
   ins_pipe(pipe_class_dummy);
 %}
