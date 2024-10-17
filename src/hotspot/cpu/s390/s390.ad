@@ -6269,7 +6269,7 @@ instruct udivI_reg_reg(roddRegI r5_rodd_dst, iRegI src2, revenRegI r4_reven_tmp,
     assert(r4_reven_tmp->successor() == r5_rodd_dst, "even-odd pair required for the instruction");
 
     __ block_comment("unsigned_div_int {");
-    __ z_lghi(r4_reven_tmp, 0); // make leftmost 32bits 0 
+    __ z_lhi(r4_reven_tmp, 0); // make leftmost 32bits 0
     __ z_dlr(r4_reven_tmp, b);
     __ block_comment("} unsigned_div_int");
   %}
@@ -6436,8 +6436,8 @@ instruct umodI_reg_reg(revenRegI r4_reven_dst, iRegI src2, roddRegI r5_rodd_tmp,
     assert(r4_reven_dst->successor() == r5_rodd_tmp, "must be an even-odd pair");
 
     __ block_comment("unsigned_mod_integer {");
-    __ z_lgfr(r5_rodd_tmp, r4_reven_dst); // load rightmost 32bits in odd register
-    __ z_lghi(r4_reven_dst, 0);           // make leftmost 32bits 0
+    __ z_lr(r5_rodd_tmp, r4_reven_dst); // load rightmost 32bits in odd register
+    __ z_lhi(r4_reven_dst, 0);          // make leftmost  32bits 0
     __ z_dlr(r4_reven_dst, b);
     __ block_comment("} unsigned_mod_integer");
   %}
