@@ -4446,15 +4446,14 @@ instruct loadNKlass(iRegN dst, memory mem) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct loadNKlassCompactHeaders(iRegN dst, memory mem) %{
+instruct loadNKlassCompactHeaders(iRegN dst, memory mem, flagsReg cr) %{
   match(Set dst (LoadNKlass mem));
-  predicate(!UseCompactObjectHeaders);
+  predicate(UseCompactObjectHeaders);
+  effect(KILL cr);
   ins_cost(MEMORY_REF_COST);
-
-  format %{ "load_narrow_klass_compact $dst, $mem \t// compressed class ptr" %}
+  format %{ "load_narrow_klass_compact $dst,$mem \t# compressed class ptr" %}
   // TODO: size()
   ins_encode %{
-    //     assert($mem$$index$$Register == )
     __ load_narrow_klass_compact_c2($dst$$Register, $mem$$Address);
   %}
   ins_pipe(pipe_class_dummy);
