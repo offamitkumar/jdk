@@ -4084,9 +4084,9 @@ void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
     assert(tmp != noreg, "required");
     assert_different_registers(klass, obj, tmp);
     load_narrow_klass_compact(tmp, obj);
-    z_cgr(klass, tmp); // TODO: maybe z_cr ?
+    z_cr(klass, tmp); // TODO: maybe z_cgr ?
   } else if (UseCompressedClassPointers) {
-    z_cy(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+    z_c(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
   } else {
     z_cg(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
   }
@@ -4102,8 +4102,8 @@ void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Regi
     load_narrow_klass_compact(tmp2, obj2);
     z_cr(tmp1, tmp2);
   } else if (UseCompressedClassPointers) {
-    z_ly(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
-    z_cy(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+    z_l(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    z_c(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
   } else {
     z_lg(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
     z_cg(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
