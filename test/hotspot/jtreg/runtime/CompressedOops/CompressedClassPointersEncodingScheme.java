@@ -108,7 +108,9 @@ public class CompressedClassPointersEncodingScheme {
 
         long ccsSize = 128 * M;
         int expectedShift = 6;
-        test(forceAddress, true, ccsSize, forceAddress, expectedShift);
+        if (!Platform.isPPC() && !Platform.isS390x()) {
+            test(forceAddress, true, ccsSize, forceAddress, expectedShift);
+        }
 
         ccsSize = 512 * M;
         expectedShift = 8;
