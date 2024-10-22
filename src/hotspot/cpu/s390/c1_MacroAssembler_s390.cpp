@@ -174,7 +174,6 @@ void C1_MacroAssembler::try_allocate(
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register Rzero, Register t1) {
   assert_different_registers(obj, klass, len, t1, Rzero);
   if (UseCompactObjectHeaders) {
-    stop("nope");
     z_lg(t1, Address(klass, in_bytes(Klass::prototype_header_offset())));
     z_stg(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   } else {
