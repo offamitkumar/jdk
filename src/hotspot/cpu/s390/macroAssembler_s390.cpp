@@ -4074,7 +4074,6 @@ void MacroAssembler::load_klass(Register klass, Address mem) {
 void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   BLOCK_COMMENT("load_narrow_klass_compact {");
   assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
-  stop("nooooooooo: load_narrow_klass");
   z_lg(dst, Address(src, oopDesc::mark_offset_in_bytes()));
   z_srlg(dst, dst, markWord::klass_shift);
   BLOCK_COMMENT("} load_narrow_klass_compact");
@@ -4118,7 +4117,8 @@ void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Regi
 
 void MacroAssembler::load_klass(Register klass, Register src_oop) {
   if (UseCompactObjectHeaders) {
-    stop("what the fuck");
+    load_narrow_klass_compact(klass, src_oop);
+    decode_klass_not_null(klass);
   } else if (UseCompressedClassPointers) {
     z_llgf(klass, oopDesc::klass_offset_in_bytes(), src_oop);
     // Attention: no null check here!
