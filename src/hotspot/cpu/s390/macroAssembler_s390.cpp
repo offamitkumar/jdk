@@ -4085,7 +4085,7 @@ void MacroAssembler::load_klass(Register klass, Register src_oop) {
 // src - the oop we want to load the klass from.
 // dst - output nklass.
 void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
-  BLOCK_COMMENT("load_narrow_klass_compact {")
+  BLOCK_COMMENT("load_narrow_klass_compact {");
   assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
   z_lg(dst, Address(src, oopDesc::mark_offset_in_bytes()));
   z_srlg(dst, dst, markWord::klass_shift);
