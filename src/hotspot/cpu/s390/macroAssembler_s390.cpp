@@ -2161,7 +2161,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point) {
 
 int MacroAssembler::ic_check_size() {
   // TODO: Maybe this requires an update ??
-  return 30 + (ImplicitNullChecks ? 0 : 6) + (UseCompactObjectHeaders ? 18 /* lg + sra */ : 0);
+  return 30 + (ImplicitNullChecks ? 0 : 6) + (UseCompactObjectHeaders ? 70 /* lg + sra */ : 0);
 }
 
 int MacroAssembler::ic_check(int end_alignment) {
