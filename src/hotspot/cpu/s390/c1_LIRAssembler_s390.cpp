@@ -2726,7 +2726,7 @@ void LIR_Assembler::emit_load_klass(LIR_OpLoadKlass* op) {
   if (info != nullptr) {
     add_debug_info_for_null_check_here(info);
   }
-  __ load_klass(result, obj, Z_R1_scratch);
+  __ load_klass(result, obj);
 }
 void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
   ciMethod* method = op->profiled_method();
