@@ -1929,7 +1929,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register dst_pos = op->dst_pos()->as_register();
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
-  Register tmp2 = UseCompactObjectHeaders ? Z_R1_scratch : noreg;
+  Register tmp2 = UseCompactObjectHeaders ? Z_R1_scratch : noreg; // TODO: could clobber ?
 
   CodeStub* stub = op->stub();
   int flags = op->flags();
@@ -2222,17 +2222,13 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // but not necessarily exactly of type default_type.
     NearLabel known_ok, halt;
     metadata2reg(default_type->constant_encoding(), tmp);
-    if (UseCompressedClassPointers) {
-      __ encode_klass_not_null(tmp);
-    }
 
+    __ cmp_klass(tmp, dst, tmp2);
     if (basic_type != T_OBJECT) {
-      __ cmp_klass(tmp, dst, tmp2);
       __ branch_optimized(Assembler::bcondNotEqual, halt);
       __ cmp_klass(tmp, src, tmp2);
       __ branch_optimized(Assembler::bcondEqual, known_ok);
     } else {
-      __ cmp_klass(tmp, dst, tmp2);
       __ branch_optimized(Assembler::bcondEqual, known_ok);
       __ compareU64_and_branch(src, dst, Assembler::bcondEqual, known_ok);
     }
