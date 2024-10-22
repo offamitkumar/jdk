@@ -2160,7 +2160,16 @@ void MacroAssembler::call_VM_leaf_base(address entry_point) {
 }
 
 int MacroAssembler::ic_check_size() {
-  return 30 + (ImplicitNullChecks ? 0 : 6);
+  int ic_size = 24;
+  if (!ImplicitNullChecks) {
+    ic_size += 6;
+  }
+  if (UseCompactObjectHeaders) {
+    ic_size += 12;
+  } else {
+    ic_size += 6; // either z_llgf or z_lg
+  }
+  return ic_size;
 }
 
 int MacroAssembler::ic_check(int end_alignment) {
@@ -2182,7 +2191,7 @@ int MacroAssembler::ic_check(int end_alignment) {
   }
 
   if (UseCompactObjectHeaders) {
-    stop("ereefef");
+    load_narrow_klass_compact(R1_scratch, R2_receiver);
   } else if (UseCompressedClassPointers) {
     z_llgf(R1_scratch, Address(R2_receiver, oopDesc::klass_offset_in_bytes()));
   } else {

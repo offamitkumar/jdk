@@ -3953,7 +3953,8 @@ void TemplateTable::_new() {
       // The object is initialized before the header. If the object size is
       // zero, go directly to the header initialization.
       if (UseCompactObjectHeaders) {
-        __ stop("TemplateTable not yet finished");
+        assert(is_aligned(oopDesc::base_offset_in_bytes(), BytesPerLong), "oop base offset must be 8-byte-aligned");
+        __ z_aghi(Rsize, (int)-oopDesc::base_offset_in_bytes());
       } else {
         __ z_aghi(Rsize, (int)-sizeof(oopDesc)); // Subtract header size, set CC.
       }
@@ -3968,14 +3969,17 @@ void TemplateTable::_new() {
 
       // Set Rzero to 0 and use it as src length, then mvcle will copy nothing
       // and fill the object with the padding value 0.
-      __ add2reg(RobjectFields, sizeof(oopDesc), RallocatedObject);
+      if (UseCompactObjectHeaders) {
+        __ add2reg(RobjectFields, oopDesc::base_offset_in_bytes(), RallocatedObject);
+      } else {
+        __ add2reg(RobjectFields, sizeof(oopDesc), RallocatedObject);
+      }
       __ move_long_ext(RobjectFields, as_Register(Rzero->encoding() - 1), 0);
     }
 
     // Initialize object header only.
     __ bind(initialize_header);
     if (UseCompactObjectHeaders) {
-      __ stop("don't use this");
       __ z_lg(tmp, Address(iklass, in_bytes(Klass::prototype_header_offset())));
       __ z_stg(tmp, Address(RallocatedObject, oopDesc::mark_offset_in_bytes()));
     } else {
