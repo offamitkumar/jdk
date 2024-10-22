@@ -4064,6 +4064,53 @@ void MacroAssembler::load_klass(Register klass, Address mem) {
   }
 }
 
+// Loads the obj's Klass* into dst.
+// Preserves all registers (incl src, rscratch1 and rscratch2).
+// Input:
+// src - the oop we want to load the klass from.
+// dst - output nklass.
+void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
+  BLOCK_COMMENT("load_narrow_klass_compact {");
+  assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
+  z_lg(dst, Address(src, oopDesc::mark_offset_in_bytes()));
+  z_srlg(dst, dst, markWord::klass_shift);
+  BLOCK_COMMENT("} load_narrow_klass_compact");
+}
+
+void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
+  BLOCK_COMMENT("cmp_klass {");
+  assert_different_registers(obj, klass, tmp);
+  if (UseCompactObjectHeaders) {
+    assert(tmp != noreg, "required");
+    assert_different_registers(klass, obj, tmp);
+    load_narrow_klass_compact(tmp, obj);
+    z_cgr(klass, tmp); // TODO: maybe z_cr ?
+  } else if (UseCompressedClassPointers) {
+    z_cy(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+  } else {
+    z_cg(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+  }
+  BLOCK_COMMENT("} cmp_klass");
+}
+
+void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
+  BLOCK_COMMENT("cmp_klasses_from_objects {");
+  if (UseCompactObjectHeaders) {
+    assert(tmp1 != noreg && tmp2 != noreg, "required");
+    assert_different_registers(obj1, obj2, tmp1, tmp2);
+    load_narrow_klass_compact(tmp1, obj1);
+    load_narrow_klass_compact(tmp2, obj2);
+    z_cr(tmp1, tmp2);
+  } else if (UseCompressedClassPointers) {
+    z_ly(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    z_cy(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+  } else {
+    z_lg(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    z_cg(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+  }
+  BLOCK_COMMENT("} cmp_klasses_from_objects");
+}
+
 void MacroAssembler::load_klass(Register klass, Register src_oop) {
   if (UseCompressedClassPointers) {
     z_llgf(klass, oopDesc::klass_offset_in_bytes(), src_oop);
@@ -4075,6 +4122,7 @@ void MacroAssembler::load_klass(Register klass, Register src_oop) {
 }
 
 void MacroAssembler::store_klass(Register klass, Register dst_oop, Register ck) {
+  assert(!UseCompactObjectHeaders, "Don't use with compact headers");
   if (UseCompressedClassPointers) {
     assert_different_registers(dst_oop, klass, Z_R0);
     if (ck == noreg) ck = klass;
@@ -4086,6 +4134,7 @@ void MacroAssembler::store_klass(Register klass, Register dst_oop, Register ck) 
 }
 
 void MacroAssembler::store_klass_gap(Register s, Register d) {
+  assert(!UseCompactObjectHeaders, "Don't use with compact headers");
   if (UseCompressedClassPointers) {
     assert(s != d, "not enough registers");
     // Support s = noreg.
