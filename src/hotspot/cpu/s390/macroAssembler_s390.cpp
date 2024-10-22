@@ -2160,7 +2160,8 @@ void MacroAssembler::call_VM_leaf_base(address entry_point) {
 }
 
 int MacroAssembler::ic_check_size() {
-  return 30 + (ImplicitNullChecks ? 0 : 6);
+  // TODO: Maybe this requires an update ??
+  return 30 + (ImplicitNullChecks ? 0 : 6) + (UseCompactObjectHeaders ? 12 /* lg + sra */ : 0);
 }
 
 int MacroAssembler::ic_check(int end_alignment) {
@@ -2181,7 +2182,9 @@ int MacroAssembler::ic_check(int end_alignment) {
     z_cgij(R2_receiver, 0, Assembler::bcondEqual, failure);
   }
 
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(R1_scratch, R2_receiver);
+  }else if (UseCompressedClassPointers) {
     z_llgf(R1_scratch, Address(R2_receiver, oopDesc::klass_offset_in_bytes()));
   } else {
     z_lg(R1_scratch, Address(R2_receiver, oopDesc::klass_offset_in_bytes()));
@@ -4065,16 +4068,60 @@ void MacroAssembler::load_klass(Register klass, Address mem) {
 }
 
 void MacroAssembler::load_klass(Register klass, Register src_oop) {
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(klass, src_oop);
+    decode_klass_not_null(klass);
+  }else if (UseCompressedClassPointers) {
     z_llgf(klass, oopDesc::klass_offset_in_bytes(), src_oop);
-    // Attention: no null check here!
     decode_klass_not_null(klass);
   } else {
     z_lg(klass, oopDesc::klass_offset_in_bytes(), src_oop);
   }
 }
 
+// Loads the obj's Klass* into dst.
+// Preserves all registers (incl src, rscratch1 and rscratch2).
+// Input:
+// src - the oop we want to load the klass from.
+// dst - output nklass.
+void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
+  assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
+  z_lg(dst, Address(src, oopDesc::mark_offset_in_bytes()));
+  z_sra(dst, markWord::klass_shift);
+}
+
+void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
+  assert_different_registers(obj, klass, tmp);
+  if (UseCompactObjectHeaders) {
+    assert(tmp != noreg, "required");
+    assert_different_registers(klass, obj, tmp);
+    load_narrow_klass_compact(klass, tmp);
+    z_cr(klass, tmp);
+  } else if (UseCompressedClassPointers) {
+    z_cy(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+  } else {
+    z_cg(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
+void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2) {
+  if (UseCompactObjectHeaders) {
+    assert(tmp1 != noreg && tmp2 != noreg, "required");
+    assert_different_registers(obj1, obj2, tmp1, tmp2);
+    load_narrow_klass_compact(tmp1, obj1);
+    load_narrow_klass_compact(tmp2, obj2);
+    z_cr(tmp1, tmp2);
+  } else if (UseCompressedClassPointers) {
+    z_ly(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    z_cy(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+  } else {
+    z_lg(tmp1, Address(obj1, oopDesc::klass_offset_in_bytes()));
+    z_cg(tmp1, Address(obj2, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
 void MacroAssembler::store_klass(Register klass, Register dst_oop, Register ck) {
+  assert(!UseCompactObjectHeaders, "not with compact headers");
   if (UseCompressedClassPointers) {
     assert_different_registers(dst_oop, klass, Z_R0);
     if (ck == noreg) ck = klass;
@@ -4086,6 +4133,7 @@ void MacroAssembler::store_klass(Register klass, Register dst_oop, Register ck) 
 }
 
 void MacroAssembler::store_klass_gap(Register s, Register d) {
+  assert(!UseCompactObjectHeaders, "not with compact headers");
   if (UseCompressedClassPointers) {
     assert(s != d, "not enough registers");
     // Support s = noreg.
