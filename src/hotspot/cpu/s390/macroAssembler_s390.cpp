@@ -4087,7 +4087,7 @@ void MacroAssembler::load_klass(Register klass, Register src_oop) {
 void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
   z_lg(dst, Address(src, oopDesc::mark_offset_in_bytes()));
-  z_sra(dst, markWord::klass_shift);
+  z_srlg(dst, dst, markWord::klass_shift);
 }
 
 void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
