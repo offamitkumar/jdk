@@ -4098,7 +4098,7 @@ void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
   if (UseCompactObjectHeaders) {
     assert(tmp != noreg, "required");
     assert_different_registers(klass, obj, tmp);
-    load_narrow_klass_compact(klass, tmp);
+    load_narrow_klass_compact(tmp, klass);
     z_cr(klass, tmp);
   } else if (UseCompressedClassPointers) {
     z_cy(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
