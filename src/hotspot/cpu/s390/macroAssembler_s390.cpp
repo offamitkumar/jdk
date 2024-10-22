@@ -2181,7 +2181,9 @@ int MacroAssembler::ic_check(int end_alignment) {
     z_cgij(R2_receiver, 0, Assembler::bcondEqual, failure);
   }
 
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    stop("ereefef");
+  } else if (UseCompressedClassPointers) {
     z_llgf(R1_scratch, Address(R2_receiver, oopDesc::klass_offset_in_bytes()));
   } else {
     z_lg(R1_scratch, Address(R2_receiver, oopDesc::klass_offset_in_bytes()));
@@ -4072,6 +4074,7 @@ void MacroAssembler::load_klass(Register klass, Address mem) {
 void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   BLOCK_COMMENT("load_narrow_klass_compact {");
   assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
+  stop("nooooooooo: load_narrow_klass");
   z_lg(dst, Address(src, oopDesc::mark_offset_in_bytes()));
   z_srlg(dst, dst, markWord::klass_shift);
   BLOCK_COMMENT("} load_narrow_klass_compact");
@@ -4081,6 +4084,7 @@ void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
   BLOCK_COMMENT("cmp_klass {");
   assert_different_registers(obj, klass, tmp);
   if (UseCompactObjectHeaders) {
+    stop("nooooooooo");
     assert(tmp != noreg, "required");
     assert_different_registers(klass, obj, tmp);
     load_narrow_klass_compact(tmp, obj);
@@ -4098,6 +4102,7 @@ void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Regi
   if (UseCompactObjectHeaders) {
     assert(tmp1 != noreg && tmp2 != noreg, "required");
     assert_different_registers(obj1, obj2, tmp1, tmp2);
+    stop("nooooooooo: no cmp_klass from object");
     load_narrow_klass_compact(tmp1, obj1);
     load_narrow_klass_compact(tmp2, obj2);
     z_cr(tmp1, tmp2);
@@ -4112,7 +4117,9 @@ void MacroAssembler::cmp_klasses_from_objects(Register obj1, Register obj2, Regi
 }
 
 void MacroAssembler::load_klass(Register klass, Register src_oop) {
-  if (UseCompressedClassPointers) {
+  if (UseCompactObjectHeaders) {
+    stop("what the fuck");
+  } else if (UseCompressedClassPointers) {
     z_llgf(klass, oopDesc::klass_offset_in_bytes(), src_oop);
     // Attention: no null check here!
     decode_klass_not_null(klass);
