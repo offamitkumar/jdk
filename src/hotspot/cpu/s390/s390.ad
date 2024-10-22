@@ -4454,7 +4454,9 @@ instruct loadNKlassCompactHeaders(iRegN dst, memory mem, flagsReg cr) %{
   format %{ "load_narrow_klass_compact $dst,$mem \t# compressed class ptr" %}
   // TODO: size()
   ins_encode %{
+    __ block_comment("load_narrow_klass_compact_c2 {");
     __ load_narrow_klass_compact_c2($dst$$Register, $mem$$Address);
+    __ block_comment("} load_narrow_klass_compact");
   %}
   ins_pipe(pipe_class_dummy);
 %}

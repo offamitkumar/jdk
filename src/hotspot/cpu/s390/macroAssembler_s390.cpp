@@ -4092,7 +4092,6 @@ void MacroAssembler::cmp_klass(Register klass, Register obj, Register tmp) {
   BLOCK_COMMENT("cmp_klass {");
   assert_different_registers(obj, klass, tmp);
   if (UseCompactObjectHeaders) {
-    stop("nooooooooo");
     assert(tmp != noreg, "required");
     assert_different_registers(klass, obj, tmp);
     load_narrow_klass_compact(tmp, obj);
