@@ -1193,22 +1193,7 @@ class LockNode : public AbstractLockNode {
 public:
 
   static const TypeFunc *lock_type() {
-    static const TypeFunc *tf = []() -> const TypeFunc* {
-      // create input type (domain)
-      const Type **fields = TypeTuple::fields(3);
-      fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // Object to be Locked
-      fields[TypeFunc::Parms + 1] = TypeRawPtr::BOTTOM;    // Address of stack location for lock
-      fields[TypeFunc::Parms + 2] = TypeInt::BOOL;         // FastLock
-      const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 3, fields);
-
-      // create result type (range)
-      fields = TypeTuple::fields(0);
-
-      const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
-
-      return TypeFunc::make(domain, range);
-    }();
-    return tf;
+    return TypeFunc::staticTypeFunc();
   }
 
   virtual int Opcode() const;

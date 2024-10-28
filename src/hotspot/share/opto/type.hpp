@@ -1905,6 +1905,7 @@ public:
   static const TypeFunc *make(ciMethod* method);
   static const TypeFunc *make(ciSignature signature, const Type* extra);
   static const TypeFunc *make(const TypeTuple* domain, const TypeTuple* range);
+  static const TypeFunc *staticTypeFunc(void);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
