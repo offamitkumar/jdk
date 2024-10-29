@@ -710,8 +710,6 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
 
-  TypeFunc::staticTypeFunc(); // just to initialize the first object
-
   // Restore working type arena.
   current->set_type_arena(save);
   current->set_type_dict(nullptr);
@@ -6588,26 +6586,6 @@ const Type* TypeAryKlassPtr::base_element_type(int& dims) const {
 //------------------------------make-------------------------------------------
 const TypeFunc *TypeFunc::make( const TypeTuple *domain, const TypeTuple *range ) {
   return (TypeFunc*)(new TypeFunc(domain,range))->hashcons();
-}
-
-// first call is made from Type::initialize_shared()
-const TypeFunc *TypeFunc::staticTypeFunc(void) {
-  static const TypeFunc *tf = []() -> const TypeFunc* {
-    // create input type (domain)
-    const Type **fields = TypeTuple::fields(3);
-    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // Object to be Locked
-    fields[TypeFunc::Parms + 1] = TypeRawPtr::BOTTOM;    // Address of stack location for lock
-    fields[TypeFunc::Parms + 2] = TypeInt::BOOL;         // FastLock
-    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 3, fields);
-
-    // create result type (range)
-    fields = TypeTuple::fields(0);
-
-    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
-
-    return TypeFunc::make(domain, range);
-  }();
-  return tf;
 }
 
 //------------------------------make-------------------------------------------
