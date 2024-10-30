@@ -734,6 +734,24 @@ void Type::Initialize_shared(Compile* current) {
   OptoRuntime::void_long_Type();
   OptoRuntime::void_void_Type();
   OptoRuntime::jfr_write_checkpoint_Type();
+  OptoRuntime::fast_arraycopy_Type();
+  OptoRuntime::checkcast_arraycopy_Type();
+  OptoRuntime::generic_arraycopy_Type();
+  OptoRuntime::slow_arraycopy_Type();
+  OptoRuntime::make_setmemory_Type();
+  OptoRuntime::array_fill_Type();
+  OptoRuntime::array_sort_Type();
+  OptoRuntime::array_partition_Type();
+  OptoRuntime::aescrypt_block_Type();
+  OptoRuntime::cipherBlockChaining_aescrypt_Type();
+  OptoRuntime::electronicCodeBook_aescrypt_Type();
+  OptoRuntime::counterMode_aescrypt_Type();
+  OptoRuntime::galoisCounterMode_aescrypt_Type();
+  OptoRuntime::digestBase_implCompress_Type(true);
+  OptoRuntime::digestBase_implCompressMB_Type(true);
+  OptoRuntime::multiplyToLen_Type();
+  OptoRuntime::montgomeryMultiply_Type();
+  OptoRuntime::montgomerySquare_Type();
 
   // Restore working type arena.
   current->set_type_arena(save);

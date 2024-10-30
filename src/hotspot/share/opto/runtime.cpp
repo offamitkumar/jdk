@@ -887,22 +887,26 @@ const TypeFunc* OptoRuntime::jfr_write_checkpoint_Type() {
 // long size
 // uchar byte
 const TypeFunc* OptoRuntime::make_setmemory_Type() {
-  // create input type (domain)
-  int argcnt = NOT_LP64(3) LP64_ONLY(4);
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;        // dest
-  fields[argp++] = TypeX_X;                 // size
-  LP64_ONLY(fields[argp++] = Type::HALF);   // size
-  fields[argp++] = TypeInt::UBYTE;          // bytevalue
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()-> const TypeFunc* {
+    // create input type (domain)
+    int argcnt = NOT_LP64(3) LP64_ONLY(4);
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;        // dest
+    fields[argp++] = TypeX_X;                 // size
+    LP64_ONLY(fields[argp++] = Type::HALF);   // size
+    fields[argp++] = TypeInt::UBYTE;          // bytevalue
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // arraycopy stub variations:
@@ -953,106 +957,126 @@ static const TypeFunc* make_arraycopy_Type(ArrayCopyType act) {
 
 const TypeFunc* OptoRuntime::fast_arraycopy_Type() {
   // This signature is simple:  Two base pointers and a size_t.
-  return make_arraycopy_Type(ac_fast);
+  static const TypeFunc *tf = make_arraycopy_Type(ac_fast);
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::checkcast_arraycopy_Type() {
   // An extension of fast_arraycopy_Type which adds type checking.
-  return make_arraycopy_Type(ac_checkcast);
+  static const TypeFunc *tf = make_arraycopy_Type(ac_checkcast);
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::slow_arraycopy_Type() {
   // This signature is exactly the same as System.arraycopy.
   // There are no intptr_t (int/long) arguments.
-  return make_arraycopy_Type(ac_slow);
+  static const TypeFunc *tf = make_arraycopy_Type(ac_slow);
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::generic_arraycopy_Type() {
   // This signature is like System.arraycopy, except that it returns status.
-  return make_arraycopy_Type(ac_generic);
+  static const TypeFunc *tf = make_arraycopy_Type(ac_generic);
+  return tf;
 }
 
 
 const TypeFunc* OptoRuntime::array_fill_Type() {
-  const Type** fields;
-  int argp = TypeFunc::Parms;
-  // create input type (domain): pointer, int, size_t
-  fields = TypeTuple::fields(3 LP64_ONLY( + 1));
-  fields[argp++] = TypePtr::NOTNULL;
-  fields[argp++] = TypeInt::INT;
-  fields[argp++] = TypeX_X;               // size in whatevers (size_t)
-  LP64_ONLY(fields[argp++] = Type::HALF); // other half of long length
-  const TypeTuple *domain = TypeTuple::make(argp, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    const Type **fields;
+    int argp = TypeFunc::Parms;
+    // create input type (domain): pointer, int, size_t
+    fields = TypeTuple::fields(3 LP64_ONLY(+1));
+    fields[argp++] = TypePtr::NOTNULL;
+    fields[argp++] = TypeInt::INT;
+    fields[argp++] = TypeX_X;               // size in whatevers (size_t)
+    LP64_ONLY(fields[argp++] = Type::HALF); // other half of long length
+    const TypeTuple *domain = TypeTuple::make(argp, fields);
 
-  // create result type
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    // create result type
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::array_partition_Type() {
-  // create input type (domain)
-  int num_args = 7;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;  // array
-  fields[argp++] = TypeInt::INT;      // element type
-  fields[argp++] = TypeInt::INT;      // low
-  fields[argp++] = TypeInt::INT;      // end
-  fields[argp++] = TypePtr::NOTNULL;  // pivot_indices (int array)
-  fields[argp++] = TypeInt::INT;      // indexPivot1
-  fields[argp++] = TypeInt::INT;      // indexPivot2
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 7;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;  // array
+    fields[argp++] = TypeInt::INT;      // element type
+    fields[argp++] = TypeInt::INT;      // low
+    fields[argp++] = TypeInt::INT;      // end
+    fields[argp++] = TypePtr::NOTNULL;  // pivot_indices (int array)
+    fields[argp++] = TypeInt::INT;      // indexPivot1
+    fields[argp++] = TypeInt::INT;      // indexPivot2
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::array_sort_Type() {
-  // create input type (domain)
-  int num_args      = 4;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // array
-  fields[argp++] = TypeInt::INT;    // element type
-  fields[argp++] = TypeInt::INT;    // fromIndex
-  fields[argp++] = TypeInt::INT;    // toIndex
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 4;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // array
+    fields[argp++] = TypeInt::INT;    // element type
+    fields[argp++] = TypeInt::INT;    // fromIndex
+    fields[argp++] = TypeInt::INT;    // toIndex
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // for aescrypt encrypt/decrypt operations, just three pointers returning void (length is constant)
 const TypeFunc* OptoRuntime::aescrypt_block_Type() {
-  // create input type (domain)
-  int num_args      = 3;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // src
-  fields[argp++] = TypePtr::NOTNULL;    // dest
-  fields[argp++] = TypePtr::NOTNULL;    // k array
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 3;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // src
+    fields[argp++] = TypePtr::NOTNULL;    // dest
+    fields[argp++] = TypePtr::NOTNULL;    // k array
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 /**
@@ -1124,160 +1148,228 @@ const TypeFunc* OptoRuntime::updateBytesAdler32_Type() {
 
 // for cipherBlockChaining calls of aescrypt encrypt/decrypt, four pointers and a length, returning int
 const TypeFunc* OptoRuntime::cipherBlockChaining_aescrypt_Type() {
-  // create input type (domain)
-  int num_args      = 5;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // src
-  fields[argp++] = TypePtr::NOTNULL;    // dest
-  fields[argp++] = TypePtr::NOTNULL;    // k array
-  fields[argp++] = TypePtr::NOTNULL;    // r array
-  fields[argp++] = TypeInt::INT;        // src len
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 5;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // src
+    fields[argp++] = TypePtr::NOTNULL;    // dest
+    fields[argp++] = TypePtr::NOTNULL;    // k array
+    fields[argp++] = TypePtr::NOTNULL;    // r array
+    fields[argp++] = TypeInt::INT;        // src len
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // returning cipher len (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
-  return TypeFunc::make(domain, range);
+    // returning cipher len (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // for electronicCodeBook calls of aescrypt encrypt/decrypt, three pointers and a length, returning int
 const TypeFunc* OptoRuntime::electronicCodeBook_aescrypt_Type() {
-  // create input type (domain)
-  int num_args = 4;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // src
-  fields[argp++] = TypePtr::NOTNULL;    // dest
-  fields[argp++] = TypePtr::NOTNULL;    // k array
-  fields[argp++] = TypeInt::INT;        // src len
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 4;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // src
+    fields[argp++] = TypePtr::NOTNULL;    // dest
+    fields[argp++] = TypePtr::NOTNULL;    // k array
+    fields[argp++] = TypeInt::INT;        // src len
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // returning cipher len (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = TypeInt::INT;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-  return TypeFunc::make(domain, range);
+    // returning cipher len (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 //for counterMode calls of aescrypt encrypt/decrypt, four pointers and a length, returning int
 const TypeFunc* OptoRuntime::counterMode_aescrypt_Type() {
-  // create input type (domain)
-  int num_args = 7;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL; // src
-  fields[argp++] = TypePtr::NOTNULL; // dest
-  fields[argp++] = TypePtr::NOTNULL; // k array
-  fields[argp++] = TypePtr::NOTNULL; // counter array
-  fields[argp++] = TypeInt::INT; // src len
-  fields[argp++] = TypePtr::NOTNULL; // saved_encCounter
-  fields[argp++] = TypePtr::NOTNULL; // saved used addr
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
-  // returning cipher len (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = TypeInt::INT;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-  return TypeFunc::make(domain, range);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 7;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL; // src
+    fields[argp++] = TypePtr::NOTNULL; // dest
+    fields[argp++] = TypePtr::NOTNULL; // k array
+    fields[argp++] = TypePtr::NOTNULL; // counter array
+    fields[argp++] = TypeInt::INT; // src len
+    fields[argp++] = TypePtr::NOTNULL; // saved_encCounter
+    fields[argp++] = TypePtr::NOTNULL; // saved used addr
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+    // returning cipher len (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 //for counterMode calls of aescrypt encrypt/decrypt, four pointers and a length, returning int
 const TypeFunc* OptoRuntime::galoisCounterMode_aescrypt_Type() {
-  // create input type (domain)
-  int num_args = 8;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL; // byte[] in + inOfs
-  fields[argp++] = TypeInt::INT;     // int len
-  fields[argp++] = TypePtr::NOTNULL; // byte[] ct + ctOfs
-  fields[argp++] = TypePtr::NOTNULL; // byte[] out + outOfs
-  fields[argp++] = TypePtr::NOTNULL; // byte[] key from AESCrypt obj
-  fields[argp++] = TypePtr::NOTNULL; // long[] state from GHASH obj
-  fields[argp++] = TypePtr::NOTNULL; // long[] subkeyHtbl from GHASH obj
-  fields[argp++] = TypePtr::NOTNULL; // byte[] counter from GCTR obj
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 8;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL; // byte[] in + inOfs
+    fields[argp++] = TypeInt::INT;     // int len
+    fields[argp++] = TypePtr::NOTNULL; // byte[] ct + ctOfs
+    fields[argp++] = TypePtr::NOTNULL; // byte[] out + outOfs
+    fields[argp++] = TypePtr::NOTNULL; // byte[] key from AESCrypt obj
+    fields[argp++] = TypePtr::NOTNULL; // long[] state from GHASH obj
+    fields[argp++] = TypePtr::NOTNULL; // long[] subkeyHtbl from GHASH obj
+    fields[argp++] = TypePtr::NOTNULL; // byte[] counter from GCTR obj
 
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
-  // returning cipher len (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = TypeInt::INT;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-  return TypeFunc::make(domain, range);
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+    // returning cipher len (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 /*
  * void implCompress(byte[] buf, int ofs)
  */
 const TypeFunc* OptoRuntime::digestBase_implCompress_Type(bool is_sha3) {
-  // create input type (domain)
-  int num_args = is_sha3 ? 3 : 2;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL; // buf
-  fields[argp++] = TypePtr::NOTNULL; // state
-  if (is_sha3) fields[argp++] = TypeInt::INT; // block_size
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf_with_sha3 = []()-> const TypeFunc* {
+    // create input type (domain)
+    int num_args = 3;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL; // buf
+    fields[argp++] = TypePtr::NOTNULL; // state
+    if (is_sha3) fields[argp++] = TypeInt::INT; // block_size
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  static const TypeFunc *tf_without_sha3 = []()-> const TypeFunc* {
+    // create input type (domain)
+    int num_args = 2;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL; // buf
+    fields[argp++] = TypePtr::NOTNULL; // state
+    if (is_sha3) fields[argp++] = TypeInt::INT; // block_size
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return is_sha3 ? tf_with_sha3 : tf_without_sha3;
 }
 
 /*
  * int implCompressMultiBlock(byte[] b, int ofs, int limit)
  */
 const TypeFunc* OptoRuntime::digestBase_implCompressMB_Type(bool is_sha3) {
-  // create input type (domain)
-  int num_args = is_sha3 ? 5 : 4;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL; // buf
-  fields[argp++] = TypePtr::NOTNULL; // state
-  if (is_sha3) fields[argp++] = TypeInt::INT; // block_size
-  fields[argp++] = TypeInt::INT;     // ofs
-  fields[argp++] = TypeInt::INT;     // limit
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf_with_sha3 = []()-> const TypeFunc* {
+    // create input type (domain)
+    int num_args = 5;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL; // buf
+    fields[argp++] = TypePtr::NOTNULL; // state
+    if (is_sha3) fields[argp++] = TypeInt::INT; // block_size
+    fields[argp++] = TypeInt::INT;     // ofs
+    fields[argp++] = TypeInt::INT;     // limit
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // returning ofs (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT; // ofs
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
-  return TypeFunc::make(domain, range);
+    // returning ofs (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // ofs
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  static const TypeFunc *tf_without_sha3 = []()-> const TypeFunc* {
+    // create input type (domain)
+    int num_args = 4;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL; // buf
+    fields[argp++] = TypePtr::NOTNULL; // state
+    if (is_sha3) fields[argp++] = TypeInt::INT; // block_size
+    fields[argp++] = TypeInt::INT;     // ofs
+    fields[argp++] = TypeInt::INT;     // limit
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // returning ofs (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // ofs
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return is_sha3 ? tf_with_sha3 : tf_without_sha3;
 }
 
 const TypeFunc* OptoRuntime::multiplyToLen_Type() {
-  // create input type (domain)
-  int num_args      = 5;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // x
-  fields[argp++] = TypeInt::INT;        // xlen
-  fields[argp++] = TypePtr::NOTNULL;    // y
-  fields[argp++] = TypeInt::INT;        // ylen
-  fields[argp++] = TypePtr::NOTNULL;    // z
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 5;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // x
+    fields[argp++] = TypeInt::INT;        // xlen
+    fields[argp++] = TypePtr::NOTNULL;    // y
+    fields[argp++] = TypeInt::INT;        // ylen
+    fields[argp++] = TypePtr::NOTNULL;    // z
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::squareToLen_Type() {
@@ -1323,50 +1415,58 @@ const TypeFunc* OptoRuntime::mulAdd_Type() {
 }
 
 const TypeFunc* OptoRuntime::montgomeryMultiply_Type() {
-  // create input type (domain)
-  int num_args      = 7;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // a
-  fields[argp++] = TypePtr::NOTNULL;    // b
-  fields[argp++] = TypePtr::NOTNULL;    // n
-  fields[argp++] = TypeInt::INT;        // len
-  fields[argp++] = TypeLong::LONG;      // inv
-  fields[argp++] = Type::HALF;
-  fields[argp++] = TypePtr::NOTNULL;    // result
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 7;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // a
+    fields[argp++] = TypePtr::NOTNULL;    // b
+    fields[argp++] = TypePtr::NOTNULL;    // n
+    fields[argp++] = TypeInt::INT;        // len
+    fields[argp++] = TypeLong::LONG;      // inv
+    fields[argp++] = Type::HALF;
+    fields[argp++] = TypePtr::NOTNULL;    // result
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypePtr::NOTNULL;
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypePtr::NOTNULL;
 
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::montgomerySquare_Type() {
-  // create input type (domain)
-  int num_args      = 6;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // a
-  fields[argp++] = TypePtr::NOTNULL;    // n
-  fields[argp++] = TypeInt::INT;        // len
-  fields[argp++] = TypeLong::LONG;      // inv
-  fields[argp++] = Type::HALF;
-  fields[argp++] = TypePtr::NOTNULL;    // result
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 6;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // a
+    fields[argp++] = TypePtr::NOTNULL;    // n
+    fields[argp++] = TypeInt::INT;        // len
+    fields[argp++] = TypeLong::LONG;      // inv
+    fields[argp++] = Type::HALF;
+    fields[argp++] = TypePtr::NOTNULL;    // result
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypePtr::NOTNULL;
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypePtr::NOTNULL;
 
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc * OptoRuntime::bigIntegerShift_Type() {
