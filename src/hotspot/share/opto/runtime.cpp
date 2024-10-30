@@ -499,18 +499,21 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::monitor_notifyAll_C(oopDesc* obj, JavaThread*
 JRT_END
 
 const TypeFunc *OptoRuntime::new_instance_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // Klass to be allocated
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+  const TypeFunc* tf = []() -> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Klass to be allocated
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL; // Returned oop
+    // create result type (range)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeRawPtr::NOTNULL; // Returned oop
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  };
+  return tf;
 }
 
 #if INCLUDE_JVMTI
