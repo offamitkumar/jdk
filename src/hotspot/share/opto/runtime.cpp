@@ -2059,7 +2059,7 @@ const TypeFunc *OptoRuntime::register_finalizer_Type() {
 
 #if INCLUDE_JFR
 const TypeFunc *OptoRuntime::class_id_load_barrier_Type() {
-  static const TypeFunc* tf = []()->const TypeFunc {
+  static const TypeFunc* tf = []()->const TypeFunc* {
     // create input type (domain)
     const Type **fields = TypeTuple::fields(1);
     fields[TypeFunc::Parms + 0] = TypeInstPtr::KLASS;
