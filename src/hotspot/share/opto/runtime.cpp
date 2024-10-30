@@ -512,7 +512,7 @@ const TypeFunc *OptoRuntime::new_instance_Type() {
     const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
     return TypeFunc::make(domain, range);
-  };
+  }();
   return tf;
 }
 
@@ -549,19 +549,22 @@ const TypeFunc *OptoRuntime::athrow_Type() {
 
 
 const TypeFunc *OptoRuntime::new_array_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
-  fields[TypeFunc::Parms+1] = TypeInt::INT;       // array size
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+  const TypeFunc *tf = []() -> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;   // element klass
+    fields[TypeFunc::Parms + 1] = TypeInt::INT;       // array size
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL; // Returned oop
+    // create result type (range)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeRawPtr::NOTNULL; // Returned oop
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::new_array_nozero_Type() {
