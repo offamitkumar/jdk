@@ -1582,6 +1582,8 @@ const TypeFunc* OptoRuntime::chacha20Block_Type() {
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
     return TypeFunc::make(domain, range);
   }();
+
+  return tf;
 }
 
 // Base64 encode function
@@ -1606,6 +1608,8 @@ const TypeFunc* OptoRuntime::base64_encodeBlock_Type() {
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
     return TypeFunc::make(domain, range);
   }();
+
+  return tf;
 }
 
 // String IndexOf function
