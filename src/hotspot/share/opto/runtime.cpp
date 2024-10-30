@@ -499,7 +499,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::monitor_notifyAll_C(oopDesc* obj, JavaThread*
 JRT_END
 
 const TypeFunc *OptoRuntime::new_instance_Type() {
-  const TypeFunc* tf = []() -> const TypeFunc* {
+  static const TypeFunc* tf = []() -> const TypeFunc* {
     // create input type (domain)
     const Type **fields = TypeTuple::fields(1);
     fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Klass to be allocated
@@ -549,7 +549,7 @@ const TypeFunc *OptoRuntime::athrow_Type() {
 
 
 const TypeFunc *OptoRuntime::new_array_Type() {
-  const TypeFunc *tf = []() -> const TypeFunc* {
+  static const TypeFunc *tf = []() -> const TypeFunc* {
     // create input type (domain)
     const Type **fields = TypeTuple::fields(2);
     fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;   // element klass
@@ -589,6 +589,7 @@ const TypeFunc *OptoRuntime::multianewarray_Type(int ndim) {
 }
 
 const TypeFunc *OptoRuntime::multianewarray2_Type() {
+  static
   return multianewarray_Type(2);
 }
 
