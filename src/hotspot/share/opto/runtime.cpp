@@ -589,19 +589,23 @@ const TypeFunc *OptoRuntime::multianewarray_Type(int ndim) {
 }
 
 const TypeFunc *OptoRuntime::multianewarray2_Type() {
-  return multianewarray_Type(2);
+  static const TypeFunc* tf = multianewarray_Type(2);
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarray3_Type() {
-  return multianewarray_Type(3);
+  static const TypeFunc* tf = multianewarray_Type(3);
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarray4_Type() {
-  return multianewarray_Type(4);
+  static const TypeFunc* tf = multianewarray_Type(4);
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarray5_Type() {
-  return multianewarray_Type(5);
+  static const TypeFunc* tf = multianewarray_Type(5);
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarrayN_Type() {

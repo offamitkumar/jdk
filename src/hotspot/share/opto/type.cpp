@@ -715,6 +715,10 @@ void Type::Initialize_shared(Compile* current) {
   LockNode::lock_type();
   OptoRuntime::new_instance_Type();
   OptoRuntime::new_array_Type();
+  OptoRuntime::multianewarray2_Type();
+  OptoRuntime::multianewarray3_Type();
+  OptoRuntime::multianewarray4_Type();
+  OptoRuntime::multianewarray5_Type();
 
   // Restore working type arena.
   current->set_type_arena(save);
