@@ -513,25 +513,30 @@ const TypeFunc *OptoRuntime::new_instance_Type() {
 
     return TypeFunc::make(domain, range);
   }();
+
   return tf;
 }
 
 #if INCLUDE_JVMTI
 const TypeFunc *OptoRuntime::notify_jvmti_vthread_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // VirtualThread oop
-  fields[TypeFunc::Parms+1] = TypeInt::BOOL;        // jboolean
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2,fields);
+  static const TypeFunc* tf = []()-> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // VirtualThread oop
+    fields[TypeFunc::Parms + 1] = TypeInt::BOOL;        // jboolean
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
 
-  return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
-#endif
+#endif // INCLUDE_JVMTI
 
 const TypeFunc *OptoRuntime::athrow_Type() {
   static const TypeFunc *tf = []()->const TypeFunc* {
@@ -1083,67 +1088,79 @@ const TypeFunc* OptoRuntime::aescrypt_block_Type() {
  * int updateBytesCRC32(int crc, byte* b, int len)
  */
 const TypeFunc* OptoRuntime::updateBytesCRC32_Type() {
-  // create input type (domain)
-  int num_args      = 3;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypeInt::INT;        // crc
-  fields[argp++] = TypePtr::NOTNULL;    // src
-  fields[argp++] = TypeInt::INT;        // len
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 3;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypeInt::INT;        // crc
+    fields[argp++] = TypePtr::NOTNULL;    // src
+    fields[argp++] = TypeInt::INT;        // len
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT; // crc result
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // crc result
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 /**
  * int updateBytesCRC32C(int crc, byte* buf, int len, int* table)
  */
 const TypeFunc* OptoRuntime::updateBytesCRC32C_Type() {
-  // create input type (domain)
-  int num_args      = 4;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypeInt::INT;        // crc
-  fields[argp++] = TypePtr::NOTNULL;    // buf
-  fields[argp++] = TypeInt::INT;        // len
-  fields[argp++] = TypePtr::NOTNULL;    // table
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 4;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypeInt::INT;        // crc
+    fields[argp++] = TypePtr::NOTNULL;    // buf
+    fields[argp++] = TypeInt::INT;        // len
+    fields[argp++] = TypePtr::NOTNULL;    // table
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT; // crc result
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // crc result
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 /**
 *  int updateBytesAdler32(int adler, bytes* b, int off, int len)
 */
 const TypeFunc* OptoRuntime::updateBytesAdler32_Type() {
-  // create input type (domain)
-  int num_args      = 3;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypeInt::INT;        // crc
-  fields[argp++] = TypePtr::NOTNULL;    // src + offset
-  fields[argp++] = TypeInt::INT;        // len
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 3;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypeInt::INT;        // crc
+    fields[argp++] = TypePtr::NOTNULL;    // src + offset
+    fields[argp++] = TypeInt::INT;        // len
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT; // crc result
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // crc result
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // for cipherBlockChaining calls of aescrypt encrypt/decrypt, four pointers and a length, returning int
@@ -1371,45 +1388,53 @@ const TypeFunc* OptoRuntime::multiplyToLen_Type() {
 }
 
 const TypeFunc* OptoRuntime::squareToLen_Type() {
-  // create input type (domain)
-  int num_args      = 4;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // x
-  fields[argp++] = TypeInt::INT;        // len
-  fields[argp++] = TypePtr::NOTNULL;    // z
-  fields[argp++] = TypeInt::INT;        // zlen
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 4;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // x
+    fields[argp++] = TypeInt::INT;        // len
+    fields[argp++] = TypePtr::NOTNULL;    // z
+    fields[argp++] = TypeInt::INT;        // zlen
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // for mulAdd calls, 2 pointers and 3 ints, returning int
 const TypeFunc* OptoRuntime::mulAdd_Type() {
-  // create input type (domain)
-  int num_args      = 5;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // out
-  fields[argp++] = TypePtr::NOTNULL;    // in
-  fields[argp++] = TypeInt::INT;        // offset
-  fields[argp++] = TypeInt::INT;        // len
-  fields[argp++] = TypeInt::INT;        // k
-  assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+  static const TypeFunc *tf = []()-> const TypeFunc* {
+    // create input type (domain)
+    int num_args = 5;
+    int argcnt = num_args;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // out
+    fields[argp++] = TypePtr::NOTNULL;    // in
+    fields[argp++] = TypeInt::INT;        // offset
+    fields[argp++] = TypeInt::INT;        // len
+    fields[argp++] = TypeInt::INT;        // k
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // returning carry (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
-  return TypeFunc::make(domain, range);
+    // returning carry (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::montgomeryMultiply_Type() {
@@ -1468,66 +1493,79 @@ const TypeFunc* OptoRuntime::montgomerySquare_Type() {
 }
 
 const TypeFunc * OptoRuntime::bigIntegerShift_Type() {
-  int argcnt = 5;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // newArr
-  fields[argp++] = TypePtr::NOTNULL;    // oldArr
-  fields[argp++] = TypeInt::INT;        // newIdx
-  fields[argp++] = TypeInt::INT;        // shiftCount
-  fields[argp++] = TypeInt::INT;        // numIter
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    int argcnt = 5;
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // newArr
+    fields[argp++] = TypePtr::NOTNULL;    // oldArr
+    fields[argp++] = TypeInt::INT;        // newIdx
+    fields[argp++] = TypeInt::INT;        // shiftCount
+    fields[argp++] = TypeInt::INT;        // numIter
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // no result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = nullptr;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // no result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::vectorizedMismatch_Type() {
-  // create input type (domain)
-  int num_args = 4;
-  int argcnt = num_args;
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // obja
-  fields[argp++] = TypePtr::NOTNULL;    // objb
-  fields[argp++] = TypeInt::INT;        // length, number of elements
-  fields[argp++] = TypeInt::INT;        // log2scale, element size
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    int num_args = 4;
+    int argcnt = num_args;
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // obja
+    fields[argp++] = TypePtr::NOTNULL;    // objb
+    fields[argp++] = TypeInt::INT;        // length, number of elements
+    fields[argp++] = TypeInt::INT;        // log2scale, element size
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  //return mismatch index (int)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = TypeInt::INT;
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-  return TypeFunc::make(domain, range);
+    //return mismatch index (int)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // GHASH block processing
 const TypeFunc* OptoRuntime::ghash_processBlocks_Type() {
+  static const TypeFunc *tf = []()->const TypeFunc* {
     int argcnt = 4;
 
-    const Type** fields = TypeTuple::fields(argcnt);
+    const Type **fields = TypeTuple::fields(argcnt);
     int argp = TypeFunc::Parms;
     fields[argp++] = TypePtr::NOTNULL;    // state
     fields[argp++] = TypePtr::NOTNULL;    // subkeyH
     fields[argp++] = TypePtr::NOTNULL;    // data
     fields[argp++] = TypeInt::INT;        // blocks
-    assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
-    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
     // result type needed
     fields = TypeTuple::fields(1);
-    fields[TypeFunc::Parms+0] = nullptr; // void
+    fields[TypeFunc::Parms + 0] = nullptr; // void
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
     return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // ChaCha20 Block function
 const TypeFunc* OptoRuntime::chacha20Block_Type() {
+  static const TypeFunc *tf = []() -> const TypeFunc * {
     int argcnt = 2;
 
     const Type** fields = TypeTuple::fields(argcnt);
@@ -1543,145 +1581,172 @@ const TypeFunc* OptoRuntime::chacha20Block_Type() {
     fields[TypeFunc::Parms + 0] = TypeInt::INT;     // key stream outlen as int
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
     return TypeFunc::make(domain, range);
+  }();
 }
 
 // Base64 encode function
 const TypeFunc* OptoRuntime::base64_encodeBlock_Type() {
-  int argcnt = 6;
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    int argcnt = 6;
 
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // src array
-  fields[argp++] = TypeInt::INT;        // offset
-  fields[argp++] = TypeInt::INT;        // length
-  fields[argp++] = TypePtr::NOTNULL;    // dest array
-  fields[argp++] = TypeInt::INT;       // dp
-  fields[argp++] = TypeInt::BOOL;       // isURL
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // src array
+    fields[argp++] = TypeInt::INT;        // offset
+    fields[argp++] = TypeInt::INT;        // length
+    fields[argp++] = TypePtr::NOTNULL;    // dest array
+    fields[argp++] = TypeInt::INT;       // dp
+    fields[argp++] = TypeInt::BOOL;       // isURL
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
 }
 
 // String IndexOf function
 const TypeFunc* OptoRuntime::string_IndexOf_Type() {
-  int argcnt = 4;
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    int argcnt = 4;
 
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // haystack array
-  fields[argp++] = TypeInt::INT;        // haystack length
-  fields[argp++] = TypePtr::NOTNULL;    // needle array
-  fields[argp++] = TypeInt::INT;        // needle length
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // haystack array
+    fields[argp++] = TypeInt::INT;        // haystack length
+    fields[argp++] = TypePtr::NOTNULL;    // needle array
+    fields[argp++] = TypeInt::INT;        // needle length
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = TypeInt::INT; // Index of needle in haystack
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // Index of needle in haystack
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // Base64 decode function
 const TypeFunc* OptoRuntime::base64_decodeBlock_Type() {
-  int argcnt = 7;
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    int argcnt = 7;
 
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // src array
-  fields[argp++] = TypeInt::INT;        // src offset
-  fields[argp++] = TypeInt::INT;        // src length
-  fields[argp++] = TypePtr::NOTNULL;    // dest array
-  fields[argp++] = TypeInt::INT;        // dest offset
-  fields[argp++] = TypeInt::BOOL;       // isURL
-  fields[argp++] = TypeInt::BOOL;       // isMIME
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // src array
+    fields[argp++] = TypeInt::INT;        // src offset
+    fields[argp++] = TypeInt::INT;        // src length
+    fields[argp++] = TypePtr::NOTNULL;    // dest array
+    fields[argp++] = TypeInt::INT;        // dest offset
+    fields[argp++] = TypeInt::BOOL;       // isURL
+    fields[argp++] = TypeInt::BOOL;       // isMIME
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = TypeInt::INT; // count of bytes written to dst
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // count of bytes written to dst
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // Poly1305 processMultipleBlocks function
 const TypeFunc* OptoRuntime::poly1305_processBlocks_Type() {
-  int argcnt = 4;
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    int argcnt = 4;
 
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // input array
-  fields[argp++] = TypeInt::INT;        // input length
-  fields[argp++] = TypePtr::NOTNULL;    // accumulator array
-  fields[argp++] = TypePtr::NOTNULL;    // r array
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // input array
+    fields[argp++] = TypeInt::INT;        // input length
+    fields[argp++] = TypePtr::NOTNULL;    // accumulator array
+    fields[argp++] = TypePtr::NOTNULL;    // r array
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // MontgomeryIntegerPolynomialP256 multiply function
 const TypeFunc* OptoRuntime::intpoly_montgomeryMult_P256_Type() {
-  int argcnt = 3;
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    int argcnt = 3;
 
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;    // a array
-  fields[argp++] = TypePtr::NOTNULL;    // b array
-  fields[argp++] = TypePtr::NOTNULL;    // r(esult) array
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // a array
+    fields[argp++] = TypePtr::NOTNULL;    // b array
+    fields[argp++] = TypePtr::NOTNULL;    // r(esult) array
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 // IntegerPolynomial constant time assignment function
 const TypeFunc* OptoRuntime::intpoly_assign_Type() {
-  int argcnt = 4;
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    int argcnt = 4;
 
-  const Type** fields = TypeTuple::fields(argcnt);
-  int argp = TypeFunc::Parms;
-  fields[argp++] = TypeInt::INT;        // set flag
-  fields[argp++] = TypePtr::NOTNULL;    // a array (result)
-  fields[argp++] = TypePtr::NOTNULL;    // b array (if set is set)
-  fields[argp++] = TypeInt::INT;        // array length
-  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+    const Type **fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypeInt::INT;        // set flag
+    fields[argp++] = TypePtr::NOTNULL;    // a array (result)
+    fields[argp++] = TypePtr::NOTNULL;    // b array (if set is set)
+    fields[argp++] = TypeInt::INT;        // array length
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
 
-  // result type needed
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms + 0] = nullptr; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 //------------- Interpreter state access for on stack replacement
 const TypeFunc* OptoRuntime::osr_end_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM; // OSR temp buf
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeRawPtr::BOTTOM; // OSR temp buf
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type
-  fields = TypeTuple::fields(1);
-  // fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // locked oop
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain, range);
+    // create result type
+    fields = TypeTuple::fields(1);
+    // fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // locked oop
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 //-------------------------------------------------------------------------------------
@@ -1973,68 +2038,84 @@ bool OptoRuntime::is_deoptimized_caller_frame(JavaThread *thread) {
 
 
 const TypeFunc *OptoRuntime::register_finalizer_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;  // oop;          Receiver
-  // // The JavaThread* is passed to each routine as the last argument
-  // fields[TypeFunc::Parms+1] = TypeRawPtr::NOTNULL;  // JavaThread *; Executing thread
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1,fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // oop;          Receiver
+    // // The JavaThread* is passed to each routine as the last argument
+    // fields[TypeFunc::Parms+1] = TypeRawPtr::NOTNULL;  // JavaThread *; Executing thread
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 #if INCLUDE_JFR
 const TypeFunc *OptoRuntime::class_id_load_barrier_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::KLASS;
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
+  static const TypeFunc* tf = []()->const TypeFunc {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::KLASS;
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
-#endif
+#endif // INCLUDE_JFR
 
 //-----------------------------------------------------------------------------
 // Dtrace support.  entry and exit probes have the same signature
 const TypeFunc *OptoRuntime::dtrace_method_entry_exit_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM; // Thread-local storage
-  fields[TypeFunc::Parms+1] = TypeMetadataPtr::BOTTOM;  // Method*;    Method we are entering
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2,fields);
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeRawPtr::BOTTOM; // Thread-local storage
+    fields[TypeFunc::Parms + 1] = TypeMetadataPtr::BOTTOM;  // Method*;    Method we are entering
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::dtrace_object_alloc_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM; // Thread-local storage
-  fields[TypeFunc::Parms+1] = TypeInstPtr::NOTNULL;  // oop;    newly allocated object
+  static const TypeFunc* tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeRawPtr::BOTTOM; // Thread-local storage
+    fields[TypeFunc::Parms + 1] = TypeInstPtr::NOTNULL;  // oop;    newly allocated object
 
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2,fields);
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 

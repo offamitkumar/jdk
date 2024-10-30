@@ -752,6 +752,29 @@ void Type::Initialize_shared(Compile* current) {
   OptoRuntime::multiplyToLen_Type();
   OptoRuntime::montgomeryMultiply_Type();
   OptoRuntime::montgomerySquare_Type();
+  OptoRuntime::squareToLen_Type();
+  OptoRuntime::mulAdd_Type();
+  OptoRuntime::bigIntegerShift_Type();
+  OptoRuntime::vectorizedMismatch_Type();
+  OptoRuntime::ghash_processBlocks_Type();
+  OptoRuntime::chacha20Block_Type();
+  OptoRuntime::base64_encodeBlock_Type();
+  OptoRuntime::base64_decodeBlock_Type();
+  OptoRuntime::string_IndexOf_Type();
+  OptoRuntime::poly1305_processBlocks_Type();
+  OptoRuntime::intpoly_montgomeryMult_P256_Type();
+  OptoRuntime::intpoly_assign_Type();
+  OptoRuntime::updateBytesCRC32_Type();
+  OptoRuntime::updateBytesCRC32C_Type();
+  OptoRuntime::updateBytesAdler32_Type();
+  OptoRuntime::osr_end_Type();
+  OptoRuntime::register_finalizer_Type();
+  JFR_ONLY(OptoRuntime::class_id_load_barrier_Type();)
+#ifdef INCLUDE_JVMTI
+  OptoRuntime::notify_jvmti_vthread_Type();
+#endif // INCLUDE_JVMTI
+  OptoRuntime::dtrace_method_entry_exit_Type();
+  OptoRuntime::dtrace_object_alloc_Type();
 
   // Restore working type arena.
   current->set_type_arena(save);
