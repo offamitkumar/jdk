@@ -589,7 +589,6 @@ const TypeFunc *OptoRuntime::multianewarray_Type(int ndim) {
 }
 
 const TypeFunc *OptoRuntime::multianewarray2_Type() {
-  static
   return multianewarray_Type(2);
 }
 
