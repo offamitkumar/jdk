@@ -534,17 +534,21 @@ const TypeFunc *OptoRuntime::notify_jvmti_vthread_Type() {
 #endif
 
 const TypeFunc *OptoRuntime::athrow_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // Klass to be allocated
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Klass to be allocated
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 
@@ -589,68 +593,80 @@ const TypeFunc *OptoRuntime::multianewarray_Type(int ndim) {
 }
 
 const TypeFunc *OptoRuntime::multianewarray2_Type() {
-  static const TypeFunc* tf = multianewarray_Type(2);
+  static const TypeFunc *tf = multianewarray_Type(2);
   return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarray3_Type() {
-  static const TypeFunc* tf = multianewarray_Type(3);
+  static const TypeFunc *tf = multianewarray_Type(3);
   return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarray4_Type() {
-  static const TypeFunc* tf = multianewarray_Type(4);
+  static const TypeFunc *tf = multianewarray_Type(4);
   return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarray5_Type() {
-  static const TypeFunc* tf = multianewarray_Type(5);
+  static const TypeFunc *tf = multianewarray_Type(5);
   return tf;
 }
 
 const TypeFunc *OptoRuntime::multianewarrayN_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
-  fields[TypeFunc::Parms+1] = TypeInstPtr::NOTNULL;   // array of dim sizes
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+  static const TypeFunc *tf = []() -> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;   // element klass
+    fields[TypeFunc::Parms + 1] = TypeInstPtr::NOTNULL;   // array of dim sizes
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL; // Returned oop
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeRawPtr::NOTNULL; // Returned oop
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::uncommon_trap_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInt::INT; // trap_reason (deopt reason and action)
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT; // trap_reason (deopt reason and action)
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 //-----------------------------------------------------------------------------
 // Monitor Handling
 const TypeFunc *OptoRuntime::complete_monitor_enter_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;  // Object to be Locked
-  fields[TypeFunc::Parms+1] = TypeRawPtr::BOTTOM;   // Address of stack location for lock
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2,fields);
+  static const TypeFunc *tf = []()-> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // Object to be Locked
+    fields[TypeFunc::Parms + 1] = TypeRawPtr::BOTTOM;   // Address of stack location for lock
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::complete_monitor_locking_Type() {
@@ -659,31 +675,39 @@ const TypeFunc *OptoRuntime::complete_monitor_locking_Type() {
 
 //-----------------------------------------------------------------------------
 const TypeFunc *OptoRuntime::complete_monitor_exit_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(3);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;  // Object to be Locked
-  fields[TypeFunc::Parms+1] = TypeRawPtr::BOTTOM;    // Address of stack location for lock - BasicLock
-  fields[TypeFunc::Parms+2] = TypeRawPtr::BOTTOM;    // Thread pointer (Self)
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+  static const TypeFunc *tf = []()-> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(3);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // Object to be Locked
+    fields[TypeFunc::Parms + 1] = TypeRawPtr::BOTTOM;    // Address of stack location for lock - BasicLock
+    fields[TypeFunc::Parms + 2] = TypeRawPtr::BOTTOM;    // Thread pointer (Self)
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 3, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::monitor_notify_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;  // Object to be Locked
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+  static const TypeFunc *tf = []()->const TypeFunc * {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // Object to be Locked
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
-  return TypeFunc::make(domain, range);
+    // create result type (range)
+    fields = TypeTuple::fields(0);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::monitor_notifyAll_Type() {
@@ -691,64 +715,80 @@ const TypeFunc *OptoRuntime::monitor_notifyAll_Type() {
 }
 
 const TypeFunc* OptoRuntime::flush_windows_Type() {
-  // create input type (domain)
-  const Type** fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms, fields);
 
-  // create result type
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = nullptr; // void
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    // create result type
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = nullptr; // void
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::l2f_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeLong::LONG;
-  fields[TypeFunc::Parms+1] = Type::HALF;
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeLong::LONG;
+    fields[TypeFunc::Parms + 1] = Type::HALF;
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = Type::FLOAT;
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = Type::FLOAT;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::modf_Type() {
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = Type::FLOAT;
-  fields[TypeFunc::Parms+1] = Type::FLOAT;
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    const Type **fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = Type::FLOAT;
+    fields[TypeFunc::Parms + 1] = Type::FLOAT;
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = Type::FLOAT;
+    // create result type (range)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = Type::FLOAT;
 
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::Math_D_D_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
-  // Symbol* name of class to be loaded
-  fields[TypeFunc::Parms+0] = Type::DOUBLE;
-  fields[TypeFunc::Parms+1] = Type::HALF;
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+  static const TypeFunc *tf = []()-> const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(2);
+    // Symbol* name of class to be loaded
+    fields[TypeFunc::Parms + 0] = Type::DOUBLE;
+    fields[TypeFunc::Parms + 1] = Type::HALF;
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = Type::DOUBLE;
-  fields[TypeFunc::Parms+1] = Type::HALF;
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+2, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = Type::DOUBLE;
+    fields[TypeFunc::Parms + 1] = Type::HALF;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc *OptoRuntime::Math_Vector_Vector_Type(uint num_arg, const TypeVect* in_type, const TypeVect* out_type) {
@@ -771,59 +811,75 @@ const TypeFunc *OptoRuntime::Math_Vector_Vector_Type(uint num_arg, const TypeVec
 }
 
 const TypeFunc* OptoRuntime::Math_DD_D_Type() {
-  const Type **fields = TypeTuple::fields(4);
-  fields[TypeFunc::Parms+0] = Type::DOUBLE;
-  fields[TypeFunc::Parms+1] = Type::HALF;
-  fields[TypeFunc::Parms+2] = Type::DOUBLE;
-  fields[TypeFunc::Parms+3] = Type::HALF;
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+4, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    const Type **fields = TypeTuple::fields(4);
+    fields[TypeFunc::Parms + 0] = Type::DOUBLE;
+    fields[TypeFunc::Parms + 1] = Type::HALF;
+    fields[TypeFunc::Parms + 2] = Type::DOUBLE;
+    fields[TypeFunc::Parms + 3] = Type::HALF;
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 4, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = Type::DOUBLE;
-  fields[TypeFunc::Parms+1] = Type::HALF;
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+2, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = Type::DOUBLE;
+    fields[TypeFunc::Parms + 1] = Type::HALF;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 //-------------- currentTimeMillis, currentTimeNanos, etc
 
 const TypeFunc* OptoRuntime::void_long_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(0);
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+0, fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(0);
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 0, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeLong::LONG;
-  fields[TypeFunc::Parms+1] = Type::HALF;
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+2, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(2);
+    fields[TypeFunc::Parms + 0] = TypeLong::LONG;
+    fields[TypeFunc::Parms + 1] = Type::HALF;
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 2, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 const TypeFunc* OptoRuntime::void_void_Type() {
+  static const TypeFunc* tf = []()->const TypeFunc* {
    // create input type (domain)
    const Type **fields = TypeTuple::fields(0);
    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+0, fields);
 
-   // create result type (range)
-   fields = TypeTuple::fields(0);
-   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
-   return TypeFunc::make(domain, range);
- }
+    // create result type (range)
+    fields = TypeTuple::fields(0);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 0, fields);
+    return TypeFunc::make(domain, range);
+  }();
 
- const TypeFunc* OptoRuntime::jfr_write_checkpoint_Type() {
-   // create input type (domain)
-   const Type **fields = TypeTuple::fields(0);
-   const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms, fields);
+  return tf;
+}
 
-   // create result type (range)
-   fields = TypeTuple::fields(0);
-   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
-   return TypeFunc::make(domain, range);
- }
+const TypeFunc* OptoRuntime::jfr_write_checkpoint_Type() {
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(0);
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms, fields);
+
+    // create result type (range)
+    fields = TypeTuple::fields(0);
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
+}
 
 
 // Takes as parameters:
@@ -1764,17 +1820,21 @@ address OptoRuntime::rethrow_C(oopDesc* exception, JavaThread* thread, address r
 
 
 const TypeFunc *OptoRuntime::rethrow_Type() {
-  // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // Exception oop
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1,fields);
+  static const TypeFunc *tf = []()->const TypeFunc* {
+    // create input type (domain)
+    const Type **fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Exception oop
+    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  // create result type (range)
-  fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // Exception oop
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+    // create result type (range)
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Exception oop
+    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
 
-  return TypeFunc::make(domain, range);
+    return TypeFunc::make(domain, range);
+  }();
+
+  return tf;
 }
 
 

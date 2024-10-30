@@ -712,6 +712,7 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
 
+  // returns are discarded as these are calls are made just for initializations
   LockNode::lock_type();
   OptoRuntime::new_instance_Type();
   OptoRuntime::new_array_Type();
@@ -719,6 +720,20 @@ void Type::Initialize_shared(Compile* current) {
   OptoRuntime::multianewarray3_Type();
   OptoRuntime::multianewarray4_Type();
   OptoRuntime::multianewarray5_Type();
+  OptoRuntime::multianewarrayN_Type();
+  OptoRuntime::complete_monitor_enter_Type();
+  OptoRuntime::complete_monitor_exit_Type();
+  OptoRuntime::monitor_notify_Type();
+  OptoRuntime::uncommon_trap_Type();
+  OptoRuntime::athrow_Type();
+  OptoRuntime::rethrow_Type();
+  OptoRuntime::Math_D_D_Type();
+  OptoRuntime::Math_DD_D_Type();
+  OptoRuntime::modf_Type();
+  OptoRuntime::l2f_Type();
+  OptoRuntime::void_long_Type();
+  OptoRuntime::void_void_Type();
+  OptoRuntime::jfr_write_checkpoint_Type();
 
   // Restore working type arena.
   current->set_type_arena(save);
