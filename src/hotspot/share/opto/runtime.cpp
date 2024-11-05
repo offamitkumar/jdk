@@ -192,6 +192,67 @@ bool OptoRuntime::generate(ciEnv* env) {
 #undef GEN_C2_JVMTI_STUB
 // #undef gen
 
+const TypeFunc* OptoRuntime::_new_instance_tf = nullptr;
+const TypeFunc* OptoRuntime::_new_array_tf = nullptr;
+const TypeFunc* OptoRuntime::_multianewarray2_tf = nullptr;
+const TypeFunc* OptoRuntime::_multianewarray4_tf = nullptr;
+const TypeFunc* OptoRuntime::_multianewarray3_tf = nullptr;
+const TypeFunc* OptoRuntime::_multianewarray5_tf = nullptr;
+const TypeFunc* OptoRuntime::_multianewarrayN_tf = nullptr;
+const TypeFunc* OptoRuntime::_complete_monitor_enter_tf = nullptr;
+const TypeFunc* OptoRuntime::_complete_monitor_exit_tf = nullptr;
+const TypeFunc* OptoRuntime::_monitor_notify_tf = nullptr;
+const TypeFunc* OptoRuntime::_uncommon_trap_tf = nullptr;
+const TypeFunc* OptoRuntime::_athrow_tf = nullptr;
+const TypeFunc* OptoRuntime::_rethrow_tf = nullptr;
+const TypeFunc* OptoRuntime::_Math_D_D_tf = nullptr;
+const TypeFunc* OptoRuntime::_Math_DD_D_tf = nullptr;
+const TypeFunc* OptoRuntime::_modf_tf = nullptr;
+const TypeFunc* OptoRuntime::_l2f_tf = nullptr;
+const TypeFunc* OptoRuntime::_void_long_tf = nullptr;
+const TypeFunc* OptoRuntime::_void_void_tf = nullptr;
+const TypeFunc* OptoRuntime::_jfr_write_checkpoint_tf = nullptr;
+const TypeFunc* OptoRuntime::_fast_arraycopy_tf = nullptr;
+const TypeFunc* OptoRuntime::_checkcast_arraycopy_tf = nullptr;
+const TypeFunc* OptoRuntime::_generic_arraycopy_tf = nullptr;
+const TypeFunc* OptoRuntime::_slow_arraycopy_tf = nullptr;
+const TypeFunc* OptoRuntime::_make_setmemory_tf = nullptr;
+const TypeFunc* OptoRuntime::_array_fill_tf = nullptr;
+const TypeFunc* OptoRuntime::_array_sort_tf = nullptr;
+const TypeFunc* OptoRuntime::_array_partition_tf = nullptr;
+const TypeFunc* OptoRuntime::_aescrypt_block_tf = nullptr;
+const TypeFunc* OptoRuntime::_cipherBlockChaining_aescrypt_tf = nullptr;
+const TypeFunc* OptoRuntime::_electronicCodeBook_aescrypt_tf = nullptr;
+const TypeFunc* OptoRuntime::_counterMode_aescrypt_tf = nullptr;
+const TypeFunc* OptoRuntime::_galoisCounterMode_aescrypt_tf = nullptr;
+const TypeFunc* OptoRuntime::_digestBase_implCompress_tf = nullptr;
+const TypeFunc* OptoRuntime::_digestBase_implCompressMB_tf = nullptr;
+const TypeFunc* OptoRuntime::_multiplyToLen_tf = nullptr;
+const TypeFunc* OptoRuntime::_montgomeryMultiply_tf = nullptr;
+const TypeFunc* OptoRuntime::_montgomerySquare_tf = nullptr;
+const TypeFunc* OptoRuntime::_squareToLen_tf = nullptr;
+const TypeFunc* OptoRuntime::_mulAdd_tf = nullptr;
+const TypeFunc* OptoRuntime::_bigIntegerShift_tf = nullptr;
+const TypeFunc* OptoRuntime::_vectorizedMismatch_tf = nullptr;
+const TypeFunc* OptoRuntime::_ghash_processBlocks_tf = nullptr;
+const TypeFunc* OptoRuntime::_chacha20Block_tf = nullptr;
+const TypeFunc* OptoRuntime::_base64_encodeBlock_tf = nullptr;
+const TypeFunc* OptoRuntime::_base64_decodeBlock_tf = nullptr;
+const TypeFunc* OptoRuntime::_string_IndexOf_tf = nullptr;
+const TypeFunc* OptoRuntime::_poly1305_processBlocks_tf = nullptr;
+const TypeFunc* OptoRuntime::_intpoly_montgomeryMult_P256_tf = nullptr;
+const TypeFunc* OptoRuntime::_intpoly_assign_tf = nullptr;
+const TypeFunc* OptoRuntime::_updateBytesCRC32_tf = nullptr;
+const TypeFunc* OptoRuntime::_updateBytesCRC32C_tf = nullptr;
+const TypeFunc* OptoRuntime::_updateBytesAdler32_tf = nullptr;
+const TypeFunc* OptoRuntime::_osr_end_tf = nullptr;
+const TypeFunc* OptoRuntime::_register_finalizer_tf = nullptr;
+JFR_ONLY(const TypeFunc* OptoRuntime::_class_id_load_barrier_tf = nullptr;)
+#ifdef INCLUDE_JVMTI
+const TypeFunc* OptoRuntime::_notify_jvmti_vthread_tf = nullptr;
+#endif // INCLUDE_JVMTI
+const TypeFunc* OptoRuntime::_dtrace_method_entry_exit_tf = nullptr;
+const TypeFunc* OptoRuntime::_dtrace_object_alloc_tf = nullptr;
 
 // Helper method to do generation of RunTimeStub's
 address OptoRuntime::generate_stub(ciEnv* env,
@@ -498,23 +559,25 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::monitor_notifyAll_C(oopDesc* obj, JavaThread*
   JRT_BLOCK_END;
 JRT_END
 
+void OptoRuntime::new_instance_Type_init() {
+  assert(_new_instance_tf == nullptr, "should be called only once");
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Klass to be allocated
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = TypeRawPtr::NOTNULL; // Returned oop
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+
+  _new_instance_tf = TypeFunc::make(domain, range);
+}
+
 const TypeFunc *OptoRuntime::new_instance_Type() {
-  static const TypeFunc* tf = []() -> const TypeFunc* {
-    // create input type (domain)
-    const Type **fields = TypeTuple::fields(1);
-    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL; // Klass to be allocated
-    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 1, fields);
-
-    // create result type (range)
-    fields = TypeTuple::fields(1);
-    fields[TypeFunc::Parms + 0] = TypeRawPtr::NOTNULL; // Returned oop
-
-    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
-
-    return TypeFunc::make(domain, range);
-  }();
-
-  return tf;
+  assert(_new_instance_tf != nullptr, "should be initialized first");
+  return _new_instance_tf;
 }
 
 #if INCLUDE_JVMTI
@@ -558,22 +621,27 @@ const TypeFunc *OptoRuntime::athrow_Type() {
 
 
 const TypeFunc *OptoRuntime::new_array_Type() {
-  static const TypeFunc *tf = []() -> const TypeFunc* {
-    // create input type (domain)
-    const Type **fields = TypeTuple::fields(2);
-    fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;   // element klass
-    fields[TypeFunc::Parms + 1] = TypeInt::INT;       // array size
-    const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms + 2, fields);
+  assert(_new_array_tf != nullptr, "should be initialized");
 
-    // create result type (range)
-    fields = TypeTuple::fields(1);
-    fields[TypeFunc::Parms + 0] = TypeRawPtr::NOTNULL; // Returned oop
+  return _new_array_tf;
+}
 
-    const TypeTuple *range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+void OptoRuntime::new_array_Type_init() {
+  assert(_new_array_tf == nullptr, "should be called once");
 
-    return TypeFunc::make(domain, range);
-  }();
-  return tf;
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(2);
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;   // element klass
+  fields[TypeFunc::Parms+1] = TypeInt::INT;       // array size
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::NOTNULL; // Returned oop
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+
+  _new_array_tf = TypeFunc::make(domain, range);
 }
 
 const TypeFunc *OptoRuntime::new_array_nozero_Type() {

@@ -712,10 +712,9 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
 
-  // returns are discarded as these are calls are made just for initializations
-  LockNode::lock_type();
-  OptoRuntime::new_instance_Type();
-  OptoRuntime::new_array_Type();
+  LockNode::lock_type_init();
+  OptoRuntime::new_instance_Type_init();
+  OptoRuntime::new_array_Type_init();
   OptoRuntime::multianewarray2_Type();
   OptoRuntime::multianewarray3_Type();
   OptoRuntime::multianewarray4_Type();
