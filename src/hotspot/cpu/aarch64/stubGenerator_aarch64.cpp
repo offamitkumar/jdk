@@ -51,6 +51,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "utilities/checkedCast.hpp"
 #include "utilities/debug.hpp"
@@ -3276,6 +3277,9 @@ class StubGenerator: public StubCodeGenerator {
   // counter = c_rarg7 - 16 bytes of CTR
   // return - number of processed bytes
   address generate_galoisCounterMode_AESCrypt() {
+    if (!VM_Version::supports_ghash()) {
+      return nullptr;
+    }
     address ghash_polynomial = __ pc();
     __ emit_int64(0x87);  // The low-order bits of the field
                           // polynomial (i.e. p = z^7+z^2+z+1)

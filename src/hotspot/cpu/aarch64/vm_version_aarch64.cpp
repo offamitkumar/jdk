@@ -394,15 +394,6 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseSHA, false);
   }
 
-  if (VM_Version::supports_pmull()) {
-    if (FLAG_IS_DEFAULT(UseGHASHIntrinsics)) {
-      FLAG_SET_DEFAULT(UseGHASHIntrinsics, true);
-    }
-  } else if (UseGHASHIntrinsics) {
-    warning("GHASH intrinsics are not available on this CPU");
-    FLAG_SET_DEFAULT(UseGHASHIntrinsics, false);
-  }
-
   if (_features & CPU_ASIMD) {
     if (FLAG_IS_DEFAULT(UseChaCha20Intrinsics)) {
       UseChaCha20Intrinsics = true;
@@ -694,4 +685,18 @@ void VM_Version::initialize_cpu_information(void) {
   snprintf(_cpu_desc + desc_len, CPU_DETAILED_DESC_BUF_SIZE - desc_len, " %s", _features_string);
 
   _initialized = true;
+}
+
+bool VM_Version::is_intrinsic_supported(vmIntrinsicID id) {
+  assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
+  switch (id) {
+    case vmIntrinsics::_ghash_processBlocks:
+      if (!supports_ghash()) {
+        return false;
+      }
+      break;
+    default:
+      break;
+  }
+  return true;
 }
