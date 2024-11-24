@@ -196,6 +196,9 @@ class Abstract_VM_Version: AllStatic {
   // Does platform support float16 instructions?
   static bool supports_float16() { return false; }
 
+  // Does platform support Ghash?
+  static bool supports_ghash() { return false; }
+
   // Does this CPU support this intrinsic?
   static bool is_intrinsic_supported(vmIntrinsicID id) { return true; }
 
