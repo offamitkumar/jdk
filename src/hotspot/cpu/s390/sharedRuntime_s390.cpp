@@ -3409,14 +3409,19 @@ int SpinPause() {
 
 #if INCLUDE_JFR
 RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
-  if (!Continuations::enabled()) return nullptr;
-  Unimplemented();
+  const char* name = SharedRuntime::stub_name(SharedStubId::jfr_write_checkpoint_id);
+  CodeBuffer code(name, 512, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  __ stop("generate_jfr_write_checkpoint: not yet implemented");
   return nullptr;
 }
 
 RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
-  if (!Continuations::enabled()) return nullptr;
-  Unimplemented();
+  const char* name = SharedRuntime::stub_name(SharedStubId::jfr_return_lease_id);
+  CodeBuffer code(name, 512, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+
+  __ stop("generate_jfr_write_checkpoint: not yet implemented");
   return nullptr;
 }
 
