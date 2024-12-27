@@ -98,8 +98,7 @@ inline void ContinuationHelper::InterpretedFrame::patch_sender_sp(frame& f, cons
 }
 
 inline address* ContinuationHelper::Frame::return_pc_address(const frame& f) {
-  assert(false, "not implemented");
-  return nullptr;
+  return (address*)&f.callers_abi()->return_pc;
 }
 
 inline address ContinuationHelper::Frame::real_pc(const frame& f) {
