@@ -28,9 +28,7 @@
 
 #include "spin_wait_aarch64.hpp"
 #include "runtime/abstract_vm_version.hpp"
-#include "runtime/globals_extension.hpp"
 #include "utilities/sizes.hpp"
-#include "classfile/vmIntrinsics.hpp"
 
 class VM_Version : public Abstract_VM_Version {
   friend class VMStructs;
@@ -185,19 +183,6 @@ enum Ampere_CPU_Model {
 
   static bool supports_float16() { return true; }
 
-  static bool supports_ghash() {
-    if (VM_Version::supports_pmull() &&
-       (!vmIntrinsics::is_disabled_by_flags(vmIntrinsics::_ghash_processBlocks))) {
-      FLAG_SET_DEFAULT(UseGHASHIntrinsics, true);
-      return true;
-    } else if(UseGHASHIntrinsics){
-      warning("GHASH intrinsics are not available on this CPU");
-      FLAG_SET_DEFAULT(UseGHASHIntrinsics, false);
-    }
-    return false;
-  }
-
-
 #ifdef __APPLE__
   // Is the CPU running emulated (for example macOS Rosetta running x86_64 code on M1 ARM (aarch64)
   static bool is_cpu_emulated();
@@ -212,9 +197,6 @@ enum Ampere_CPU_Model {
   static bool use_neon_for_vector(int vector_length_in_bytes) {
     return vector_length_in_bytes <= 16;
   }
-
-  // Check intrinsic support
-  static bool is_intrinsic_supported(vmIntrinsicID id);
 };
 
 #endif // CPU_AARCH64_VM_VERSION_AARCH64_HPP
