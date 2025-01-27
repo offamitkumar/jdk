@@ -2396,6 +2396,7 @@ encode %{
     unsigned int actual_ret_off = __ offset();
     assert(start_off + size_of_code == actual_ret_off, "wrong return_pc");
 #endif
+    __ post_call_nop();
   %}
 
   enc_class z_enc_java_static_call(method meth) %{
@@ -2428,6 +2429,7 @@ encode %{
     }
 
     __ clear_inst_mark();
+    __ post_call_nop();
   %}
 
   // Java dynamic call
@@ -2484,6 +2486,7 @@ encode %{
       __ z_basr(Z_R14, Z_R1_scratch);
       unsigned int ret_off = __ offset();
     }
+    __ post_call_nop();
   %}
 
   enc_class z_enc_cmov_reg(cmpOp cmp, iRegI dst, iRegI src) %{

@@ -515,6 +515,7 @@ void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
   __ z_nop();
   __ z_brasl(Z_R14, op->addr());
   add_call_info(code_offset(), op->info());
+  __ post_call_nop();
 }
 
 void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
@@ -531,6 +532,7 @@ void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
   // to determine who we intended to call.
   __ relocate(virtual_call_Relocation::spec(virtual_call_oop_addr));
   call(op, relocInfo::none);
+  __ post_call_nop();
 }
 
 void LIR_Assembler::move_regs(Register from_reg, Register to_reg) {
@@ -2855,6 +2857,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest,
   if (info != nullptr) {
     add_call_info_here(info);
   }
+  __ post_call_nop();
 }
 
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
