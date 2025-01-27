@@ -665,7 +665,7 @@ public:
   bool check() const { return is_nop(); }
   bool decode(int32_t& oopmap_slot, int32_t& cb_offset) const { return false; }
   bool patch(int32_t oopmap_slot, int32_t cb_offset) { Unimplemented(); return false; }
-  void make_deopt() { Unimplemented(); }
+  void make_deopt();
 };
 
 inline NativePostCallNop* nativePostCallNop_at(address address) {
@@ -678,20 +678,19 @@ inline NativePostCallNop* nativePostCallNop_at(address address) {
 
 class NativeDeoptInstruction: public NativeInstruction {
 public:
-  address instruction_address() const       { Unimplemented(); return nullptr; }
-  address next_instruction_address() const  { Unimplemented(); return nullptr; }
+  enum {
+    instruction_offset          =    0
+  };
 
-  void  verify() { Unimplemented(); }
+  address instruction_address() const       { return addr_at(instruction_offset); }
+  address next_instruction_address() const  { return instruction_address() + Assembler::instr_len(addr_at(0)); }
 
-  static bool is_deopt_at(address instr) {
-    // Unimplemented();
-    return false;
-  }
+  void  verify();
+
+  static bool is_deopt_at(address instr);
 
   // MT-safe patching
-  static void insert(address code_pos) {
-    Unimplemented();
-  }
+  static void insert(address code_pos);
 };
 
 #endif // CPU_S390_NATIVEINST_S390_HPP
