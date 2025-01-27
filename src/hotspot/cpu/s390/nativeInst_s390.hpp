@@ -82,6 +82,11 @@ class NativeInstruction {
 
   bool is_illegal();
 
+  bool is_nop() const {
+    // TODO update: https://bugs.openjdk.org/browse/JDK-8290965
+    return Assembler::is_z_nop(addr_at(0));
+  }
+
   // Bcrl is currently the only accepted instruction here.
   bool is_jump();
 
@@ -657,14 +662,17 @@ class NativeGeneralJump: public NativeInstruction {
 
 class NativePostCallNop: public NativeInstruction {
 public:
-  bool check() const { Unimplemented(); return false; }
+  bool check() const { return is_nop(); }
   bool decode(int32_t& oopmap_slot, int32_t& cb_offset) const { return false; }
   bool patch(int32_t oopmap_slot, int32_t cb_offset) { Unimplemented(); return false; }
   void make_deopt() { Unimplemented(); }
 };
 
 inline NativePostCallNop* nativePostCallNop_at(address address) {
-  // Unimplemented();
+    NativePostCallNop* nop = (NativePostCallNop*) address;
+  if (nop->check()) {
+    return nop;
+  }
   return nullptr;
 }
 
