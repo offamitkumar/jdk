@@ -571,6 +571,8 @@ class MacroAssembler: public Assembler {
   // Get the pc where the last call will return to. Returns _last_calls_return_pc.
   inline address last_calls_return_pc();
 
+  void post_call_nop();
+
   static int ic_check_size();
   int ic_check(int end_alignment);
 

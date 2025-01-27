@@ -6953,3 +6953,14 @@ void MacroAssembler::pop_count_int_with_ext3(Register r_dst, Register r_src) {
 
   BLOCK_COMMENT("} pop_count_int_with_ext3");
 }
+
+void MacroAssembler::post_call_nop() {
+  // Make inline again when loom is always enabled.
+  if (!Continuations::enabled()) {
+    return;
+  }
+  nop();
+  // TODO:
+  // 1. https://bugs.openjdk.org/browse/JDK-8300002
+  // 2. https://bugs.openjdk.org/browse/JDK-8290965
+}
