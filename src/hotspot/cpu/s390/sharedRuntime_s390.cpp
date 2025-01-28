@@ -3443,21 +3443,82 @@ int SpinPause() {
 }
 
 #if INCLUDE_JFR
+
+// For c2: c_rarg0 is junk, call to runtime to write a checkpoint.
+// It returns a jobject handle to the event writer.
+// The handle is dereferenced and the return value is the event writer oop.
 RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
   const char* name = SharedRuntime::stub_name(SharedStubId::jfr_write_checkpoint_id);
   CodeBuffer code(name, 512, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
-  __ stop("generate_jfr_write_checkpoint: not yet implemented");
-  return nullptr;
+
+  int framesize = frame::z_abi_160_size / VMRegImpl::stack_slot_size;
+  address start = __ pc();
+  // FIXME, TODO : remove below debug code
+  __ stop("found: generate_jfr_write_checkpoint usage, we can step through");
+  __ save_return_pc(); // save return_pc (Z_R14)
+  __ push_frame_abi160(0);
+  int frame_complete = __ pc() - start;
+  __ set_last_Java_frame(Z_SP, noreg);
+
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, JfrIntrinsicSupport::write_checkpoint), Z_thread);
+  address calls_return_pc = __ last_calls_return_pc();
+
+  __ reset_last_Java_frame();
+
+  // The handle is dereferenced through a load barrier.
+
+  __ resolve_global_jobject(Z_ARG1, Z_tmp_1, Z_tmp_2); // Z_R10 & Z_R11, are these live ?
+  __ pop_frame();
+  __ restore_return_pc();
+  __ z_br(Z_R14);
+
+  OopMapSet* oop_maps = new OopMapSet();
+  OopMap* map = new OopMap(framesize, 0);
+  oop_maps->add_gc_map(calls_return_pc - start, map);
+
+  RuntimeStub* stub = // codeBlob framesize is in words (not VMRegImpl::slot_size)
+    RuntimeStub::new_runtime_stub(name, &code, frame_complete,
+                                  (framesize >> (LogBytesPerWord - LogBytesPerInt)),
+                                  oop_maps, false);
+
+  return stub;
 }
 
+// For c2: call to return a leased buffer.
 RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
   const char* name = SharedRuntime::stub_name(SharedStubId::jfr_return_lease_id);
   CodeBuffer code(name, 512, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
 
-  __ stop("generate_jfr_write_checkpoint: not yet implemented");
-  return nullptr;
+  int framesize = frame::z_abi_160_size / VMRegImpl::stack_slot_size;
+  address start = __ pc();
+  // FIXME, TODO : remove below debug code
+  __ stop("found: generate_jfr_return_lease usage, we can step through");
+  __ save_return_pc(); // save return_pc (Z_R14)
+  __ push_frame_abi160(0);
+  int frame_complete = __ pc() - start;
+  __ set_last_Java_frame(Z_SP, noreg);
+
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, JfrIntrinsicSupport::return_lease), Z_thread);
+  address calls_return_pc = __ last_calls_return_pc();
+
+  __ reset_last_Java_frame();
+
+  __ pop_frame();
+  __ restore_return_pc();
+  __ z_br(Z_R14);
+
+  OopMapSet* oop_maps = new OopMapSet();
+  OopMap* map = new OopMap(framesize, 0);
+  oop_maps->add_gc_map(calls_return_pc - start, map);
+
+  RuntimeStub* stub = // codeBlob framesize is in words (not VMRegImpl::slot_size)
+    RuntimeStub::new_runtime_stub(name, &code, frame_complete,
+                                  (framesize >> (LogBytesPerWord - LogBytesPerInt)),
+                                  oop_maps, false);
+
+  return stub;
 }
 
 #endif // INCLUDE_JFR
