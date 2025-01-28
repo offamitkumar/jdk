@@ -37,6 +37,8 @@
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "registerSaver_s390.hpp"
+#include "runtime/continuation.hpp"
+#include "runtime/continuationEntry.inline.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -1346,6 +1348,16 @@ static void move32_64(MacroAssembler *masm,
 // Wrap a JNI call.
 //----------------------------------------------------------------------
 #undef USE_RESIZE_FRAME
+static void gen_continuation_enter(MacroAssembler* masm,
+                                   const VMRegPair* regs,
+                                   int& exception_offset,
+                                   OopMapSet* oop_maps,
+                                   int& frame_complete,
+                                   int& framesize_words,
+                                   int& interpreted_entry_offset,
+                                   int& compiled_entry_offset) {
+  assert(false, "something" );
+}
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
                                                 int compile_id,
@@ -1353,6 +1365,29 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 VMRegPair *in_regs,
                                                 BasicType ret_type) {
   int total_in_args = method->size_of_parameters();
+  if (method->is_continuation_native_intrinsic()) {
+    int exception_offset = -1;
+    OopMapSet* oop_maps = new OopMapSet();
+    int frame_complete = -1;
+    int stack_slots = -1;
+    int interpreted_entry_offset = -1;
+    int vep_offset = -1;
+    if (method->is_continuation_enter_intrinsic()) {
+      gen_continuation_enter(masm,
+                             in_regs,
+                             exception_offset,
+                             oop_maps,
+                             frame_complete,
+                             stack_slots,
+                             interpreted_entry_offset,
+                             vep_offset);
+    } else if(method->is_continuation_yield_intrinsic()) {
+      assert(false, "is_continuation_yield_intrinsic");
+    } else {
+      guarantee(false, "Unknown Continuation native intrinsic");
+    }
+  }
+
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t) __ pc();

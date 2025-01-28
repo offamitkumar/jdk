@@ -25,6 +25,7 @@
 #ifndef CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
 #define CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
 
+#include "oops/method.inline.hpp"
 #include "runtime/continuationEntry.hpp"
 
 // TODO: Implement
