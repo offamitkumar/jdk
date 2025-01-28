@@ -1414,7 +1414,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
       guarantee(false, "Unknown Continuation native intrinsic");
     }
 
-    assert(false, "I don't know what will happen now.")
+    assert(false, "I don't know what will happen now.");
   }
 
   if (method->is_method_handle_intrinsic()) {
