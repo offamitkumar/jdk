@@ -1348,6 +1348,16 @@ static void move32_64(MacroAssembler *masm,
 // Wrap a JNI call.
 //----------------------------------------------------------------------
 #undef USE_RESIZE_FRAME
+
+static void check_continuation_enter_argument(VMReg actual_vmreg,
+                                              Register expected_reg,
+                                              const char* name) {
+  assert(!actual_vmreg->is_stack(), "%s cannot be on stack", name);
+  assert(actual_vmreg->as_Register() == expected_reg,
+         "%s is in unexpected register: %s instead of %s",
+         name, actual_vmreg->as_Register()->name(), expected_reg->name());
+}
+
 static void gen_continuation_enter(MacroAssembler* masm,
                                    const VMRegPair* regs,
                                    int& exception_offset,
@@ -1356,7 +1366,24 @@ static void gen_continuation_enter(MacroAssembler* masm,
                                    int& framesize_words,
                                    int& interpreted_entry_offset,
                                    int& compiled_entry_offset) {
-  assert(false, "something" );
+  // enterSpecial(Continuation c, boolean isContinue, boolean isVirtualThread)
+  int pos_cont_obj   = 0;
+  int pos_is_cont    = 1;
+  int pos_is_virtual = 2;
+
+  // The platform-specific calling convention may present the arguments in various registers.
+  // To simplify the rest of the code, we expect the arguments to reside at these known
+  // registers, and we additionally check the placement here in case calling convention ever
+  // changes.
+  Register reg_cont_obj   = Z_ARG1;
+  Register reg_is_cont    = Z_ARG2;
+  Register reg_is_virtual = Z_ARG3;
+
+  check_continuation_enter_argument(regs[pos_cont_obj].first(),   reg_cont_obj,   "Continuation object");
+  check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
+  check_continuation_enter_argument(regs[pos_is_virtual].first(), reg_is_virtual, "isVirtualThread");
+
+  assert(false, "not yet finished" );
 }
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
@@ -1371,7 +1398,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     int frame_complete = -1;
     int stack_slots = -1;
     int interpreted_entry_offset = -1;
-    int vep_offset = -1;
+    int vep_offset = -1; // verified entry point offset
     if (method->is_continuation_enter_intrinsic()) {
       gen_continuation_enter(masm,
                              in_regs,
@@ -1386,6 +1413,8 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     } else {
       guarantee(false, "Unknown Continuation native intrinsic");
     }
+
+    assert(false, "I don't know what will happen now.")
   }
 
   if (method->is_method_handle_intrinsic()) {
@@ -3455,7 +3484,7 @@ RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
   int framesize = frame::z_abi_160_size / VMRegImpl::stack_slot_size;
   address start = __ pc();
   // FIXME, TODO : remove below debug code
-  __ stop("found: generate_jfr_write_checkpoint usage, we can step through");
+  __ stop("found: generate_jfr_write_checkpoint usage, we can step through, I don't know if Z_tmp_[1,2] are correct register to use here.");
   __ save_return_pc(); // save return_pc (Z_R14)
   __ push_frame_abi160(0);
   int frame_complete = __ pc() - start;
