@@ -1560,7 +1560,16 @@ static void gen_continuation_enter(MacroAssembler* masm,
   }
 
   // compiled entry
+  // compiled entry
+  __ align(CodeEntryAlignment);
+  compiled_entry_offset = __ pc() - start;
+
+
   assert(false, "gen_continuation_enter, not yet finished" );
+
+  assert(false, "bind these labels at correct place");
+  __ bind(L_thaw);
+  __ bind(L_exit);
 }
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
