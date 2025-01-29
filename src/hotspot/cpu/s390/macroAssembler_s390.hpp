@@ -1111,6 +1111,8 @@ class MacroAssembler: public Assembler {
   void pop_count_int_with_ext3(Register dst, Register src);
   void pop_count_long_with_ext3(Register dst, Register src);
 
+  void push_cont_fastpath();
+  void pop_cont_fastpath();
 };
 
 #ifdef ASSERT

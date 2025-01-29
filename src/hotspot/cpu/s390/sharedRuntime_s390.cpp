@@ -1383,6 +1383,46 @@ static void gen_continuation_enter(MacroAssembler* masm,
   check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
   check_continuation_enter_argument(regs[pos_is_virtual].first(), reg_is_virtual, "isVirtualThread");
 
+  address resolve_static_call = SharedRuntime::get_resolve_static_call_stub();
+
+  address start = __ pc();
+  __ stop("entry of gen_continuation_enter, step through");
+  // i2i entry used at interp_only_mode only
+  interpreted_entry_offset = __ pc() - start;
+  {
+#ifdef ASSERT
+    NearLabel is_interp_only;
+    __ load_and_test_int(Z_R0_scratch, Address(Z_thread, JavaThread::interp_only_mode_offset()));
+    __ z_brnz(is_interp_only);
+    __ stop("enterSpecial interpreter entry called when not in interp_only_mode");
+    __ bind(is_interp_only);
+#endif
+
+    // FIXME, TODO:
+    /*
+     *  below code is just a guess. My guess is that there is nothing in the slot 0 and we pushed our first argument
+     *  there. But I could be wrong. Once this code is executed this needs to be verified. My guess came from this IJAVA
+     *  stack layout:
+     *
+     *  //            [rest of ABI_160]
+//           /slot 4: free
+//    oper. | slot 3: free             <- Z_esp points to first free slot
+//    stack | slot 2: ref val v2                caches IJAVA_STATE.esp
+//          | slot 1: unused
+//           \slot 0: long val v1
+
+     *  TODO: If I am wrong, then just update [0,1,2] to [1,2,3] and this should work.
+     *  TODO: Another thing to verify is the load. ppc is loading top value with 64bit value, and rest are 32bit with
+     *  zero extension. So I did the same. But it needs to be verified.
+     */
+    // Read interpreter arguments into registers (this is an ad-hoc i2c adapter)
+    __ stop("below load needs to be verified before executing it")
+    __ z_lg(reg_cont_obj,     Address(Z_esp, Interpreter::stackElementSize*2));
+    __ z_llgf(reg_is_cont,    Address(Z_esp, Interpreter::stackElementSize*1));
+    __ z_llgf(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*0));
+
+    __ push_cont_fastpath();
+  }
   assert(false, "not yet finished" );
 }
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
