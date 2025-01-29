@@ -1403,6 +1403,54 @@ static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_wor
   return map;
 }
 
+//---------------------------- fill_continuation_entry ---------------------------
+//
+// Initialize the new ContinuationEntry.
+//
+// Arguments:
+//   Z_SP         : pointer to blank Continuation entry
+//   reg_cont_obj : pointer to the continuation
+//   reg_flags    : flags / isVirtualThread
+//
+// Results:
+//   Z_SP : pointer to filled out ContinuationEntry
+//
+// Kills:
+//   This is peace driven method, doesn't kill anyone.
+//
+static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj, Register reg_flags) {
+  assert_different_registers(reg_cont_obj, reg_flags);
+  DEBUG_ONLY(__ block_comment("fill_continuation_entry {"));
+#ifdef ASSERT
+  __ stop("just in case z_mvhi doesn't work switch to load & store");
+  __ z_mvhi(Address(Z_SP, ContinuationEntry::cookie_offset()), ContinuationEntry::cookie_value());
+#endif //ASSERT
+  __ z_stg(reg_cont_obj, Address(Z_SP, ContinuationEntry::cont_offset()));
+  __ stop("z_st doesn't work then switch to z_sty ? ");
+  __ z_st(reg_flags,    Address(Z_SP, ContinuationEntry::flags_offset()));
+  __ stop("if mvghi doesn't work, load 0 into Z_R1 and store it, or just use z_xc and wipe out things, same for other move instructions");
+  __ z_mvghi(Address(Z_SP, ContinuationEntry::chunk_offset()), 0);
+  __ z_mvhi( Address(Z_SP, ContinuationEntry::argsize_offset()), 0);
+  __ z_mvhi( Address(Z_SP, ContinuationEntry::pin_count_offset()), 0);
+
+  __ stop("well well well, switch to load/store if z_mvc fails");
+  __ z_mvc(Address(Z_SP, ContinuationEntry::parent_cont_fastpath_offset()), /* move to */
+           Address(Z_thread, JavaThread::cont_fastpath_offset()), /* move from */
+           sizeof(ContinuationEntry*) /* size of data to be moved */
+  );
+
+  __ stop("z_mvc ahead, you know the drill, don't you");
+  __ z_mvc(Address(Z_SP, ContinuationEntry::parent_held_monitor_count_offset()), /* move to */
+           Address(Z_thread, JavaThread::held_monitor_count_offset()), /* move from */
+           sizeof(int64_t) /* size of data to be moved */
+  );
+
+  __ z_mvghi(Address(Z_thread, JavaThread::cont_fastpath_offset()), 0);
+  __ z_mvghi(Address(Z_thread, JavaThread::held_monitor_count_offset()), 0);
+
+  DEBUG_ONLY(__ block_comment("} fill_continuation_entry"));
+}
+
 static void gen_continuation_enter(MacroAssembler* masm,
                                    const VMRegPair* regs,
                                    int& exception_offset,
@@ -1469,6 +1517,13 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ push_cont_fastpath();
 
     OopMap* map = continuation_enter_setup(masm, framesize_words);
+
+    // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
+    // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
+
+
+    fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
   }
   assert(false, "not yet finished" );
 }
