@@ -1416,7 +1416,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
      *  zero extension. So I did the same. But it needs to be verified.
      */
     // Read interpreter arguments into registers (this is an ad-hoc i2c adapter)
-    __ stop("below load needs to be verified before executing it")
+    __ stop("below load needs to be verified before executing it");
     __ z_lg(reg_cont_obj,     Address(Z_esp, Interpreter::stackElementSize*2));
     __ z_llgf(reg_is_cont,    Address(Z_esp, Interpreter::stackElementSize*1));
     __ z_llgf(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*0));
