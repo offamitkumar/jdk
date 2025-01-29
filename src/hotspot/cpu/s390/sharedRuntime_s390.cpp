@@ -1358,6 +1358,51 @@ static void check_continuation_enter_argument(VMReg actual_vmreg,
          name, actual_vmreg->as_Register()->name(), expected_reg->name());
 }
 
+//---------------------------- continuation_enter_setup ---------------------------
+//
+// Frame setup.
+//
+// Arguments:
+//   None.
+//
+// Results:
+//   Z_SP: pointer to blank ContinuationEntry in the pushed frame.
+//
+// Kills:
+//   Nothing
+//
+static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_words) {
+
+  assert(ContinuationEntry::size() % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::cont_offset())  % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::chunk_offset()) % VMRegImpl::stack_slot_size == 0, "");
+
+  const int frame_size_in_bytes = (int)ContinuationEntry::size();
+  assert(is_aligned(frame_size_in_bytes, frame::alignment_in_bytes), "alignment error");
+
+  framesize_words = frame_size_in_bytes / wordSize;
+
+  DEBUG_ONLY(__ block_comment("continuation_enter_setup {"));
+  // TODO:
+  __ stop("framesize_words was all just followed by ppc, need a verification");
+  __ save_return_pc(); // preserve current Z_R14
+  __ push_frame(frame_size_in_bytes);
+
+  OopMap* map = new OopMap((int)frame_size_in_bytes / VMRegImpl::stack_slot_size, 0 /* arg_slots*/);
+  __ stop("just in case z_mvc instruction doesn't work, uncomment load/store instruction, they will work");
+  // FIXME/TODO: if you are using load/store then update function header comment that we are killing Z_R1 register here.
+  // NOTE: uncommented code (using z_mvc) is working exactly similar to aarch64.
+  //__ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ z_mvc(Address(Z_SP, ContinuationEntry::parent_offset()), /* move to */
+           Address(Z_thread, JavaThread::cont_entry_offset()), /* move from */
+           sizeof(ContinuationEntry*) /* size of data to be moved */
+           );
+  __ z_stg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  //__ z_stg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
+  DEBUG_ONLY(__ block_comment("} continuation_enter_setup"));
+  return map;
+}
+
 static void gen_continuation_enter(MacroAssembler* masm,
                                    const VMRegPair* regs,
                                    int& exception_offset,
@@ -1422,6 +1467,8 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ z_llgf(reg_is_virtual, Address(Z_esp, Interpreter::stackElementSize*0));
 
     __ push_cont_fastpath();
+
+    OopMap* map = continuation_enter_setup(masm, framesize_words);
   }
   assert(false, "not yet finished" );
 }
