@@ -6980,7 +6980,7 @@ void MacroAssembler::pop_cont_fastpath() {
   BLOCK_COMMENT("pop_cont_fastpath {");
   if (!Continuations::enabled()) return;
   NearLabel done;
-  z_cg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()), bcondLow, done);
+  z_cg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   // TODO, FIXME: ppc uses same condition here. ble (branch on less or equal).
   // but it's "only low" for x86.
   stop("are we sure about z_brl ?");
