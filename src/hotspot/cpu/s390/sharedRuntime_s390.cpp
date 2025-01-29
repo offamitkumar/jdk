@@ -1479,6 +1479,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
   address resolve_static_call = SharedRuntime::get_resolve_static_call_stub();
 
   address start = __ pc();
+
+  Label L_thaw, L_exit;
+
   __ stop("entry of gen_continuation_enter, step through");
   // i2i entry used at interp_only_mode only
   interpreted_entry_offset = __ pc() - start;
@@ -1521,11 +1524,43 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
     // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
 
+    __ verify_oop(reg_cont_obj); // TODO: this check is value ? I just took it from x86
 
     fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
 
+    // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+    __ compare32_and_branch(reg_is_cont, 0, Assembler::bcondNotZero, L_thaw);
+
+    // --- call Continuation.enter(Continuation c, boolean isContinue)
+
+    // Emit compiled static call. The call will be always resolved to the c2i
+    // entry of Continuation.enter(Continuation c, boolean isContinue).
+    // There are special cases in SharedRuntime::resolve_static_call_C() and
+    // SharedRuntime::resolve_sub_helper_internal() to achieve this
+    // See also corresponding call below.
+    // Make sure the call is patchable
+
+    // NOTE/ TODO / FIXME : this is a call made best of my guess. It would be wrong and should be stepped through
+    __ stop("step through this call here");
+    address c2i_call_pc = __ pc();
+    while ((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment != 0) {
+      __ nop();
+    }
+    // Emit stub for static call
+    address stub = CompiledDirectCall::emit_to_interp_stub(masm, __ pc());
+    if (stub == nullptr) {
+      fatal("CodeCache is full at gen_continuation_enter");
+    }
+    __ relocate(relocInfo::static_call_type);
+    __ z_nop();
+    __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
+    oop_maps->add_gc_map(__ pc() - start, map);
+    __ post_call_nop();
+    __ branch_optimized(Assembler::bcondAlways, L_exit);
   }
-  assert(false, "not yet finished" );
+
+  // compiled entry
+  assert(false, "gen_continuation_enter, not yet finished" );
 }
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
