@@ -6964,3 +6964,29 @@ void MacroAssembler::post_call_nop() {
   // 1. https://bugs.openjdk.org/browse/JDK-8300002
   // 2. https://bugs.openjdk.org/browse/JDK-8290965
 }
+
+void MacroAssembler::push_cont_fastpath() {
+  BLOCK_COMMENT("push_cont_fastpath {");
+  if (!Continuations::enabled()) return;
+  NearLabel done;
+  z_cg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  z_brnh(done); // bcondNotHigh -> less than equal
+  z_stg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
+  bind(done);
+  BLOCK_COMMENT("} push_cont_fastpath");
+}
+
+void MacroAssembler::pop_cont_fastpath() {
+  BLOCK_COMMENT("pop_cont_fastpath {");
+  if (!Continuations::enabled()) return;
+  NearLabel done;
+  z_cg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()), bcondLow, done);
+  // TODO, FIXME: ppc uses same condition here. ble (branch on less or equal).
+  // but it's "only low" for x86.
+  stop("are we sure about z_brl ?");
+  z_brnh(done);
+  stop("verify z_mvghi will wipe out");
+  z_mvghi(Address(Z_thread, JavaThread::cont_fastpath_offset()), 0);
+  bind(done);
+  BLOCK_COMMENT("} pop_cont_fastpath");
+}
