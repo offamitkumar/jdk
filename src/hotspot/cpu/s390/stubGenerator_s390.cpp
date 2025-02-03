@@ -3104,7 +3104,7 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_cont_thaw(bool return_barrier, bool exception) {
+  address generate_cont_thaw(StubGenStubId stub_id) {
     if (!Continuations::enabled()) return nullptr;
     Unimplemented();
     __ stop("generate_cont_thaw: not yet implemented");
@@ -3112,24 +3112,15 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_cont_thaw() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    __ stop("generate_cont_thaw: not yet implemented");
-    return nullptr;
+    return generate_cont_thaw(StubGenStubId::cont_thaw_id);
   }
 
   address generate_cont_returnBarrier() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    __ stop("generate_cont_returnBarrier: not yet implemented");
-    return nullptr;
+    return generate_cont_thaw(StubGenStubId::cont_returnBarrier_id);
   }
 
   address generate_cont_returnBarrier_exception() {
-    if (!Continuations::enabled()) return nullptr;
-    Unimplemented();
-    __ stop("generate_cont_returnBarrier_exception: not yet implemented");
-    return nullptr;
+    return generate_cont_thaw(StubGenStubId::cont_returnBarrierExc_id);
   }
 
   // exception handler for upcall stubs
