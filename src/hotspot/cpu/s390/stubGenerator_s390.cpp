@@ -3106,24 +3106,28 @@ class StubGenerator: public StubCodeGenerator {
 
   address generate_cont_thaw(bool return_barrier, bool exception) {
     if (!Continuations::enabled()) return nullptr;
+    Unimplemented();
     __ stop("generate_cont_thaw: not yet implemented");
     return nullptr;
   }
 
   address generate_cont_thaw() {
     if (!Continuations::enabled()) return nullptr;
+    Unimplemented();
     __ stop("generate_cont_thaw: not yet implemented");
     return nullptr;
   }
 
   address generate_cont_returnBarrier() {
     if (!Continuations::enabled()) return nullptr;
+    Unimplemented();
     __ stop("generate_cont_returnBarrier: not yet implemented");
     return nullptr;
   }
 
   address generate_cont_returnBarrier_exception() {
     if (!Continuations::enabled()) return nullptr;
+    Unimplemented();
     __ stop("generate_cont_returnBarrier_exception: not yet implemented");
     return nullptr;
   }
