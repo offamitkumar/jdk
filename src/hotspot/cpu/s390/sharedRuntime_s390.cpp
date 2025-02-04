@@ -1481,13 +1481,13 @@ static void continuation_enter_cleanup(MacroAssembler* masm) {
   if (CheckJNICalls) {
     // Check if this is a virtual thread continuation
     Label L_skip_vthread_code;
-    __ z_chsi(in_ByteSize(ContinuationEntry::flags_offset()), Z_SP, 0);
+    __ z_lt(Z_R1_scratch, Address(Z_SP, ContinuationEntry::flags_offset()));
     __ branch_optimized(Assembler::bcondEqual, L_skip_vthread_code);
 
     // If the held monitor count is > 0 and this vthread is terminating then
     // it failed to release a JNI monitor. So we issue the same log message
     // that JavaThread::exit does.
-    __ z_cghsi(in_ByteSize(JavaThread::jni_monitor_count_offset()), Z_thread, 0);
+    __ z_ltg(Z_R1_scratch, Address(Z_thread, JavaThread::jni_monitor_count_offset()));
     __ branch_optimized(Assembler::bcondEqual, L_skip_vthread_code);
 
     // Save return value potentially containing the exception oop
@@ -1510,7 +1510,7 @@ static void continuation_enter_cleanup(MacroAssembler* masm) {
   else {
     // Check if this is a virtual thread continuation
     NearLabel L_skip_vthread_code;
-    __ z_chsi(in_ByteSize(ContinuationEntry::flags_offset()), Z_SP, 0);
+    __ z_lt(Z_R1_scratch, Address(Z_SP, ContinuationEntry::flags_offset()));
     __ branch_optimized(Assembler::bcondEqual, L_skip_vthread_code);
 
     // See comment just above. If not checking JNI calls the JNI count is only
@@ -1689,7 +1689,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ stop("this might not be correct way of calling?");
   __ load_const_optimized(Z_R1_scratch, StubRoutines::cont_thaw());
   __ call(Z_R1_scratch);
-  __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, StubRoutines::cont_thaw()));
   oop_maps->add_gc_map(__ pc() - start, map);
   ContinuationEntry::_return_pc_offset = __ pc() - start;
   __ post_call_nop();
