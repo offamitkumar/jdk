@@ -1451,6 +1451,86 @@ static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj,
   DEBUG_ONLY(__ block_comment("} fill_continuation_entry"));
 }
 
+//---------------------------- continuation_enter_cleanup ---------------------------
+//
+// Copy corresponding attributes from the top ContinuationEntry to the JavaThread
+// before deleting it.
+//
+// Arguments:
+//   Z_SP: pointer to the ContinuationEntry
+//
+// Results:
+//   None.
+//
+// Kills:
+//
+//
+static void continuation_enter_cleanup(MacroAssembler* masm) {
+  __ block_comment("continuation_enter_cleanup {");
+
+#ifdef ASSERT
+  __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+  __ asm_assert(Assembler::bcondEqual, FILE_AND_LINE ": incorrect Z_SP", 0x1bb);
+#endif // ASSERT
+
+  __ z_mvc(Address(Z_thread, JavaThread::cont_fastpath_offset()), /* move to */
+           Address(Z_SP, ContinuationEntry::parent_cont_fastpath_offset()), /* move from */
+           sizeof(ContinuationEntry*) /* size of data to be moved */
+  );
+
+  if (CheckJNICalls) {
+    // Check if this is a virtual thread continuation
+    Label L_skip_vthread_code;
+    __ z_chsi(ContinuationEntry::flags_offset(), Z_SP, 0);
+    __ branch_optimized(Assembler::bcondEqual, L_skip_vthread_code);
+
+    // If the held monitor count is > 0 and this vthread is terminating then
+    // it failed to release a JNI monitor. So we issue the same log message
+    // that JavaThread::exit does.
+    __ z_cghi(Address(Z_thread, JavaThread::jni_monitor_count_offset()), 0);
+    __ branch_optimized(Assembler::bcondEqual, L_skip_vthread_code);
+
+    // Save return value potentially containing the exception oop
+    __ stop("check if Z_tmp_1/Z_R10 is containing something useful at this point");
+    Register ex_oop = Z_tmp_1;
+    __ z_lgr(ex_oop, Z_R2);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::log_jni_monitor_still_held));
+    // Restore potental return value
+    __ z_lgr(Z_R2, ex_oop);
+
+    // For vthreads we have to explicitly zero the JNI monitor count of the carrier
+    // on termination. The held count is implicitly zeroed below when we restore from
+    // the parent held count (which has to be zero).
+
+    __ z_mvghi(Address(r15_thread, JavaThread::jni_monitor_count_offset()), 0);
+
+    __ bind(L_skip_vthread_code);
+  }
+#ifdef ASSERT
+  else {
+    // Check if this is a virtual thread continuation
+    NearLabel L_skip_vthread_code;
+    __ z_cfi(Address(rsp, ContinuationEntry::flags_offset()), 0);
+    __ branch_optimized(Assembler::bcondEqual, L_skip_vthread_code);
+
+    // See comment just above. If not checking JNI calls the JNI count is only
+    // needed for assertion checking.
+    __ z_mvghi(Address(Z_thread, JavaThread::jni_monitor_count_offset()), 0);
+
+    __ bind(L_skip_vthread_code);
+  }
+#endif // ASSERT
+
+  __ z_mvc(Address(Z_thread, JavaThread::held_monitor_count_offset()), /* move to */
+           Address(Z_SP, ContinuationEntry::parent_held_monitor_count_offset()), /* move from */
+           sizeof(int64_t) /* size of data to be moved */
+  );
+
+  __ z_mvc(Address(Z_thread, JavaThread::cont_entry_offset()), /* move to */
+           Address(Z_SP, ContinuationEntry::parent_offset()), /* move from */
+           sizeof(ContinuationEntry*) /* size of data to be moved */
+  );
+}
 static void gen_continuation_enter(MacroAssembler* masm,
                                    const VMRegPair* regs,
                                    int& exception_offset,
@@ -1560,17 +1640,98 @@ static void gen_continuation_enter(MacroAssembler* masm,
   }
 
   // compiled entry
-  // compiled entry
   __ align(CodeEntryAlignment);
   compiled_entry_offset = __ pc() - start;
 
+  OopMap* map = continuation_enter_setup(masm, framesize_words);
 
-  assert(false, "gen_continuation_enter, not yet finished" );
+  // Frame is now completed as far as size and linkage.
+  frame_complete =__ pc() - start;
 
-  assert(false, "bind these labels at correct place");
+  __ verify_oop(reg_cont_obj);
+
+  fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
+
+  // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
+  __ z_ltgr(reg_is_cont, reg_is_cont);
+  __ branch_optimized(Assembler::bcondNotZero, L_thaw);
+
+  // --- call Continuation.enter(Continuation c, boolean isContinue)
+
+  // Make sure the call is patchable
+  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
+
+  // Emit stub for static call
+  address stub = CompiledDirectCall::emit_to_interp_stub(masm, __ pc());
+  guarantee(stub != nullptr, "CodeCache is full at gen_continuation_enter");
+
+  assert((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment == 0,
+         "must be aligned (offset=%d)", __ offset());
+
+  // The call needs to be resolved. There's a special case for this in
+  // SharedRuntime::find_callee_info_helper() which calls
+  // LinkResolver::resolve_continuation_enter() which resolves the call to
+  // Continuation.enter(Continuation c, boolean isContinue).
+  // FIXME:: this call can be optimized see other Archs
+  __ relocate(relocInfo::static_call_type);
+  __ z_nop();
+  __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
+  oop_maps->add_gc_map(__ pc() - start, map);
+  __ post_call_nop();
+
+  __ branch_optimized(bcondAlways, L_exit);
+
+  // --- Thawing path
+
   __ bind(L_thaw);
-  __ bind(L_exit);
+  ContinuationEntry::_thaw_call_pc_offset = __ pc() - start;
+  __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, StubRoutines::cont_thaw()));
+  oop_maps->add_gc_map(__ pc() - start, map);
+  ContinuationEntry::_return_pc_offset = __ pc() - start;
+  __ post_call_nop();
+
+  // --- Normal exit (resolve/thawing)
+  __ bind(exit);
+  ContinuationEntry::_cleanup_offset = __ pc() - start;
+  continuation_enter_cleanup(masm);
+
+  // Pop frame and return
+  __ stop("maybe not correct below return ?");
+  __ add2reg(Z_SP, framesize_words * wordSize);
+  __ restore_return_pc();
+  __ z_br(Z_R14);
+
+  // --- Exception handling path
+  exception_offset = __ pc() - start;
+
+  __ stop("this exception handling path is correct?");
+  // FIXME: taken from stubGenerator, grep for exception_handler_for_return_address
+  __ z_lgr(Z_ARG2, Z_R14); // Copy exception pc into Z_ARG2.
+  __ save_return_pc();
+  __ push_frame_abi160(0);
+  // Find exception handler.
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address),
+                  Z_thread,
+                  Z_ARG2);
+  // Copy handler's address.
+  __ z_lgr(Z_R1, Z_RET);
+  __ pop_frame();
+  __ restore_return_pc();
+  // Set up the arguments for the exception handler:
+  // - Z_ARG1: exception oop
+  // - Z_ARG2: exception pc
+  // Load pending exception oop.
+  __ z_lg(Z_ARG1, in_bytes(Thread::pending_exception_offset()), Z_thread);
+  // The exception pc is the return address in the caller,
+  // must load it into Z_ARG2
+  __ z_lgr(Z_ARG2, Z_R14);
+  // Clear the pending exception.
+  __ clear_mem(Address(Z_thread, in_bytes(Thread::pending_exception_offset())), sizeof(void *));
+  // Jump to exception handler
+  __ z_br(Z_R1 /*handler address*/);
 }
+
+
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
                                                 int compile_id,
