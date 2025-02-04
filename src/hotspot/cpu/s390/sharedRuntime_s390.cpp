@@ -1689,7 +1689,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ stop("this might not be correct way of calling?");
   __ load_const_optimized(Z_R1_scratch, StubRoutines::cont_thaw());
   __ call(Z_R1_scratch);
-  oop_maps->add_gc_map(__ pc() - start, map);
+  oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
   ContinuationEntry::_return_pc_offset = __ pc() - start;
   __ post_call_nop();
 
