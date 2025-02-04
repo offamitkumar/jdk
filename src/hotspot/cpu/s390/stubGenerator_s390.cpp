@@ -3111,8 +3111,6 @@ class StubGenerator: public StubCodeGenerator {
     bool return_barrier;
     bool return_barrier_exception;
 
-    address start = __ pc();
-
     switch (stub_id) {
       case cont_thaw_id:
         kind = Continuation::thaw_top;
@@ -3141,18 +3139,18 @@ class StubGenerator: public StubCodeGenerator {
     __ stop("this code needs to be stepped through");
     __ stop("preserve the return values for float/double & int/long");
     if (return_barrier) {
-      DEBUG_ONLY(__ z_lg(Z_R1_scratch, z_common_abi(callers_sp), Z_SP);)
+      DEBUG_ONLY(__ z_lg(Z_R1_scratch, _z_common_abi(callers_sp), Z_SP);)
       __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
 #ifdef ASSERT
-      __ z_cg(Z_R1_scratch, _abi0(callers_sp), R1_SP);
-      __ asm_assert_eq(FILE_AND_LINE ": callers sp is corrupt");
+      __ z_cg(Z_R1_scratch, _z_common_abi(callers_sp), Z_SP);
+      __ asm_assert(/* check_equal=*/ true, FILE_AND_LINE ": callers sp is corrupt", 69);
 #endif
 
     }
 
 #ifdef ASSERT
     __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
-    __ asm_assert_eq(FILE_AND_LINE ": incorrect Z_SP");
+    __ asm_assert(/* check_equal=*/ true, FILE_AND_LINE ": incorrect Z_SP", 70);
 #endif
 
     //Unimplemented();
