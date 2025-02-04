@@ -2822,6 +2822,7 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
 #elif defined(PPC64) || defined(S390)
       // On PPC64/S390 the continuation enter intrinsic needs the constant pool for the compiled
       // static java call that is resolved in the runtime.
+      // TODO: this is just made similar to ppc, but it needs to be verified for s390. Maybe we need different size ?
       if (method->is_continuation_enter_intrinsic()) {
         buffer.initialize_consts_size(32);
       }

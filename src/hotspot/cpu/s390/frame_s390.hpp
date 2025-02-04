@@ -548,9 +548,9 @@
     metadata_words           = 0,
     metadata_words_at_bottom = 0,
     metadata_words_at_top    = 0,
-    frame_alignment          = 16,
+    frame_alignment          = 8,
     // size, in words, of maximum shift in frame position due to alignment
-    align_wiggle             =  1
+    align_wiggle             =  0
   };
 
   static jint interpreter_frame_expression_stack_direction() { return -1; }
