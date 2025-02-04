@@ -84,7 +84,7 @@
 
 #define RegisterSaver_LiveVReg(regname) \
   { RegisterSaver::v_reg,      regname->encoding(), regname->as_VMReg() }
-
+long fubar = 0;
 static const RegisterSaver::LiveRegType RegisterSaver_LiveRegs[] = {
   // Live registers which get spilled to the stack. Register positions
   // in this array correspond directly to the stack layout.
@@ -1383,22 +1383,15 @@ static OopMap* continuation_enter_setup(MacroAssembler* masm, int& framesize_wor
   framesize_words = frame_size_in_bytes / wordSize;
 
   DEBUG_ONLY(__ block_comment("continuation_enter_setup {"));
-  // TODO:
-  __ stop("framesize_words was all just followed by ppc, need a verification");
   __ save_return_pc(); // preserve current Z_R14
   __ push_frame(frame_size_in_bytes);
 
   OopMap* map = new OopMap((int)frame_size_in_bytes / VMRegImpl::stack_slot_size, 0 /* arg_slots*/);
-  __ stop("just in case z_mvc instruction doesn't work, uncomment load/store instruction, they will work");
-  // FIXME/TODO: if you are using load/store then update function header comment that we are killing Z_R1 register here.
-  // NOTE: uncommented code (using z_mvc) is working exactly similar to aarch64.
-  //__ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::cont_entry_offset()));
   __ z_mvc(Address(Z_SP, ContinuationEntry::parent_offset()), /* move to */
            Address(Z_thread, JavaThread::cont_entry_offset()), /* move from */
            sizeof(ContinuationEntry*) /* size of data to be moved */
            );
   __ z_stg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
-  //__ z_stg(Z_R1_scratch, Address(Z_SP, ContinuationEntry::parent_offset()));
   DEBUG_ONLY(__ block_comment("} continuation_enter_setup"));
   return map;
 }
@@ -1422,24 +1415,19 @@ static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj,
   assert_different_registers(reg_cont_obj, reg_flags);
   DEBUG_ONLY(__ block_comment("fill_continuation_entry {"));
 #ifdef ASSERT
-  __ stop("just in case z_mvhi doesn't work switch to load & store");
   __ z_mvhi(Address(Z_SP, ContinuationEntry::cookie_offset()), ContinuationEntry::cookie_value());
 #endif //ASSERT
   __ z_stg(reg_cont_obj, Address(Z_SP, ContinuationEntry::cont_offset()));
-  __ stop("z_st doesn't work then switch to z_sty ? ");
   __ z_st(reg_flags,    Address(Z_SP, ContinuationEntry::flags_offset()));
-  __ stop("if mvghi doesn't work, load 0 into Z_R1 and store it, or just use z_xc and wipe out things, same for other move instructions");
   __ z_mvghi(Address(Z_SP, ContinuationEntry::chunk_offset()), 0);
   __ z_mvhi( Address(Z_SP, ContinuationEntry::argsize_offset()), 0);
   __ z_mvhi( Address(Z_SP, ContinuationEntry::pin_count_offset()), 0);
 
-  __ stop("well well well, switch to load/store if z_mvc fails");
   __ z_mvc(Address(Z_SP, ContinuationEntry::parent_cont_fastpath_offset()), /* move to */
            Address(Z_thread, JavaThread::cont_fastpath_offset()), /* move from */
            sizeof(ContinuationEntry*) /* size of data to be moved */
   );
 
-  __ stop("z_mvc ahead, you know the drill, don't you");
   __ z_mvc(Address(Z_SP, ContinuationEntry::parent_held_monitor_count_offset()), /* move to */
            Address(Z_thread, JavaThread::held_monitor_count_offset()), /* move from */
            sizeof(int64_t) /* size of data to be moved */
@@ -1659,6 +1647,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // --- call Continuation.enter(Continuation c, boolean isContinue)
 
   // Make sure the call is patchable
+  __ load_const_optimized(Z_R1, (uintptr_t)&fubar);
+  __ z_agsi(0, Z_R1, 1);
+  __ stop("till here we look good");
   __ stop("what about this alignment?");
 //  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
 
