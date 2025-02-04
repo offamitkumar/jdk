@@ -3106,6 +3106,37 @@ class StubGenerator: public StubCodeGenerator {
 
   address generate_cont_thaw(StubGenStubId stub_id) {
     if (!Continuations::enabled()) return nullptr;
+
+    Continuation::thaw_kind kind;
+    bool return_barrier;
+    bool return_barrier_exception;
+
+    switch (stub_id) {
+      case cont_thaw_id:
+        kind = Continuation::thaw_top;
+        return_barrier = false;
+        return_barrier_exception = false;
+        break;
+      case cont_returnBarrier_id:
+        kind = Continuation::thaw_return_barrier;
+        return_barrier = true;
+        return_barrier_exception = false;
+        break;
+      case cont_returnBarrierExc_id:
+        kind = Continuation::thaw_return_barrier_exception;
+        return_barrier = true;
+        return_barrier_exception = true;
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+
+    StubCodeMark mark(this, stub_id);
+    address start = __ pc();
+
+    // TODO: Handle Valhalla return types. May require generating different return barriers.
+
+
     Unimplemented();
     __ stop("generate_cont_thaw: not yet implemented");
     return nullptr;
