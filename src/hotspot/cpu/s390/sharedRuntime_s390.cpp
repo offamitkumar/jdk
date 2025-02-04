@@ -1740,7 +1740,64 @@ static void gen_continuation_yield(MacroAssembler* masm,
                                    int& frame_complete,
                                    int& framesize_words,
                                    int& compiled_entry_offset) {
-  __ stop("gen_continuation_yield not yet finished");
+  const int framesize_bytes = (int)align_up((int)frame::z_abi_160_size, frame::alignment_in_bytes);
+  framesize_words = framesize_bytes / wordSize;
+
+  Register Rtmp = Z_R1_scratch;
+
+  address start = __ pc();
+  compiled_entry_offset = __ pc() - start;
+
+  // Save return pc and push entry frame
+  __ save_return_pc();
+  __ stop("aren't we pushing more than required ?"); // TODO: maybe push with z_native_abi + framesize_bytes ?
+  __ push_frame_abi160(framesize_bytes);
+
+
+    DEBUG_ONLY(__ block_comment("Frame Complete (gen_continuation_yield):"));
+    frame_complete = __ pc() - start;
+    address last_java_pc = __ pc();
+
+
+    // This nop must be exactly at the PC we push into the frame info.
+    // We use this nop for fast CodeBlob lookup, associate the OopMap
+    // with it right away.
+    __ post_call_nop();
+    OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
+    oop_maps->add_gc_map(last_java_pc - start, map);
+
+    // TODO: can we do better z_larl ?
+    __ stop("is z_larl correct?");
+    __ z_larl(Rtmp, last_java_pc);
+    __ set_last_Java_frame(Z_SP, Rtmp);
+    __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
+    __ reset_last_Java_frame();
+
+
+    NearLabel L_pinned;
+    __ z_cij(Z_RET, 0, Assembler::bcondNotEqual, L_pinned);
+
+    __ stop("how about we step through from here ?");
+    // Pop frames of continuation including this stub's frame
+    __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+    // The frame pushed by gen_continuation_enter is on top now again
+    continuation_enter_cleanup(masm);
+    // Pop frame and return
+    Label L_return;
+    __ bind(L_return);
+    __ pop_frame();
+    __ restore_return_pc();
+    __ z_br(Z_R14);
+
+    // yield failed - continuation is pinned
+    __ bind(L_pinned);
+    // handle pending exception thrown by freeze
+    __ load_and_test_long(Rtmp, Address(Z_thread, Thread::pending_exception_offset()));
+    __ z_bre(L_return); // return if no exception is pending
+    __ pop_frame();
+    __ restore_return_pc();
+    __ load_const_optimized(Z_R1_scratch, StubRoutines::forward_exception_entry());
+    __ z_br(Z_R1_scratch);
 }
 
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
