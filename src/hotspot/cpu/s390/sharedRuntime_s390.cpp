@@ -1734,6 +1734,14 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ z_br(Z_R1 /*handler address*/);
 }
 
+static void gen_continuation_yield(MacroAssembler* masm,
+                                   const VMRegPair* regs,
+                                   OopMapSet* oop_maps,
+                                   int& frame_complete,
+                                   int& framesize_words,
+                                   int& compiled_entry_offset) {
+  __ stop("gen_continuation_yield not yet finished");
+}
 
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
@@ -1759,7 +1767,12 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                              interpreted_entry_offset,
                              vep_offset);
     } else if(method->is_continuation_yield_intrinsic()) {
-      assert(false, "is_continuation_yield_intrinsic");
+      gen_continuation_yield(masm,
+                             in_regs,
+                             oop_maps,
+                             frame_complete,
+                             stack_slots,
+                             vep_offset);
     } else {
       guarantee(false, "Unknown Continuation native intrinsic");
     }
