@@ -302,8 +302,8 @@ inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
 }
 
 inline int frame::sender_sp_ret_address_offset() {
-  Unimplemented();
-  return 0;
+  // FIXME: the stack grows upwards, while memory grows downwards
+  return -(int)(_z_common_abi(return_pc) >> LogBytesPerWord);
 }
 
 inline void frame::set_unextended_sp(intptr_t* value) {
