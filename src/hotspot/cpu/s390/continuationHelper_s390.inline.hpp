@@ -40,8 +40,7 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
 }
 
 inline int ContinuationHelper::frame_align_words(int size) {
-  Unimplemented();
-  return 0;
+  return size & 1;
 }
 
 inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* sp) {
