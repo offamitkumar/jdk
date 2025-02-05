@@ -25,8 +25,11 @@
 #ifndef CPU_S390_CONTINUATIONENTRY_S390_HPP
 #define CPU_S390_CONTINUATIONENTRY_S390_HPP
 
+#include "runtime/frame.hpp"
+
 class ContinuationEntryPD {
-  // empty
+  // This is needed to position the ContinuationEntry at the unextended sp of the entry frame
+  frame::z_abi_160_base _abi;
 };
 
 #endif // CPU_S390_CONTINUATIONENTRY_S390_HPP

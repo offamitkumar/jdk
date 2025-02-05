@@ -1647,11 +1647,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // --- call Continuation.enter(Continuation c, boolean isContinue)
 
   // Make sure the call is patchable
-  __ load_const_optimized(Z_R1, (uintptr_t)&fubar);
-  __ z_agsi(0, Z_R1, 1);
-  __ stop("till here we look good");
-  __ stop("what about this alignment?");
-//  __ align(BytesPerWord, __ offset() + NativeCall::displacement_offset);
 
   // Emit stub for static call
   address stub = CompiledDirectCall::emit_to_interp_stub(masm, __ pc());
@@ -1677,7 +1672,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
   __ bind(L_thaw);
   ContinuationEntry::_thaw_call_pc_offset = __ pc() - start;
-  __ stop("this might not be correct way of calling?");
   __ load_const_optimized(Z_R1_scratch, StubRoutines::cont_thaw());
   __ call(Z_R1_scratch);
   oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
@@ -1690,7 +1684,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
   continuation_enter_cleanup(masm);
 
   // Pop frame and return
-  __ stop("maybe not correct below return ?");
   __ add2reg(Z_SP, framesize_words * wordSize);
   __ restore_return_pc();
   __ z_br(Z_R14);
@@ -1698,7 +1691,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // --- Exception handling path
   exception_offset = __ pc() - start;
 
-  __ stop("this exception handling path is correct?");
   // FIXME: taken from stubGenerator, grep for exception_handler_for_return_address
   __ z_lgr(Z_ARG2, Z_R14); // Copy exception pc into Z_ARG2.
   __ save_return_pc();
