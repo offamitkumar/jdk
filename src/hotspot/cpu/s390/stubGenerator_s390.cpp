@@ -3136,8 +3136,6 @@ class StubGenerator: public StubCodeGenerator {
 
     // TODO: Handle Valhalla return types. May require generating different return barriers.
 
-    __ stop("this code needs to be stepped through");
-    __ stop("preserve the return values for float/double & int/long");
     if (return_barrier) {
 
       // pushing one frame looked a bad idea here. Because we have to resize the current frame to make space for the
