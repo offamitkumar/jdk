@@ -508,13 +508,16 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   assert(_cont.chunk_invariant(), "");
   assert(!Interpreter::contains(_cont.entryPC()), "");
-#if !defined(PPC64) || defined(ZERO)
-  static const int doYield_stub_frame_size = frame::metadata_words;
-#else
+#if defined(PPC64)
   static const int doYield_stub_frame_size = frame::native_abi_reg_args_size >> LogBytesPerWord;
+#elif defined(S390)
+  static const int doYield_stub_frame_size = frame::z_abi_160_base_size >> LogBytesPerWord;
+#else
+  static const int doYield_stub_frame_size = frame::metadata_words;
 #endif
   // With preemption doYield() might not have been resolved yet
-  assert(_preempt || SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size, "");
+  assert(_preempt || SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size,
+      "_preempt = %d, cont_doYield_stub()->frame_size() = %d, doYield_stub_frame_size = %d", (_preempt ? 1 : 0), SharedRuntime::cont_doYield_stub()->frame_size(), doYield_stub_frame_size);
 
   if (preempt) {
     _last_frame = _thread->last_frame();
