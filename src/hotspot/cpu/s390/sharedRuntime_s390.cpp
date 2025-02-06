@@ -1735,9 +1735,11 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
   // Save return pc and push entry frame
   __ save_return_pc();
-  __ stop("aren't we pushing more than required ?"); // TODO: maybe push with z_native_abi + framesize_bytes ?
+  // TODO: maybe push with z_native_abi + framesize_bytes ?
   __ push_frame_abi160(framesize_bytes);
 
+  __ load_const_optimized(Z_R1, (uintptr_t)&fubar);
+  __ z_agsi(0, Z_R1, 1);
 
     DEBUG_ONLY(__ block_comment("Frame Complete (gen_continuation_yield):"));
     frame_complete = __ pc() - start;
@@ -1752,12 +1754,11 @@ static void gen_continuation_yield(MacroAssembler* masm,
     oop_maps->add_gc_map(last_java_pc - start, map);
 
     // TODO: can we do better z_larl ?
-    __ stop("is z_larl correct?");
     __ z_larl(Rtmp, last_java_pc);
     __ set_last_Java_frame(Z_SP, Rtmp);
     __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
     __ reset_last_Java_frame();
-
+    __ stop("freeze done, now time to step through");
 
     NearLabel L_pinned;
     __ z_cij(Z_RET, 0, Assembler::bcondNotEqual, L_pinned);
