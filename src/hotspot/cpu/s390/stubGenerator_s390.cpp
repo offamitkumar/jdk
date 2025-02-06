@@ -3167,8 +3167,8 @@ class StubGenerator: public StubCodeGenerator {
     __ asm_assert(/* check_equal=*/ true, FILE_AND_LINE ": incorrect Z_SP", 70);
 #endif
 
-    __ z_lghi(Z_ARG1, return_barrier ? 1 : 0);
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, Continuation::prepare_thaw), Z_thread, Z_ARG1);
+    __ z_lghi(Z_ARG2, return_barrier ? 1 : 0);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, Continuation::prepare_thaw), Z_thread, Z_ARG2);
 
 #ifdef ASSERT
     __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
