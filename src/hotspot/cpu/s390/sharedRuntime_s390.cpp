@@ -1641,8 +1641,8 @@ static void gen_continuation_enter(MacroAssembler* masm,
   fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
 
   // If isContinue, call to thaw. Otherwise, call Continuation.enter(Continuation c, boolean isContinue)
-  __ z_ltgr(reg_is_cont, reg_is_cont);
-  __ branch_optimized(Assembler::bcondNotZero, L_thaw);
+  __ load_and_test_int(reg_is_cont, reg_is_cont);
+  __ branch_optimized(Assembler::bcondNotEqual, L_thaw); // was reg_is_cont equal to 0 ?
 
   // --- call Continuation.enter(Continuation c, boolean isContinue)
 
