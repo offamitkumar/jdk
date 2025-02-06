@@ -3172,7 +3172,7 @@ class StubGenerator: public StubCodeGenerator {
 
 #ifdef ASSERT
     __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
-    __ asm_assert_eq(/* check equal = */ true, FILE_AND_LINE ": incorrect Z_SP after prepare_thaw", 48);
+    __ asm_assert(/* check equal = */ true, FILE_AND_LINE ": incorrect Z_SP after prepare_thaw", 48);
 #endif // ASSERT
 
     // Z_RET contains the size of the frames to thaw, 0 if overflow or no more frames
@@ -3191,8 +3191,8 @@ class StubGenerator: public StubCodeGenerator {
     __ z_nilf(Z_R1_scratch, exact_log2(frame::alignment_in_bytes));
     __ resize_frame( /* offset = */ Z_RET,/* fp = */ Z_R1, /* load_fp = */ true);
 
-    __ z_lghi(Z_ARG1, kind);
-    __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG1);
+    __ z_lghi(Z_ARG2, kind);
+    __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG2);
     __ z_lgr(Z_SP, Z_RET); // Z_RET contains the SP of the thawed top frame
 
     if (return_barrier) {
