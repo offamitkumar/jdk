@@ -3139,11 +3139,25 @@ class StubGenerator: public StubCodeGenerator {
     __ stop("this code needs to be stepped through");
     __ stop("preserve the return values for float/double & int/long");
     if (return_barrier) {
+
+      // pushing one frame looked a bad idea here. Because we have to resize the current frame to make space for the
+      // thawing the frames. So let's try to save the return values in saved registers.
+
+      // FIXME / TODO : We need to be sure that Z_F10 and Z_R10 are not holding something useful here.
+      __ z_lgr(Z_tmp_1, Z_RET);
+      __ z_ldr(Z_F8, Z_FRET);
+//      // TODO: is it necessary to push this frame ?
+//      __ save_return_pc();
+//      int frame_size = 2 /* Z_RET & Z_FRET */ * BytesPerWord + frame::z_abi_160_size;
+//      __ push_frame(frame_size);
+//      __ z_stg(Z_RET,  0 * BytesPerWord + frame::z_abi_160_size, Z_SP);
+//      __ z_stg(Z_FRET, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP);
+
       DEBUG_ONLY(__ z_lg(Z_R1_scratch, _z_common_abi(callers_sp), Z_SP);)
       __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
 #ifdef ASSERT
       __ z_cg(Z_R1_scratch, _z_common_abi(callers_sp), Z_SP);
-      __ asm_assert(/* check_equal=*/ true, FILE_AND_LINE ": callers sp is corrupt", 69);
+      __ asm_assert(/* check_equal=*/ true, FILE_AND_LINE ": callers sp is corrupt at thaw entry", 69);
 #endif
 
     }
@@ -3153,9 +3167,68 @@ class StubGenerator: public StubCodeGenerator {
     __ asm_assert(/* check_equal=*/ true, FILE_AND_LINE ": incorrect Z_SP", 70);
 #endif
 
-    //Unimplemented();
-    __ stop("generate_cont_thaw: not yet implemented");
-    return nullptr; // TODO return start here
+    __ z_lghi(Z_ARG1, return_barrier ? 1 : 0);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, Continuation::prepare_thaw), Z_thread, Z_ARG1);
+
+#ifdef ASSERT
+    __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+    __ asm_assert_eq(/* check equal = */ true, FILE_AND_LINE ": incorrect Z_SP after prepare_thaw", 48);
+#endif // ASSERT
+
+    // Z_RET contains the size of the frames to thaw, 0 if overflow or no more frames
+    NearLabel L_thaw_success;
+    __ load_and_test_long(Z_RET, Z_RET);
+    __ branch_optimized(Assembler::bcondNotEqual, L_thaw_success);
+    __ load_const_optimized(Z_R1_scratch, (SharedRuntime::throw_StackOverflowError_entry()));
+    __ call(Z_R1_scratch);
+    __ bind(L_thaw_success);
+
+    // Make room for the thawed frames and align the stack.
+    // TODO: Are we sure about z_abi_160_size ?
+    __ add64(Z_RET, frame::z_abi_160_size);
+    __ z_lcgr(Z_RET); // negate Z_RET value
+    // TODO: not much sure about this alignment being done here.
+    __ z_nilf(Z_R1_scratch, exact_log2(frame::alignment_in_bytes));
+    __ resize_frame( /* offset = */ Z_RET,/* fp = */ Z_R1, /* load_fp = */ true);
+
+    __ z_lghi(Z_ARG1, kind);
+    __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG1);
+    __ z_lgr(Z_SP, Z_RET); // Z_RET contains the SP of the thawed top frame
+
+    if (return_barrier) {
+      // we're now in the caller of the frame that returned to the barrier
+      __ stop("are you sure the value is preserved ? ");
+      // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
+      __ z_lgr(Z_RET, Z_tmp_1);
+      __ z_ldr(Z_FRET, Z_F8);
+    } else {
+      // we're now on the yield frame (which is in an address above us b/c rsp has been pushed down)
+      __ z_lghi(Z_RET, 0); // return 0 (success) from doYield
+    }
+
+    if (return_barrier_exception) {
+      // FIXME: register usages need to be checked again
+      __ z_lgr(Z_tmp_1, Z_RET); // save return value containing the exception oop
+      __ z_lg(Z_tmp_2, _z_common_abi(return_pc), Z_SP); // exception pc
+      __ save_return_pc();
+      __ push_frame_abi160(0);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), Z_thread, Z_ARG2);
+      // Copy handler's address.
+      __ z_lgr(Z_R1, Z_RET); // will jump Z_R1 at the end.
+      __ pop_frame();
+      __ restore_return_pc();
+      // Set up the arguments for the exception handler:
+      // - Z_ARG1: exception oop
+      // - Z_ARG2: exception pc
+      __ z_lgr(Z_ARG1, Z_tmp_1); // exception oop
+      __ z_lgr(Z_ARG2, Z_tmp_2); // exception pc
+    } else {
+      // We're "returning" into the topmost thawed frame; see Thaw::push_return_frame
+      __ z_lg(Z_R1_scratch, _z_common_abi(return_pc), Z_SP);
+    }
+    __ z_br(Z_R1_scratch);
+
+    return start;
   }
 
   address generate_cont_thaw() {
