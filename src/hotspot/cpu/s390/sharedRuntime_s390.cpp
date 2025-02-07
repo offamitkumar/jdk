@@ -1451,7 +1451,7 @@ static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj,
 //   None.
 //
 // Kills:
-//
+//   Z_R10 (when CheckJNICalls is enabled)
 //
 static void continuation_enter_cleanup(MacroAssembler* masm) {
   __ block_comment("continuation_enter_cleanup {");
@@ -1483,7 +1483,7 @@ static void continuation_enter_cleanup(MacroAssembler* masm) {
     Register ex_oop = Z_tmp_1;
     __ z_lgr(ex_oop, Z_R2);
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::log_jni_monitor_still_held));
-    // Restore potental return value
+    // Restore potential return value
     __ z_lgr(Z_R2, ex_oop);
 
     // For vthreads we have to explicitly zero the JNI monitor count of the carrier
@@ -1694,6 +1694,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   exception_offset = __ pc() - start;
 
   // FIXME: taken from stubGenerator, grep for exception_handler_for_return_address
+  __ stop("exception is there: sharedRuntime_s390.cpp");
   __ z_lgr(Z_ARG2, Z_R14); // Copy exception pc into Z_ARG2.
   __ save_return_pc();
   __ push_frame_abi160(0);
