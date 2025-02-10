@@ -38,7 +38,6 @@ inline frame FreezeBase::sender(const frame& f) {
   assert(FKind::is_instance(f), "");
 
   if (FKind::interpreted) {
-    assert(false, "interpreted frame found, step through");
     return frame(f.sender_sp(), f.sender_pc(), f.interpreter_frame_sender_sp());
   }
 
