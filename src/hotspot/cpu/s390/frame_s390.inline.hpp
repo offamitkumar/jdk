@@ -45,6 +45,12 @@ inline void frame::setup() {
   }
 
   if (_fp == nullptr) {
+    // TODO: is_heap_frame
+    // PPC is complaining that if the frame is on heap, then back link might
+    // be corrupted.
+    if (is_heap_frame()) {
+      assert(false, "frame_s390.inline.hpp, read above todo");
+    }
     _fp = (intptr_t*)own_abi()->callers_sp;
   }
 
@@ -86,6 +92,22 @@ inline frame::frame(intptr_t* sp, address pc, intptr_t* unextended_sp, intptr_t*
 }
 
 inline frame::frame(intptr_t* sp) : frame(sp, nullptr) {}
+
+inline frame::frame(intptr_t* sp, intptr_t* fp, address pc)
+  : _sp(sp), _pc(pc), _cb(nullptr), _oop_map(nullptr), _deopt_state(unknown),
+    _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(nullptr), _fp(fp) {
+  setup();
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map)
+  :_sp(sp), _pc(pc), _cb(cb), _oop_map(oop_map), _on_heap(false), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
+  setup();
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map, bool on_heap)
+  :_sp(sp), _pc(pc), _cb(cb), _oop_map(oop_map), _on_heap(on_heap), DEBUG_ONLY(_frame_index(-1) COMMA) _unextended_sp(unextended_sp), _fp(fp) {
+  setup();
+}
 
 // Generic constructor. Used by pns() in debug.cpp only
 #ifndef PRODUCT
