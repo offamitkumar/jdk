@@ -35,8 +35,21 @@ inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
 
 template<typename FKind>
 inline frame FreezeBase::sender(const frame& f) {
-  Unimplemented();
-  return frame();
+  assert(FKind::is_instance(f), "");
+
+  if (FKind::interpreted) {
+    assert(false, "interpreted frame found, step through");
+    return frame(f.sender_sp(), f.sender_pc(), f.interpreter_frame_sender_sp());
+  }
+
+  intptr_t* sender_sp = f.sender_sp();
+  address sender_pc = f.sender_pc();
+  assert(sender_sp != f.sp(), "must have changed");
+  int slot = 0;
+  CodeBlob* sender_cb = CodeCache::find_blob_and_oopmap(sender_pc, slot);
+  return sender_cb != nullptr
+         ? frame(sender_sp, sender_sp, nullptr, sender_pc, sender_cb, slot == -1 ? nullptr : sender_cb->oop_map_for_slot(slot, sender_pc))
+         : frame(sender_sp, sender_pc, sender_sp);
 }
 
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
