@@ -120,8 +120,9 @@ inline intptr_t* ContinuationHelper::InterpretedFrame::frame_bottom(const frame&
 }
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f, int callee_argsize, bool callee_interpreted) {
-  Unimplemented();
-  return nullptr;
+  intptr_t* pseudo_unextended_sp = f.interpreter_frame_esp() + 1 - frame::metadata_words_at_top;
+  // TODO: callee_argsize is inclusion of metadata ?
+  return pseudo_unextended_sp + (callee_interpreted ? callee_argsize : 0);
 }
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::callers_sp(const frame& f) {

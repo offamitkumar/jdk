@@ -384,4 +384,8 @@ void frame::update_map_with_saved_link(RegisterMapT* map, intptr_t** link_addr) 
   Unimplemented();
 }
 
+inline intptr_t* frame::interpreter_frame_esp() const {
+  return (intptr_t*) at(_z_ijava_idx(esp));
+}
+
 #endif // CPU_S390_FRAME_S390_INLINE_HPP
