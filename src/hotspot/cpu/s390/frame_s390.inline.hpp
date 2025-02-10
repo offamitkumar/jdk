@@ -320,7 +320,10 @@ inline int frame::compiled_frame_stack_argsize() const {
 }
 
 inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
-  Unimplemented();
+  assert(mask != nullptr, "");
+  Method* m = interpreter_frame_method();
+  int   bci = interpreter_frame_bci();
+  m->mask_for(bci, mask); // OopMapCache::compute_one_oop_map(m, bci, mask);
 }
 
 inline int frame::sender_sp_ret_address_offset() {
