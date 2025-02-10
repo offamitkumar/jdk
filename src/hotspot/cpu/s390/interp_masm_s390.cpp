@@ -962,6 +962,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   verify_oop(Z_tos, state);
 
   pop_interpreter_frame(return_pc, Z_ARG2, Z_ARG3);
+  pop_cont_fastpath();
   BLOCK_COMMENT("} remove_activation");
 }
 

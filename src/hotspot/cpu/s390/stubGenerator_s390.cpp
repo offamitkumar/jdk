@@ -329,6 +329,8 @@ class StubGenerator: public StubCodeGenerator {
       // Pop frame. Done here to minimize stalls.
       __ pop_frame();
 
+      __ pop_cont_fastpath();
+
       // Reload some volatile registers which we've spilled before the call
       // to frame manager / native entry.
       // Access all locals via frame pointer, because we know nothing about
