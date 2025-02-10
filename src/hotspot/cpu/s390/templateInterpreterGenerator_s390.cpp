@@ -715,7 +715,9 @@ address TemplateInterpreterGenerator::generate_safept_entry_for (TosState state,
                                                                 address runtime_entry) {
   address entry = __ pc();
   __ push(state);
+  __ push_cont_fastpath();
   __ call_VM(noreg, runtime_entry);
+  __ pop_cont_fastpath();
   __ dispatch_via(vtos, Interpreter::_normal_table.table_for (vtos));
   return entry;
 }
@@ -2139,6 +2141,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                    JavaThread::popframe_force_deopt_reexecution_bit,
                    Z_tmp_1, false);
 
+    __ pop_cont_fastpath();
     // Continue in deoptimization handler.
     __ z_br(Z_R14);
 
@@ -2154,6 +2157,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                        false,  // install_monitor_exception
                        false); // notify_jvmdi
   __ z_lg(Z_fp, _z_abi(callers_sp), Z_SP); // Restore frame pointer.
+  __ pop_cont_fastpath();
   __ restore_bcp();
   __ restore_locals();
   __ restore_esp();
@@ -2219,6 +2223,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // Remove the activation (without doing throws on illegalMonitorExceptions).
   __ remove_activation(vtos, noreg/*ret.pc already loaded*/, false/*throw exc*/, true/*install exc*/, false/*notify jvmti*/);
   __ z_lg(Z_fp, _z_abi(callers_sp), Z_SP); // Restore frame pointer.
+  __ pop_cont_fastpath();
 
   __ get_vm_result(Z_ARG1);     // Restore exception.
   __ verify_oop(Z_ARG1);

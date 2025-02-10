@@ -6983,9 +6983,7 @@ void MacroAssembler::pop_cont_fastpath() {
   z_cg(Z_SP, Address(Z_thread, JavaThread::cont_fastpath_offset()));
   // TODO, FIXME: ppc uses same condition here. ble (branch on less or equal).
   // but it's "only low" for x86.
-  stop("are we sure about z_brl ?");
   z_brnh(done);
-  stop("verify z_mvghi will wipe out");
   z_mvghi(Address(Z_thread, JavaThread::cont_fastpath_offset()), 0);
   bind(done);
   BLOCK_COMMENT("} pop_cont_fastpath");
