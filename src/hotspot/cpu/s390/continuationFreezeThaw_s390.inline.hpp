@@ -58,7 +58,7 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
 }
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
-  Unimplemented();
+  // nothing to do (TODO: why ? will it be same for s390)
 }
 
 inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
