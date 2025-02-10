@@ -331,6 +331,10 @@
 #define _z_ijava_state_neg(_component) \
          (int) (-frame::z_ijava_state_size + offset_of(frame::z_ijava_state, _component))
 
+// Frame slot index relative to fp
+#define _z_ijava_idx(_component) \
+        (_z_ijava_state_neg(_component) >> LogBytesPerWord)
+
   // ENTRY_FRAME
 
   struct z_entry_frame_locals {
@@ -504,6 +508,7 @@
   inline intptr_t** interpreter_frame_esp_addr() const;
 
  public:
+  inline intptr_t* interpreter_frame_esp() const;
   inline intptr_t* interpreter_frame_top_frame_sp();
   inline void interpreter_frame_set_tos_address(intptr_t* x);
   inline void interpreter_frame_set_top_frame_sp(intptr_t* top_frame_sp);
@@ -549,9 +554,10 @@
     //
     // Normal return address is the instruction following the branch.
     pc_return_offset         = 0,
-    metadata_words           = 0,
+    // size, in words, of frame metadata (e.g. pc and link)
+    metadata_words           = sizeof(z_java_abi) >> LogBytesPerWord,
     metadata_words_at_bottom = 0,
-    metadata_words_at_top    = 0,
+    metadata_words_at_top    = sizeof(z_java_abi) >> LogBytesPerWord,
     frame_alignment          = 8,
     // size, in words, of maximum shift in frame position due to alignment
     align_wiggle             =  0
