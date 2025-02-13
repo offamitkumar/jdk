@@ -39,8 +39,13 @@ inline bool StackChunkFrameStream<frame_kind>::is_in_frame(void* p0) const {
 
 template <ChunkFrames frame_kind>
 inline frame StackChunkFrameStream<frame_kind>::to_frame() const {
-  Unimplemented();
-  return frame();
+  if (is_done()) {
+    return frame(_sp, _sp, nullptr, nullptr, nullptr, nullptr, true);
+  } else {
+    // TODO: need to verify this. I don't know whether it's true for s390x or not.
+    // Compiled frames on heap don't have back links. See FreezeBase::patch_pd() and frame::setup().
+    return frame(sp(), unextended_sp(), Interpreter::contains(pc()) ? fp() : nullptr, pc(), cb(), _oopmap, true);
+  }
 }
 
 template <ChunkFrames frame_kind>
