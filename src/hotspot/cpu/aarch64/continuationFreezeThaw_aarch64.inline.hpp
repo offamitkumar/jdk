@@ -123,7 +123,7 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
   assert((f.at(frame::interpreter_frame_last_sp_offset) != 0) || (f.unextended_sp() == f.sp()), "");
-  intptr_t* real_unextended_sp = (intptr_t*)f.at_relative_or_null(frame::interpreter_frame_last_sp_offset);
+  intptr_t* real_unextended_sp = (intptr_t*).at_relative_or_null(frame::interpreter_frame_last_sp_offset);
   if (real_unextended_sp != nullptr) {
     f.set_unextended_sp(real_unextended_sp); // can be null at a safepoint
   }
