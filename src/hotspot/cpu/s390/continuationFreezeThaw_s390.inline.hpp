@@ -52,8 +52,13 @@ inline frame FreezeBase::sender(const frame& f) {
 }
 
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
-  Unimplemented();
-  return frame();
+  assert(FKind::is_instance(f), "");
+  intptr_t *sp, *fp;
+  if (FKind::interpreted) {
+    assert(false, "if part: continuationFreezeThaw_s390.inline.hpp");
+  } else {
+    assert(false, "else part: continuationFreezeThaw_s390.inline.hpp");
+  }
 }
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
