@@ -62,7 +62,8 @@ inline void ContinuationHelper::push_pd(const frame& f) {
 }
 
 inline void ContinuationHelper::set_anchor_to_entry_pd(JavaFrameAnchor* anchor, ContinuationEntry* cont) {
-  Unimplemented();
+  // TODO: are we sure about this ? Why ?
+  // nothing to do
 }
 
 inline void ContinuationHelper::set_anchor_pd(JavaFrameAnchor* anchor, intptr_t* sp) {
