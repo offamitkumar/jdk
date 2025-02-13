@@ -44,18 +44,22 @@ inline void frame::setup() {
     _cb = CodeCache::find_blob(_pc);
   }
 
-  if (_fp == nullptr) {
-    // TODO: is_heap_frame
-    // PPC is complaining that if the frame is on heap, then back link might
-    // be corrupted.
-    if (is_heap_frame()) {
-      assert(false, "frame_s390.inline.hpp, read above todo");
-    }
-    _fp = (intptr_t*)own_abi()->callers_sp;
-  }
-
   if (_unextended_sp == nullptr) {
     _unextended_sp = _sp;
+  }
+
+  if (_fp == nullptr) {
+    // TODO: https://bugs.openjdk.org/browse/JDK-8338383
+    // The back link for compiled frames on the heap is not valid
+    if (is_heap_frame()) {
+      // fp for interpreted frames should have been derelativized and passed to the constructor
+      assert(is_compiled_frame(), "");
+      // TODO: I am not sure about back link part for this comment.
+      // The back link for compiled frames on the heap is invalid.
+      _fp = _unextended_sp + _cb->frame_size();
+    } else {
+      _fp = (intptr_t *) own_abi()->callers_sp;
+    }
   }
 
   // When thawing continuation frames the _unextended_sp passed to the constructor is not aligend
@@ -76,6 +80,7 @@ inline void frame::setup() {
     }
   }
 
+  // TODO: should we improve below assert of just remove it ?
   // assert(_on_heap || is_aligned(_sp, frame::frame_alignment), "SP must be 8-byte aligned");
 }
 
