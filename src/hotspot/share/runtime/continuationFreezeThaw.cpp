@@ -494,7 +494,8 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   _bottom_address = _cont.entrySP() - _cont.entry_frame_extension();
 #ifdef _LP64
-  if (((intptr_t)_bottom_address & 0xf) != 0) {
+  // on s390, alignment is of 8 byte instead of 16 byte like other architectures. So for us 0xf check fails and decrements _bottom_address which results in assert(FKind::frame_bottom(f) <= _bottom_address) failure.
+  if (((intptr_t)_bottom_address & NOT_S390(0xf) S390_ONLY(0x7)) != 0) {
     _bottom_address--;
   }
   assert(is_aligned(_bottom_address, frame::frame_alignment), "");
