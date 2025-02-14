@@ -110,6 +110,38 @@ inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
   Unimplemented();
 }
 
+
+// TODO: finish it.
+//                   |                              |
+//                   |                              |
+//                   |                              |
+//                   |                              |
+//                   |==============================|
+//                   |    L0                        |
+//                   |    .                         |
+//                   |    .                         |
+//                   |    .                         |
+//                   |    Ln                        | <- ijava_state.esp (1 slot below Pn)
+//                   |                              |
+//                   |------------------------------|
+//                   |     SP alignment (opt.)      |
+//                   |------------------------------|
+//                   |      Minimal ABI             |
+//                   |   (frame:z_java_abi)         |
+//                   | which is derived from        |
+//                   | z_common_abi and only holds  |
+//                   | return_pc and callers_sp     |
+//                   |                              |
+//                   | 2 Words                      |
+//                   | Caller's SP                  | <- SP of f / FP of f's callee
+//                   |==============================|
+//                   |      z_ijava_state           |
+//                   |        (metadata)            |          Frame of f's callee
+//                   |                              |
+//                   |                              |
+//                          |  Growth  |
+//                          v          v
+
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f, InterpreterOopMap* mask) { // inclusive; this will be copied with the frame
   int expression_stack_sz = expression_stack_size(f, mask);
   intptr_t* res = (intptr_t*)f.interpreter_frame_monitor_end() - expression_stack_sz;
