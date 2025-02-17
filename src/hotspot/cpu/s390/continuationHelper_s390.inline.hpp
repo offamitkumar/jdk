@@ -155,8 +155,7 @@ inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f,
 }
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_bottom(const frame& f) { // exclusive; this will not be copied with the frame
-  // TODO: with best of my knowledge and ppc reference, re-check
-  return (intptr_t*)f.at(_z_ijava_idx(locals)) + 1; // exclusive; this will not be copied with the frame
+  return (intptr_t*)f.at_relative(_z_ijava_idx(locals)) + 1; // exclusive; this will not be copied with the frame
 }
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f, int callee_argsize, bool callee_interpreted) {
