@@ -84,7 +84,7 @@
 
 #define RegisterSaver_LiveVReg(regname) \
   { RegisterSaver::v_reg,      regname->encoding(), regname->as_VMReg() }
-long fubar = 0;
+
 static const RegisterSaver::LiveRegType RegisterSaver_LiveRegs[] = {
   // Live registers which get spilled to the stack. Register positions
   // in this array correspond directly to the stack layout.
@@ -1738,9 +1738,6 @@ static void gen_continuation_yield(MacroAssembler* masm,
   __ save_return_pc();
   // TODO: maybe push with z_native_abi + framesize_bytes ?
   __ push_frame_abi160(framesize_bytes);
-
-  __ load_const_optimized(Z_R1, (uintptr_t)&fubar);
-  __ z_agsi(0, Z_R1, 1);
 
     DEBUG_ONLY(__ block_comment("Frame Complete (gen_continuation_yield):"));
     frame_complete = __ pc() - start;
