@@ -331,10 +331,6 @@
 #define _z_ijava_state_neg(_component) \
          (int) (-frame::z_ijava_state_size + offset_of(frame::z_ijava_state, _component))
 
-// Frame slot index relative to fp
-#define _z_ijava_idx(_component) \
-        (_z_ijava_state_neg(_component) >> LogBytesPerWord)
-
   // ENTRY_FRAME
 
   struct z_entry_frame_locals {
