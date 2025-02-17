@@ -1903,10 +1903,10 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, LoomDeoptAfterThaw, false,                                  \
           "Deopt stack after thaw")                                         \
                                                                             \
-  develop(bool, LoomVerifyAfterThaw, false,                                 \
+  develop(bool, LoomVerifyAfterThaw, true,                                 \
           "Verify stack after thaw")                                        \
                                                                             \
-  develop(bool, VerifyContinuations, false,                                 \
+  develop(bool, VerifyContinuations, true,                                 \
           "Verify continuation consistency")                                \
                                                                             \
   develop(bool, UseContinuationFastPath, true,                              \

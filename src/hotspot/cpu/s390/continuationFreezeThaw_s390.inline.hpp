@@ -28,7 +28,7 @@
 #include "oops/stackChunkOop.inline.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/frame.inline.hpp"
-
+long fubar1 = 0;
 inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
   Unimplemented();
 }
@@ -52,13 +52,22 @@ inline frame FreezeBase::sender(const frame& f) {
 }
 
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
+  fubar1++;
   assert(FKind::is_instance(f), "");
   intptr_t *sp, *fp;
   if (FKind::interpreted) {
+    intptr_t locals_offset = *f.addr_at(_z_ijava_idx(locals));
+
+    // TODO: update this comment ?
+    // If the caller.is_empty(), i.e. we're freezing into an empty chunk, then we set
+    // the chunk's argsize in finalize_freeze and make room for it above the unextended_sp
+    // See also comment on StackChunkFrameStream<frame_kind>::interpreter_frame_size()
+
     assert(false, "if part: continuationFreezeThaw_s390.inline.hpp");
   } else {
     assert(false, "else part: continuationFreezeThaw_s390.inline.hpp");
   }
+  return frame();
 }
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
