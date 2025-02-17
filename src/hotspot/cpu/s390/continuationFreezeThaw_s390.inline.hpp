@@ -63,7 +63,31 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
     // the chunk's argsize in finalize_freeze and make room for it above the unextended_sp
     // See also comment on StackChunkFrameStream<frame_kind>::interpreter_frame_size()
 
-    assert(false, "if part: continuationFreezeThaw_s390.inline.hpp");
+    int overlap =
+      (caller.is_interpreted_frame() || caller.is_empty())
+      ? ContinuationHelper::InterpretedFrame::stack_argsize(f) + frame::metadata_words_at_top
+      : 0;
+
+    // TODO: this works but I don't know why, I don't know what does it even do ?
+    fp = caller.unextended_sp() - 1 - locals_offset + overlap;
+
+    // esp points one slot below the last argument
+    intptr_t* x86_64_like_unextended_sp = f.interpreter_frame_esp() + 1 - frame::metadata_words_at_top;
+
+    sp = fp - (f.fp() - x86_64_like_unextended_sp);
+    assert (sp <= fp && (fp <= caller.unextended_sp() || caller.is_interpreted_frame()),
+        "sp=" PTR_FORMAT " fp=" PTR_FORMAT " caller.unextended_sp()=" PTR_FORMAT " caller.is_interpreted_frame()=%d",
+        p2i(sp), p2i(fp), p2i(caller.unextended_sp()), caller.is_interpreted_frame());
+    caller.set_sp(fp);
+    caller.set_sp(fp);
+
+    assert(_cont.tail()->is_in_chunk(sp), "");
+
+    frame hf(sp, sp, fp, f.pc(), nullptr, nullptr, true /* on_heap */);
+    // frame_top() and frame_bottom() read these before relativize_interpreted_frame_metadata() is called
+    *hf.addr_at(_z_ijava_idx(locals)) = locals_offset;
+    *hf.addr_at(_z_ijava_idx(esp))    = f.interpreter_frame_esp() - f.fp();
+    return hf;
   } else {
     assert(false, "else part: continuationFreezeThaw_s390.inline.hpp");
   }
