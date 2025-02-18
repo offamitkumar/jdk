@@ -36,8 +36,7 @@ inline frame ContinuationEntry::to_frame() const {
 }
 
 inline intptr_t* ContinuationEntry::entry_fp() const {
-  Unimplemented();
-  return nullptr;
+  return (intptr_t*)((address)this + size());
 }
 
 inline void ContinuationEntry::update_register_map(RegisterMap* map) const {

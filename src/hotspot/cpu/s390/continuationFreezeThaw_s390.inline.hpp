@@ -185,17 +185,62 @@ inline void FreezeBase::patch_stack_pd(intptr_t* frame_sp, intptr_t* heap_sp) {
 }
 
 inline frame ThawBase::new_entry_frame() {
-  Unimplemented();
-  return frame();
+  intptr_t* sp = _cont.entrySP();
+  return frame(sp, _cont.entryPC(), sp, _cont.entryFP());
 }
 
 template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame& caller, bool bottom) {
-  Unimplemented();
+  assert(FKind::is_instance(hf), "");
+
+  assert(is_aligned(caller.fp(), frame::frame_alignment), PTR_FORMAT, p2i(caller.fp()));
+  // caller.sp() can be unaligned. This is fixed below.
+  if (FKind::interpreted) {
+    // TODO: needs to be checked below comment validity.
+    // Note: we have to overlap with the caller, at least if it is interpreted, to match the
+    // max_thawing_size calculation during freeze. See also comment above.
+    intptr_t* heap_sp = hf.unextended_sp();
+    const int fsize = ContinuationHelper::InterpretedFrame::frame_bottom(hf) - hf.unextended_sp();
+    const int overlap = !caller.is_interpreted_frame() ? 0
+                        : ContinuationHelper::InterpretedFrame::stack_argsize(hf) + frame::metadata_words_at_top;
+    intptr_t* frame_sp = caller.unextended_sp() + overlap - fsize;
+    intptr_t* fp = frame_sp + (hf.fp() - heap_sp);
+    // align fp
+    int padding = fp - align_down(fp, frame::frame_alignment);
+    fp -= padding;
+    // alignment of sp is done by callee or in finish_thaw()
+    frame_sp -= padding;
+
+    // TODO: really ??
+    // On s390x esp points to the next free slot on the expression stack and sp + metadata points to the last parameter
+    DEBUG_ONLY(intptr_t* esp = fp + *hf.addr_at(_z_ijava_idx(esp));)
+    assert(frame_sp + frame::metadata_words_at_top == esp+1, " frame_sp=" PTR_FORMAT " esp=" PTR_FORMAT, p2i(frame_sp), p2i(esp));
+    caller.set_sp(fp);
+    frame f(frame_sp, hf.pc(), frame_sp, fp);
+    // we need to set the locals so that the caller of new_stack_frame() can call
+    // ContinuationHelper::InterpretedFrame::frame_bottom
+    // copy relativized locals from the heap frame
+    *f.addr_at(_z_ijava_idx(locals)) = *hf.addr_at(_z_ijava_idx(locals));
+
+    return f;
+  } else { 
+    assert(false, "else part" FILE_AND_LINE);
+  }
   return frame();
 }
 
+static inline void derelativize_one(intptr_t* const fp, int offset) {
+  intptr_t* addr = fp + offset;
+  *addr = (intptr_t)(fp + *addr);
+}
+
 inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, const frame& f) {
-  Unimplemented();
+  intptr_t* vfp = f.fp();
+  // TODO: 1. https://bugs.openjdk.org/browse/JDK-8308984
+  // TODO: 2. https://bugs.openjdk.org/browse/JDK-8315966
+  // TODO: 3. https://bugs.openjdk.org/browse/JDK-8316523
+  derelativize_one(vfp, _z_ijava_idx(monitors));
+  derelativize_one(vfp, _z_ijava_idx(esp));
+  derelativize_one(vfp, _z_ijava_idx(top_frame_sp));
 }
 
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
@@ -204,7 +249,8 @@ inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& cal
 }
 
 inline void ThawBase::patch_pd(frame& f, const frame& caller) {
-  Unimplemented();
+  // TODO: 1. https://bugs.openjdk.org/browse/JDK-8299375
+  patch_callee_link(caller, caller.fp());
 }
 
 inline void ThawBase::patch_pd(frame& f, intptr_t* caller_sp) {
