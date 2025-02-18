@@ -80,7 +80,14 @@ inline intptr_t* StackChunkFrameStream<frame_kind>::unextended_sp_for_interprete
 
 template <ChunkFrames frame_kind>
 inline void StackChunkFrameStream<frame_kind>::next_for_interpreter_frame() {
-  Unimplemented();
+  assert_is_interpreted_and_frame_type_mixed();
+  if (derelativize(_z_ijava_idx(locals)) + 1 >= _end) {
+    _unextended_sp = _end;
+    _sp = _end;
+  } else {
+    _unextended_sp = derelativize(_z_ijava_idx(sender_sp));
+    _sp = this->fp();
+  }
 }
 
 template <ChunkFrames frame_kind>
@@ -91,14 +98,24 @@ inline int StackChunkFrameStream<frame_kind>::interpreter_frame_size() const {
   return (int)(bottom - top);
 }
 
+// Size of stack args in words (P0..Pn above). Only valid if the caller is also
+// interpreted. The function is also called if the caller is compiled but the
+// result is not used in that case (same on x86).
+// See also setting of sender_sp in ContinuationHelper::InterpretedFrame::patch_sender_sp()
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_stack_argsize() const {
-  Unimplemented();
-  return 0;
+  assert_is_interpreted_and_frame_type_mixed();
+  frame::z_ijava_state* state = (frame::z_ijava_state*)((uintptr_t)fp() - frame::z_ijava_state_size);
+  int diff = (int)(state->locals - (state->sender_sp + frame::metadata_words_at_top) + 1);
+  assert(diff == -frame::metadata_words_at_top || ((Method*)state->method)->size_of_parameters() == diff,
+      "size_of_parameters(): %d diff: %d sp: " PTR_FORMAT " fp:" PTR_FORMAT,
+      ((Method*)state->method)->size_of_parameters(), diff, p2i(sp()), p2i(fp()));
+  return diff;
 }
 
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_num_oops() const {
+  Unimplemented();
   assert_is_interpreted_and_frame_type_mixed();
   ResourceMark rm;
   InterpreterOopMap mask;

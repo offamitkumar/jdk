@@ -58,7 +58,7 @@ inline void ContinuationHelper::update_register_map_with_callee(const frame& f, 
 }
 
 inline void ContinuationHelper::push_pd(const frame& f) {
-  Unimplemented();
+  f.own_abi()->callers_sp = (uint64_t)f.fp();
 }
 
 inline void ContinuationHelper::set_anchor_to_entry_pd(JavaFrameAnchor* anchor, ContinuationEntry* cont) {
@@ -67,13 +67,18 @@ inline void ContinuationHelper::set_anchor_to_entry_pd(JavaFrameAnchor* anchor, 
 }
 
 inline void ContinuationHelper::set_anchor_pd(JavaFrameAnchor* anchor, intptr_t* sp) {
-  Unimplemented();
+  // TODO: are we sure about this ? Why ?
+  // nothing to do
 }
 
 #ifdef ASSERT
 inline bool ContinuationHelper::Frame::assert_frame_laid_out(frame f) {
-  Unimplemented();
-  return false;
+  intptr_t* sp = f.sp();
+  address pc = *(address*)(sp - frame::sender_sp_ret_address_offset());
+  intptr_t* fp = (intptr_t*)f.own_abi()->callers_sp;
+  assert(f.raw_pc() == pc, "f.ra_pc: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.raw_pc()), p2i(pc));
+  assert(f.fp() == fp, "f.fp: " INTPTR_FORMAT " actual: " INTPTR_FORMAT, p2i(f.fp()), p2i(fp));
+  return f.raw_pc() == pc && f.fp() == fp;
 }
 #endif
 
@@ -88,8 +93,7 @@ static inline intptr_t* real_fp(const frame& f) {
 }
 
 inline address* ContinuationHelper::InterpretedFrame::return_pc_address(const frame& f) {
-  Unimplemented();
-  return nullptr;
+  return (address*)&f.callers_abi()->return_pc;
 }
 
 inline void ContinuationHelper::InterpretedFrame::patch_sender_sp(frame& f, const frame& caller) {
