@@ -50,8 +50,8 @@ inline frame StackChunkFrameStream<frame_kind>::to_frame() const {
 
 template <ChunkFrames frame_kind>
 inline address StackChunkFrameStream<frame_kind>::get_pc() const {
-  Unimplemented();
-  return nullptr;
+  assert(!is_done(), "");
+  return (address)((frame::z_common_abi*) _sp)->return_pc;
 }
 
 template <ChunkFrames frame_kind>
