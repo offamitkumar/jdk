@@ -62,14 +62,16 @@ inline intptr_t* StackChunkFrameStream<frame_kind>::fp() const {
 
 template <ChunkFrames frame_kind>
 inline intptr_t* StackChunkFrameStream<frame_kind>::derelativize(int offset) const {
-  Unimplemented();
-  return nullptr;
+  intptr_t* fp = this->fp();
+  assert(fp != nullptr, "");
+  return fp + fp[offset];
 }
 
 template <ChunkFrames frame_kind>
 inline intptr_t* StackChunkFrameStream<frame_kind>::unextended_sp_for_interpreter_frame() const {
-  Unimplemented();
-  return nullptr;
+  // TODO: comment on return is valid ?
+  assert_is_interpreted_and_frame_type_mixed();
+  return derelativize(_z_ijava_idx(esp)) + 1 - frame::metadata_words; // On s390 esp points to the next free slot
 }
 
 template <ChunkFrames frame_kind>
