@@ -102,8 +102,35 @@ inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
   Unimplemented();
 }
 
+static inline void relativize_one(intptr_t* const vfp, intptr_t* const hfp, int offset) {
+  assert(*(hfp + offset) == *(vfp + offset), "");
+  intptr_t* addr = hfp + offset;
+  intptr_t value = *(intptr_t**)addr - vfp;
+  *addr = value;
+}
+
 inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, const frame& hf) {
-  Unimplemented();
+  // TODO:
+  // 1. https://bugs.openjdk.org/browse/JDK-8300197
+  // 2. https://bugs.openjdk.org/browse/JDK-8308984
+  // 3. https://bugs.openjdk.org/browse/JDK-8315966
+  // 4. https://bugs.openjdk.org/browse/JDK-8316523
+  intptr_t* vfp = f.fp();
+  intptr_t* hfp = hf.fp();
+  assert(f.fp() > (intptr_t*)f.interpreter_frame_esp(), "");
+
+  // There is alignment padding between vfp and f's locals array in the original
+  // frame, therefore we cannot use it to relativize the locals pointer.
+  // This line can be changed into an assert when we have fixed the "frame padding problem", see JDK-8300197
+  *hf.addr_at(_z_ijava_idx(locals)) = frame::metadata_words + f.interpreter_frame_method()->max_locals() - 1;
+  relativize_one(vfp, hfp, _z_ijava_idx(monitors));
+  relativize_one(vfp, hfp, _z_ijava_idx(esp));
+  relativize_one(vfp, hfp, _z_ijava_idx(top_frame_sp));
+
+  // hfp == hf.sp() + (f.fp() - f.sp()) is not true on ppc because the stack frame has room for
+  // the maximal expression stack and the expression stack in the heap frame is trimmed.
+  assert(hf.fp() == hf.interpreter_frame_esp() + (f.fp() - f.interpreter_frame_esp()), "");
+  assert(hf.fp()                 <= (intptr_t*)hf.at(_z_ijava_idx(locals)), "");
 }
 
 inline void FreezeBase::patch_pd(frame& hf, const frame& caller) {
