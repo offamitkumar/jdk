@@ -186,7 +186,8 @@ bool frame::is_interpreted_frame() const {
 void frame::interpreter_frame_set_locals(intptr_t* locs)  {
   assert(is_interpreted_frame(), "interpreted frame expected");
   // set relativized locals
-  *addr_at(_z_ijava_idx(locals)) = (intptr_t) (locs - fp());
+  int index = z_ijava_idx(&z_ijava_state::locals);
+  *addr_at(index) = (intptr_t) (locs - fp());
 }
 
 // sender_sp

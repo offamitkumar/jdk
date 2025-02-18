@@ -334,6 +334,10 @@
 #define _z_ijava_idx(_component) \
         (_z_ijava_state_neg(_component) >> LogBytesPerWord)
 
+constexpr int z_ijava_idx(uint64_t z_ijava_state::*component) {
+    return ((int)(-frame::z_ijava_state_size + (size_t)(&(((z_ijava_state*)0)->*component)))) >> LogBytesPerWord;
+}
+
   // ENTRY_FRAME
 
   struct z_entry_frame_locals {
