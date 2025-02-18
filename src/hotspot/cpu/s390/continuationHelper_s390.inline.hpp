@@ -107,7 +107,7 @@ inline address ContinuationHelper::Frame::real_pc(const frame& f) {
 }
 
 inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
-  Unimplemented();
+  f.own_abi()->return_pc = (uint64_t)pc;
 }
 
 
