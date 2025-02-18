@@ -93,7 +93,17 @@ inline address* ContinuationHelper::InterpretedFrame::return_pc_address(const fr
 }
 
 inline void ContinuationHelper::InterpretedFrame::patch_sender_sp(frame& f, const frame& caller) {
-  Unimplemented();
+  intptr_t* sp = caller.unextended_sp();
+  if (!f.is_heap_frame() && caller.is_interpreted_frame()) {
+    // TODO: how about we make a diagram ?
+    // See diagram "Interpreter Calling Procedure on PPC" at the end of continuationFreezeThaw_ppc.inline.hpp
+    // 1. https://bugs.openjdk.org/browse/JDK-8308984
+    sp = (intptr_t*)caller.at(_z_ijava_idx(top_frame_sp));
+  }
+  assert(f.is_interpreted_frame(), "");
+  assert(f.is_heap_frame() || is_aligned(sp, frame::alignment_in_bytes), "");
+  intptr_t* la = f.addr_at(_z_ijava_idx(sender_sp));
+  *la = f.is_heap_frame() ? (intptr_t)(sp - f.fp()) : (intptr_t)sp;
 }
 
 inline address* ContinuationHelper::Frame::return_pc_address(const frame& f) {

@@ -40,7 +40,19 @@ inline void patch_callee_link_relative(const frame& f, intptr_t* fp) {
 }
 
 inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
-  Unimplemented();
+  stackChunkOop chunk = _cont.tail();
+  assert(chunk->is_in_chunk(hf.sp()), "hf.sp()=" PTR_FORMAT, p2i(hf.sp()));
+
+  hf.own_abi()->return_pc = (uint64_t)hf.pc();
+  if (hf.is_interpreted_frame()) {
+    patch_callee_link_relative(hf, hf.fp());
+  }
+#ifdef ASSERT
+  else {
+    // See also FreezeBase::patch_pd()
+    patch_callee_link(hf, (intptr_t*)badAddress);
+  }
+#endif
 }
 
 template<typename FKind>
