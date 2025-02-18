@@ -28,7 +28,17 @@
 #include "oops/stackChunkOop.inline.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/frame.inline.hpp"
-long fubar1 = 0;
+
+inline void patch_callee_link(const frame& f, intptr_t* fp) {
+  *ContinuationHelper::Frame::callee_link_address(f) = fp;
+}
+
+inline void patch_callee_link_relative(const frame& f, intptr_t* fp) {
+  intptr_t* la = (intptr_t*)ContinuationHelper::Frame::callee_link_address(f);
+  intptr_t new_value = fp - la;
+  *la = new_value;
+}
+
 inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
   Unimplemented();
 }
@@ -52,7 +62,6 @@ inline frame FreezeBase::sender(const frame& f) {
 }
 
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
-  fubar1++;
   assert(FKind::is_instance(f), "");
   intptr_t *sp, *fp;
   if (FKind::interpreted) {
@@ -134,7 +143,29 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
 }
 
 inline void FreezeBase::patch_pd(frame& hf, const frame& caller) {
-  Unimplemented();
+  if (caller.is_interpreted_frame()) {
+    assert(!caller.is_empty(), "");
+    patch_callee_link_relative(caller, caller.fp());
+  }
+#ifdef ASSERT
+  else {
+    // TODO: is below comment valid ?
+
+    // For compiled frames the back link is actually redundant. It gets computed
+    // as unextended_sp + frame_size.
+
+    // Note the difference on x86_64: the link is not made relative if the caller
+    // is a compiled frame because there rbp is used as a non-volatile register by
+    // c1/c2 so it could be a computed value local to the caller.
+
+    // See also:
+    // - FreezeBase::set_top_frame_metadata_pd
+    // - StackChunkFrameStream<frame_kind>::fp()
+    // - UseContinuationFastPath: compiled frames are copied in a batch w/o patching the back link.
+    //   The backlinks are restored when thawing (see Thaw<ConfigT>::patch_caller_links())
+    patch_callee_link(hf, (intptr_t*)badAddress);
+  }
+#endif
 }
 
 inline void FreezeBase::patch_stack_pd(intptr_t* frame_sp, intptr_t* heap_sp) {
