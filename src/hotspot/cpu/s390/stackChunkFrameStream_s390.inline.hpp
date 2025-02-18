@@ -85,8 +85,10 @@ inline void StackChunkFrameStream<frame_kind>::next_for_interpreter_frame() {
 
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_size() const {
-  Unimplemented();
-  return 0;
+  assert_is_interpreted_and_frame_type_mixed();
+  intptr_t* top = unextended_sp(); // later subtract argsize if callee is interpreted
+  intptr_t* bottom = derelativize(_z_ijava_idx(locals)) + 1;
+  return (int)(bottom - top);
 }
 
 template <ChunkFrames frame_kind>
