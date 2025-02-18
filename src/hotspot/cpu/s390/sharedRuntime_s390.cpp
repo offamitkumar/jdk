@@ -1756,12 +1756,10 @@ static void gen_continuation_yield(MacroAssembler* masm,
     __ set_last_Java_frame(Z_SP, Rtmp);
     __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
     __ reset_last_Java_frame();
-    __ stop("freeze done, now time to step through");
 
     NearLabel L_pinned;
     __ z_cij(Z_RET, 0, Assembler::bcondNotEqual, L_pinned);
 
-    __ stop("how about we step through from here ?");
     // Pop frames of continuation including this stub's frame
     __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
     // The frame pushed by gen_continuation_enter is on top now again
