@@ -3177,7 +3177,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // Z_RET contains the size of the frames to thaw, 0 if overflow or no more frames
     NearLabel L_thaw_success;
-    __ load_and_test_long(Z_RET, Z_RET);
+    __ z_ltgr(Z_RET, Z_RET);
     __ branch_optimized(Assembler::bcondNotEqual, L_thaw_success);
     __ load_const_optimized(Z_R1_scratch, (SharedRuntime::throw_StackOverflowError_entry()));
     __ call(Z_R1_scratch);
