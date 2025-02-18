@@ -56,8 +56,12 @@ inline address StackChunkFrameStream<frame_kind>::get_pc() const {
 
 template <ChunkFrames frame_kind>
 inline intptr_t* StackChunkFrameStream<frame_kind>::fp() const {
-  Unimplemented();
-  return nullptr;
+  // See FreezeBase::patch_pd() and frame::setup()
+  assert((frame_kind == ChunkFrames::Mixed && is_interpreted()), "");
+  intptr_t* fp_addr = (intptr_t*)&((frame::z_common_abi*)_sp)->callers_sp;
+  assert(*(intptr_t**)fp_addr != nullptr, "");
+  // derelativize
+  return fp_addr + *fp_addr;
 }
 
 template <ChunkFrames frame_kind>
