@@ -78,8 +78,7 @@ inline bool ContinuationHelper::Frame::assert_frame_laid_out(frame f) {
 #endif
 
 inline intptr_t** ContinuationHelper::Frame::callee_link_address(const frame& f) {
-  Unimplemented();
-  return nullptr;
+  return (intptr_t**)&f.own_abi()->callers_sp;
 }
 
 template<typename FKind>
