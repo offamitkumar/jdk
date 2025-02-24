@@ -123,19 +123,14 @@ inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
 }
 
 inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, const frame& hf) {
-  // TODO:
-  // 1. https://bugs.openjdk.org/browse/JDK-8300197
-  // 2. https://bugs.openjdk.org/browse/JDK-8308984
-  // 3. https://bugs.openjdk.org/browse/JDK-8315966
-  // 4. https://bugs.openjdk.org/browse/JDK-8316523
   intptr_t* vfp = f.fp();
   intptr_t* hfp = hf.fp();
   assert(f.fp() > (intptr_t*)f.interpreter_frame_esp(), "");
 
   // There is alignment padding between vfp and f's locals array in the original
-  // frame, therefore we cannot use it to relativize the locals pointer.
-  // This line can be changed into an assert when we have fixed the "frame padding problem", see JDK-8300197
-  *hf.addr_at(_z_ijava_idx(locals)) = frame::metadata_words + f.interpreter_frame_method()->max_locals() - 1;
+  // frame, because we freeze the padding (see recurse_freeze_interpreted_frame)
+  // in order to keep the same relativized locals pointer, we don't need to change it here.
+
   // Make sure that monitors is already relativized.
   assert(hf.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
   // Make sure that esp is already relativized.
@@ -224,9 +219,6 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
 
 inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, const frame& f) {
   intptr_t* vfp = f.fp();
-  // TODO: 1. https://bugs.openjdk.org/browse/JDK-8308984
-  // TODO: 2. https://bugs.openjdk.org/browse/JDK-8315966
-  // TODO: 3. https://bugs.openjdk.org/browse/JDK-8316523
   // Make sure that monitors is still relativized.
   assert(f.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
   // Make sure that esp is still relativized.
