@@ -102,7 +102,7 @@ inline void ContinuationHelper::InterpretedFrame::patch_sender_sp(frame& f, cons
     // TODO: how about we make a diagram ?
     // See diagram "Interpreter Calling Procedure on PPC" at the end of continuationFreezeThaw_ppc.inline.hpp
     // 1. https://bugs.openjdk.org/browse/JDK-8308984
-    sp = (intptr_t*)caller.at(_z_ijava_idx(top_frame_sp));
+    sp = (intptr_t*)caller.at_relative(_z_ijava_idx(top_frame_sp));
   }
   assert(f.is_interpreted_frame(), "");
   assert(f.is_heap_frame() || is_aligned(sp, frame::alignment_in_bytes), "");

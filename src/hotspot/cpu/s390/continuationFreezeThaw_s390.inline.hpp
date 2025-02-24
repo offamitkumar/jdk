@@ -145,7 +145,7 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
   *hf.addr_at(_z_ijava_idx(locals)) = frame::metadata_words + f.interpreter_frame_method()->max_locals() - 1;
   relativize_one(vfp, hfp, _z_ijava_idx(monitors));
   relativize_one(vfp, hfp, _z_ijava_idx(esp));
-  relativize_one(vfp, hfp, _z_ijava_idx(top_frame_sp));
+  // top_frame_sp is already relativized
 
   // hfp == hf.sp() + (f.fp() - f.sp()) is not true on ppc because the stack frame has room for
   // the maximal expression stack and the expression stack in the heap frame is trimmed.
@@ -239,7 +239,7 @@ inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, c
   // TODO: 3. https://bugs.openjdk.org/browse/JDK-8316523
   derelativize_one(vfp, _z_ijava_idx(monitors));
   derelativize_one(vfp, _z_ijava_idx(esp));
-  derelativize_one(vfp, _z_ijava_idx(top_frame_sp));
+  // Keep top_frame_sp relativized.
 }
 
 inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& caller, bool bottom) {
