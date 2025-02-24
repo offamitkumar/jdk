@@ -498,17 +498,16 @@
   // template interpreter state
   inline z_ijava_state* ijava_state_unchecked() const;
 
- private:
-
-  // Where z_ijava_state.esp is saved.
-  inline intptr_t** interpreter_frame_esp_addr() const;
-
  public:
   inline z_ijava_state* ijava_state() const;
 
+
   inline intptr_t* interpreter_frame_esp() const;
+
+  // Where z_ijava_state.esp is saved.
+  inline void interpreter_frame_set_esp(intptr_t* esp);
+
   inline intptr_t* interpreter_frame_top_frame_sp();
-  inline void interpreter_frame_set_tos_address(intptr_t* x);
   inline void interpreter_frame_set_top_frame_sp(intptr_t* top_frame_sp);
   inline void interpreter_frame_set_sender_sp(intptr_t* sender_sp);
 #ifdef ASSERT

@@ -122,13 +122,6 @@ inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
   Unimplemented();
 }
 
-static inline void relativize_one(intptr_t* const vfp, intptr_t* const hfp, int offset) {
-  assert(*(hfp + offset) == *(vfp + offset), "");
-  intptr_t* addr = hfp + offset;
-  intptr_t value = *(intptr_t**)addr - vfp;
-  *addr = value;
-}
-
 inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, const frame& hf) {
   // TODO:
   // 1. https://bugs.openjdk.org/browse/JDK-8300197
@@ -145,7 +138,8 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
   *hf.addr_at(_z_ijava_idx(locals)) = frame::metadata_words + f.interpreter_frame_method()->max_locals() - 1;
   // Make sure that monitors is already relativized.
   assert(hf.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
-  relativize_one(vfp, hfp, _z_ijava_idx(esp));
+  // Make sure that esp is already relativized.
+  assert(hf.at_absolute(_z_ijava_idx(esp)) <= hf.at_absolute(z_ijava_idx(monitors)), "");
   // top_frame_sp is already relativized
 
   // hfp == hf.sp() + (f.fp() - f.sp()) is not true on ppc because the stack frame has room for
@@ -228,11 +222,6 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
   return frame();
 }
 
-static inline void derelativize_one(intptr_t* const fp, int offset) {
-  intptr_t* addr = fp + offset;
-  *addr = (intptr_t)(fp + *addr);
-}
-
 inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, const frame& f) {
   intptr_t* vfp = f.fp();
   // TODO: 1. https://bugs.openjdk.org/browse/JDK-8308984
@@ -240,7 +229,8 @@ inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, c
   // TODO: 3. https://bugs.openjdk.org/browse/JDK-8316523
   // Make sure that monitors is still relativized.
   assert(f.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
-  derelativize_one(vfp, _z_ijava_idx(esp));
+  // Make sure that esp is still relativized.
+  assert(f.at_absolute(_z_ijava_idx(esp)) <= f.at_absolute(z_ijava_idx(monitors)), "");
   // Keep top_frame_sp relativized.
 }
 
