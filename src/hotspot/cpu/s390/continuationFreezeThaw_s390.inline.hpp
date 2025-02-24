@@ -100,7 +100,6 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
         "sp=" PTR_FORMAT " fp=" PTR_FORMAT " caller.unextended_sp()=" PTR_FORMAT " caller.is_interpreted_frame()=%d",
         p2i(sp), p2i(fp), p2i(caller.unextended_sp()), caller.is_interpreted_frame());
     caller.set_sp(fp);
-    caller.set_sp(fp);
 
     assert(_cont.tail()->is_in_chunk(sp), "");
 
