@@ -139,7 +139,7 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
   // Make sure that monitors is already relativized.
   assert(hf.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
   // Make sure that esp is already relativized.
-  assert(hf.at_absolute(_z_ijava_idx(esp)) <= hf.at_absolute(z_ijava_idx(monitors)), "");
+  assert(hf.at_absolute(_z_ijava_idx(esp)) <= hf.at_absolute(_z_ijava_idx(monitors)), "");
   // top_frame_sp is already relativized
 
   // hfp == hf.sp() + (f.fp() - f.sp()) is not true on ppc because the stack frame has room for
@@ -230,7 +230,7 @@ inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, c
   // Make sure that monitors is still relativized.
   assert(f.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
   // Make sure that esp is still relativized.
-  assert(f.at_absolute(_z_ijava_idx(esp)) <= f.at_absolute(z_ijava_idx(monitors)), "");
+  assert(f.at_absolute(_z_ijava_idx(esp)) <= f.at_absolute(_z_ijava_idx(monitors)), "");
   // Keep top_frame_sp relativized.
 }
 
