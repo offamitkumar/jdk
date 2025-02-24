@@ -143,7 +143,8 @@ inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, co
   // frame, therefore we cannot use it to relativize the locals pointer.
   // This line can be changed into an assert when we have fixed the "frame padding problem", see JDK-8300197
   *hf.addr_at(_z_ijava_idx(locals)) = frame::metadata_words + f.interpreter_frame_method()->max_locals() - 1;
-  relativize_one(vfp, hfp, _z_ijava_idx(monitors));
+  // Make sure that monitors is already relativized.
+  assert(hf.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
   relativize_one(vfp, hfp, _z_ijava_idx(esp));
   // top_frame_sp is already relativized
 
@@ -237,7 +238,8 @@ inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, c
   // TODO: 1. https://bugs.openjdk.org/browse/JDK-8308984
   // TODO: 2. https://bugs.openjdk.org/browse/JDK-8315966
   // TODO: 3. https://bugs.openjdk.org/browse/JDK-8316523
-  derelativize_one(vfp, _z_ijava_idx(monitors));
+  // Make sure that monitors is still relativized.
+  assert(f.at_absolute(_z_ijava_idx(monitors)) <= -(frame::z_ijava_state_size / wordSize), "");
   derelativize_one(vfp, _z_ijava_idx(esp));
   // Keep top_frame_sp relativized.
 }
