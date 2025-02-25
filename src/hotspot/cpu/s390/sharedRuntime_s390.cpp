@@ -1415,6 +1415,7 @@ static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj,
   assert_different_registers(reg_cont_obj, reg_flags);
   DEBUG_ONLY(__ block_comment("fill_continuation_entry {"));
 #ifdef ASSERT
+  assert(is_simm16(ContinuationEntry::cookie_value()), "update below instruction");
   __ z_mvhi(Address(Z_SP, ContinuationEntry::cookie_offset()), ContinuationEntry::cookie_value());
 #endif //ASSERT
   __ z_stg(reg_cont_obj, Address(Z_SP, ContinuationEntry::cont_offset()));
