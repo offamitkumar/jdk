@@ -3187,10 +3187,9 @@ class StubGenerator: public StubCodeGenerator {
     // TODO: Are we sure about z_abi_160_size ?
     __ add64(Z_RET, frame::z_abi_160_size);
 
-    { // TODO: optimize this alignment
-      __ z_lghi(Z_R1, -exact_log2(frame::alignment_in_bytes));
-      __ z_lcgr(Z_RET); // negate Z_RET value
-      __ z_ngr(Z_RET, Z_R1);
+    { // stack alignment
+      __ z_lcgr(Z_RET, Z_RET); // negate Z_RET value
+      __ z_nill(Z_RET, -exact_log2(frame::alignment_in_bytes));
     }
     __ resize_frame( /* offset = */ Z_RET,/* fp = */ Z_R1, /* load_fp = */ true);
 
