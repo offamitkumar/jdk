@@ -1737,8 +1737,8 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
   // Save return pc and push entry frame
   __ save_return_pc();
-  // TODO: maybe push with z_native_abi + framesize_bytes ?
-  __ push_frame_abi160(framesize_bytes);
+  // TODO: verify this frame size being pushed
+  __ push_frame(framesize_bytes);
 
     DEBUG_ONLY(__ block_comment("Frame Complete (gen_continuation_yield):"));
     frame_complete = __ pc() - start;

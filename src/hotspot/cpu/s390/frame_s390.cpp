@@ -668,6 +668,13 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     DESCRIBE_ADDRESS(lresult);
     DESCRIBE_ADDRESS(fresult);
   }
+
+  if (is_java_frame() || Continuation::is_continuation_enterSpecial(*this)) {
+    intptr_t* ret_pc_loc = (intptr_t*)&own_abi()->return_pc;
+    address ret_pc = *(address*)ret_pc_loc;
+    values.describe(frame_no, ret_pc_loc,
+        Continuation::is_return_barrier_entry(ret_pc) ? "return address (return barrier)" : "return address");
+  }
 }
 
 #endif // !PRODUCT
