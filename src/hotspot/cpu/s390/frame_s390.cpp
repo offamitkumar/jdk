@@ -658,6 +658,7 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
   if (is_interpreted_frame()) {
     // Describe z_ijava_state elements.
     DESCRIBE_ADDRESS(method);
+    DESCRIBE_ADDRESS(mirror);
     DESCRIBE_ADDRESS(locals);
     DESCRIBE_ADDRESS(monitors);
     DESCRIBE_ADDRESS(cpoolCache);
