@@ -648,6 +648,8 @@ extern "C" void bt_max(intptr_t *start_sp, intptr_t *top_pc, int max_frames) {
 }
 
 #if !defined(PRODUCT)
+#define DESCRIBE_ADDRESS_MAGIC(name) \
+  values.describe(frame_no, (intptr_t*)&ijava_state()->name, #name "_number_debug");
 
 #define DESCRIBE_ADDRESS(name) \
   values.describe(frame_no, (intptr_t*)&ijava_state()->name, #name);
@@ -667,6 +669,7 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     DESCRIBE_ADDRESS(oop_tmp);
     DESCRIBE_ADDRESS(lresult);
     DESCRIBE_ADDRESS(fresult);
+    DESCRIBE_ADDRESS_MAGIC(magic);
   }
 
   if (is_java_frame() || Continuation::is_continuation_enterSpecial(*this)) {
