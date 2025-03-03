@@ -1663,7 +1663,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
   ContinuationEntry::_return_pc_offset = __ pc() - start;
   __ post_call_nop();
-  __ stop("thaw finished: " FILE_AND_LINE)
+  __ stop("thaw finished: " FILE_AND_LINE);
 
   // --- Normal exit (resolve/thawing)
   __ bind(L_exit);
