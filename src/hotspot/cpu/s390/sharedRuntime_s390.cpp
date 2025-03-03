@@ -1663,10 +1663,12 @@ static void gen_continuation_enter(MacroAssembler* masm,
   oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
   ContinuationEntry::_return_pc_offset = __ pc() - start;
   __ post_call_nop();
+  __ stop("thaw finished: " FILE_AND_LINE)
 
   // --- Normal exit (resolve/thawing)
   __ bind(L_exit);
   ContinuationEntry::_cleanup_offset = __ pc() - start;
+  __ stop("Normal exit, cleanup: " FILE_AND_LINE);
   continuation_enter_cleanup(masm);
 
   // Pop frame and return
@@ -1746,7 +1748,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
     // Pop frames of continuation including this stub's frame
     __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
-    // The frame pushed by gen_continuation_enter is on top now again
+    // The frame pushed by gen_continuation_enter() is on top now again
     continuation_enter_cleanup(masm);
     // Pop frame and return
     Label L_return;
