@@ -252,8 +252,18 @@ JavaThread** frame::saved_thread_address(const frame& f) {
 }
 
 frame frame::sender_for_interpreter_frame(RegisterMap *map) const {
-  // Pass callers sender_sp as unextended_sp.
-  return frame(sender_sp(), sender_pc(), (intptr_t*)(ijava_state()->sender_sp));
+  // This is the sp before any possible extension (adapter/locals).
+  intptr_t* unextended_sp = interpreter_frame_sender_sp();
+  address sender_pc = this->sender_pc();
+  if (Continuation::is_return_barrier_entry(sender_pc)) {
+    if (map->walk_cont()) { // about to walk into an h-stack
+      return Continuation::top_frame(*this, map);
+    } else {
+      return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp());
+    }
+  }
+
+  return frame(sender_sp(), sender_pc, (intptr_t*)(ijava_state()->sender_sp));
 }
 
 void frame::patch_pc(Thread* thread, address pc) {

@@ -26,13 +26,18 @@
 #define CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
 
 #include "oops/method.inline.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/registerMap.hpp"
+#include "utilities/macros.hpp"
 #include "runtime/continuationEntry.hpp"
 
 // TODO: Implement
 
 inline frame ContinuationEntry::to_frame() const {
-  Unimplemented();
-  return frame();
+  static CodeBlob* cb = CodeCache::find_blob_fast(entry_pc());
+  assert(cb != nullptr, "");
+  assert(cb->as_nmethod()->method()->is_continuation_enter_intrinsic(), "");
+  return frame(entry_sp(), entry_pc(), entry_sp(), entry_fp(), cb);
 }
 
 inline intptr_t* ContinuationEntry::entry_fp() const {
