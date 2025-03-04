@@ -663,10 +663,10 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     DESCRIBE_ADDRESS(monitors);
     DESCRIBE_ADDRESS(cpoolCache);
     DESCRIBE_ADDRESS(bcp);
-    DESCRIBE_ADDRESS(mdx);
     DESCRIBE_ADDRESS(esp);
-    DESCRIBE_ADDRESS(sender_sp);
+    DESCRIBE_ADDRESS(mdx);
     DESCRIBE_ADDRESS(top_frame_sp);
+    DESCRIBE_ADDRESS(sender_sp);
     DESCRIBE_ADDRESS(oop_tmp);
     DESCRIBE_ADDRESS(lresult);
     DESCRIBE_ADDRESS(fresult);

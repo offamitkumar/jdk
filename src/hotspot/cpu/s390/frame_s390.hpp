@@ -299,8 +299,11 @@
     uint64_t monitors;
     uint64_t cpoolCache;
     uint64_t bcp;          // Z_bcp
-    uint64_t mdx;
     uint64_t esp;          // Z_esp
+    uint64_t mdx;
+    // Own SP before modification by i2c adapter and top-2-parent-resize
+    // by interpreted callee.
+    uint64_t top_frame_sp;
     // Caller's original SP before modification by c2i adapter (if caller is compiled)
     // and before top -> parent frame conversion by the interpreter entry.
     // Note: for i2i calls a correct sender_sp is required, too, because there
@@ -309,9 +312,6 @@
     // has to be the interpreted caller's sp as TOP_IJAVA_FRAME. See also
     // AbstractInterpreter::layout_activation() used by deoptimization.
     uint64_t sender_sp;
-    // Own SP before modification by i2c adapter and top-2-parent-resize
-    // by interpreted callee.
-    uint64_t top_frame_sp;
     // Slots only needed for native calls. Maybe better to move elsewhere.
     uint64_t oop_tmp;
     uint64_t lresult;
