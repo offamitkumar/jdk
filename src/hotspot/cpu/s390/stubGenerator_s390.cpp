@@ -46,7 +46,8 @@
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
-
+long fubar = 0;
+long fubar1 = 0;
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp.
@@ -3139,19 +3140,9 @@ class StubGenerator: public StubCodeGenerator {
     // TODO: Handle Valhalla return types. May require generating different return barriers.
 
     if (return_barrier) {
-
-      // pushing one frame looked a bad idea here. Because we have to resize the current frame to make space for the
-      // thawing the frames. So let's try to save the return values in saved registers.
-
-      // FIXME / TODO : We need to be sure that Z_F10 and Z_R10 are not holding something useful here.
-      __ z_lgr(Z_tmp_1, Z_RET);
-      __ z_ldr(Z_F8, Z_FRET);
-//      // TODO: is it necessary to push this frame ?
-//      __ save_return_pc();
-//      int frame_size = 2 /* Z_RET & Z_FRET */ * BytesPerWord + frame::z_abi_160_size;
-//      __ push_frame(frame_size);
-//      __ z_stg(Z_RET,  0 * BytesPerWord + frame::z_abi_160_size, Z_SP);
-//      __ z_stg(Z_FRET, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP);
+      // FIXME / TODO : We need to be sure that Z_F8 and Z_R9 are not holding something useful here.
+      __ z_ldgr(Z_F8, Z_RET);
+      __ z_ldr(Z_F9, Z_FRET);
 
       DEBUG_ONLY(__ z_lg(Z_R1_scratch, _z_common_abi(callers_sp), Z_SP);)
       __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
@@ -3199,10 +3190,11 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier) {
       // we're now in the caller of the frame that returned to the barrier
-      __ stop("are you sure the value is preserved ? ");
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
-      __ z_lgr(Z_RET, Z_tmp_1);
-      __ z_ldr(Z_FRET, Z_F8);
+
+      // TODO/FIXME Z_F8 and Z_F9 are used out of nowhere. They work, but is there a better solution?
+      __ z_lgdr(Z_RET, Z_F8);
+      __ z_ldr(Z_FRET, Z_F9);
     } else {
       // we're now on the yield frame (which is in an address above us b/c rsp has been pushed down)
       __ z_lghi(Z_RET, 0); // return 0 (success) from doYield
@@ -3210,6 +3202,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier_exception) {
       // FIXME: register usages need to be checked again
+      __ stop("return barrier exception, register usages is fucked up" FILE_AND_LINE);
       __ z_lgr(Z_tmp_1, Z_RET); // save return value containing the exception oop
       __ z_lg(Z_tmp_2, _z_common_abi(return_pc), Z_SP); // exception pc
       __ save_return_pc();
