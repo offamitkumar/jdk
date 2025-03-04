@@ -1663,12 +1663,10 @@ static void gen_continuation_enter(MacroAssembler* masm,
   oop_maps->add_gc_map(__ pc() - start, map->deep_copy());
   ContinuationEntry::_return_pc_offset = __ pc() - start;
   __ post_call_nop();
-  __ stop("thaw finished: " FILE_AND_LINE);
 
   // --- Normal exit (resolve/thawing)
   __ bind(L_exit);
   ContinuationEntry::_cleanup_offset = __ pc() - start;
-  __ stop("Normal exit, cleanup: " FILE_AND_LINE);
   continuation_enter_cleanup(masm);
 
   // Pop frame and return
