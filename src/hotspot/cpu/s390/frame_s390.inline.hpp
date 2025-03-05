@@ -334,8 +334,8 @@ inline intptr_t* frame::real_fp() const {
 }
 
 inline int frame::compiled_frame_stack_argsize() const {
-  Unimplemented();
-  return 0;
+  assert(cb()->is_nmethod(), "what ?");
+  return (cb()->as_nmethod()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
 }
 
 inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
