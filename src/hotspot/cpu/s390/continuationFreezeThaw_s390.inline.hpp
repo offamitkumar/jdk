@@ -109,9 +109,22 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
     *hf.addr_at(_z_ijava_idx(esp))    = f.interpreter_frame_esp() - f.fp();
     return hf;
   } else {
-    assert(false, "else part: continuationFreezeThaw_s390.inline.hpp");
+    // TODO: needs to step through it at some point of time.
+    int fsize = FKind::size(f);
+    sp = caller.unextended_sp() - fsize;
+    if (caller.is_interpreted_frame()) {
+      // If the caller is interpreted, our stackargs are not supposed to overlap with it
+      // so we make more room by moving sp down by argsize
+      int argsize = FKind::stack_argsize(f);
+      sp -= argsize + frame::metadata_words_at_top;
+    }
+    fp = sp + fsize;
+    caller.set_sp(fp);
+
+    assert(_cont.tail()->is_in_chunk(sp), "");
+
+    return frame(sp, sp, fp, f.pc(), nullptr, nullptr, true /* on_heap */);
   }
-  return frame();
 }
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
