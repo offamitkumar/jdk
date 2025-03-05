@@ -115,8 +115,7 @@ inline address* ContinuationHelper::Frame::return_pc_address(const frame& f) {
 }
 
 inline address ContinuationHelper::Frame::real_pc(const frame& f) {
-  Unimplemented();
-  return nullptr;
+  return (address)f.own_abi()->return_pc;
 }
 
 inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
