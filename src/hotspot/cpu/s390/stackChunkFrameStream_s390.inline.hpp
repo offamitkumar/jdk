@@ -115,7 +115,6 @@ inline int StackChunkFrameStream<frame_kind>::interpreter_frame_stack_argsize() 
 
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_num_oops() const {
-  Unimplemented();
   assert_is_interpreted_and_frame_type_mixed();
   ResourceMark rm;
   InterpreterOopMap mask;
