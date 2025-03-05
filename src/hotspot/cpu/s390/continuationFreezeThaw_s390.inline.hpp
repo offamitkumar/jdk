@@ -224,10 +224,22 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     *f.addr_at(_z_ijava_idx(locals)) = *hf.addr_at(_z_ijava_idx(locals));
 
     return f;
-  } else { 
-    assert(false, "else part" FILE_AND_LINE);
+  } else {
+    int fsize = FKind::size(hf);
+    int argsize = FKind::stack_argsize(hf);
+    intptr_t* frame_sp = caller.sp() - fsize;
+
+    if ((bottom && argsize > 0) || caller.is_interpreted_frame()) {
+      frame_sp -= argsize + frame::metadata_words_at_top;
+      frame_sp = align_down(frame_sp, frame::alignment_in_bytes);
+      caller.set_sp(frame_sp + fsize);
+    }
+
+    assert(hf.cb() != nullptr, "");
+    assert(hf.oop_map() != nullptr, "");
+    intptr_t* fp = frame_sp + fsize;
+    return frame(frame_sp, frame_sp, fp, hf.pc(), hf.cb(), hf.oop_map(), false);
   }
-  return frame();
 }
 
 inline void ThawBase::derelativize_interpreted_frame_metadata(const frame& hf, const frame& f) {
