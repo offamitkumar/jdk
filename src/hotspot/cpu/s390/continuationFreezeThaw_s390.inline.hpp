@@ -132,7 +132,11 @@ void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
 }
 
 inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
-  Unimplemented();
+  // nothing to do
+//  DEBUG_ONLY( intptr_t* lspp = (intptr_t*) &(f.ijava_state()->top_frame_sp); )
+  // TODO / FIXME below assert failed so needs to be revisited to fix it.
+  // for now I found comments which mentioned not to use top_frame_sp.
+//  assert(*lspp == f.unextended_sp() - f.fp(), "should be " INTPTR_FORMAT " usp:" INTPTR_FORMAT " fp:" INTPTR_FORMAT " diff = %ld", *lspp, p2i(f.unextended_sp()), p2i(f.fp()), f.unextended_sp() - f.fp());
 }
 
 inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, const frame& hf) {
