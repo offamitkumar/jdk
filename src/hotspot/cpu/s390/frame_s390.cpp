@@ -263,6 +263,11 @@ frame frame::sender_for_interpreter_frame(RegisterMap *map) const {
     }
   }
 
+  // FIXME / TODO: instead of grabbing sender_sp from ijava state, PPC is using unextended_sp here.
+  // TODO: but if we do the same, we are getting crash in abstractInterpreter file. This needs to be
+  // TODO: investigated. Whether should we switch to unextended_sp and fix those assert failure
+  // TODO: or just leave it as it is. This might cause a problem in loom implementation so whenever something fails
+  // TODO: this could be very potential reason.
   return frame(sender_sp(), sender_pc, (intptr_t*)(ijava_state()->sender_sp));
 }
 
