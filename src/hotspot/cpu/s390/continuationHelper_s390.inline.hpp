@@ -50,11 +50,13 @@ inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* sp) {
 
 template<typename FKind>
 inline void ContinuationHelper::update_register_map(const frame& f, RegisterMap* map) {
-  Unimplemented();
+  // TODO: needs to verify this
+  // Currently all registers are considered to be volatile and saved in the caller (java) frame if needed
 }
 
 inline void ContinuationHelper::update_register_map_with_callee(const frame& f, RegisterMap* map) {
-  Unimplemented();
+  // TODO: needs to verify this
+  // Currently all registers are considered to be volatile and saved in the caller (java) frame if needed
 }
 
 inline void ContinuationHelper::push_pd(const frame& f) {
