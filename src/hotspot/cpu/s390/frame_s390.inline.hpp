@@ -346,7 +346,6 @@ inline void frame::interpreted_frame_oop_map(InterpreterOopMap* mask) const {
 }
 
 inline int frame::sender_sp_ret_address_offset() {
-  // FIXME: the stack grows upwards, while memory grows downwards
   return -(int)(_z_common_abi(return_pc) >> LogBytesPerWord);
 }
 
@@ -367,9 +366,25 @@ inline void frame::set_offset_unextended_sp(int value) {
 // frame::sender
 
 inline frame frame::sender(RegisterMap* map) const {
+  frame result = sender_raw(map);
+
+  if (map->process_frames() && !map->in_cont()) {
+    assert(false, "used : " FILE_AND_LINE);
+    StackWatermarkSet::on_iteration(map->thread(), result);
+  }
+
+  return result;
+}
+
+inline frame frame::sender_raw(RegisterMap* map) const {
   // Default is we don't have to follow them. The sender_for_xxx will
   // update it accordingly.
   map->set_include_argument_oops(false);
+
+  if (map->in_cont()) { // already in an h-stack
+    assert(false, FILE_AND_LINE);
+    return map->stack_chunk()->sender(*this, map);
+  }
 
   if (is_entry_frame())       return sender_for_entry_frame(map);
   if (is_upcall_stub_frame()) return sender_for_upcall_stub_frame(map);
@@ -392,12 +407,31 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
   // Now adjust the map.
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != nullptr) {
-      OopMapSet::update_register_map(this, map);
+
+    // TODO: verify this comment
+    // For C1, the runtime stub might not have oop maps, so set this flag
+    // outside of update_register_map.
+    if (!_cb->is_compiled()) { // compiled frames do not use callee-saved registers
+      map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+      if (_cb->oop_maps() != nullptr) {
+        _oop_map->update_register_map(this, map);
+      }
+    } else {
+      assert(!_cb->caller_must_gc_arguments(map->thread()), "");
+      assert(!map->include_argument_oops(), "");
+      assert(oop_map() == nullptr || !oop_map()->has_any(OopMapValue::callee_saved_value), "callee-saved value in compiled frame");
     }
   }
 
+  assert(sender_sp != sp(), "must have changed");
+
+  if (Continuation::is_return_barrier_entry(sender_pc)) {
+    if (map->walk_cont()) { // about to walk into an h-stack
+      return Continuation::top_frame(*this, map);
+    } else {
+      return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp);
+    }
+  }
   return frame(sender_sp, sender_pc);
 }
 
