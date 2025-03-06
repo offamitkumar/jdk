@@ -369,7 +369,6 @@ inline frame frame::sender(RegisterMap* map) const {
   frame result = sender_raw(map);
 
   if (map->process_frames() && !map->in_cont()) {
-    assert(false, "used : " FILE_AND_LINE);
     StackWatermarkSet::on_iteration(map->thread(), result);
   }
 
@@ -411,9 +410,9 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
     // TODO: verify this comment
     // For C1, the runtime stub might not have oop maps, so set this flag
     // outside of update_register_map.
-    if (!_cb->is_compiled()) { // compiled frames do not use callee-saved registers
+    if (!_cb->is_nmethod()) { // compiled frames do not use callee-saved registers
       map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-      if (_cb->oop_maps() != nullptr) {
+      if (oop_map() != nullptr) {
         _oop_map->update_register_map(this, map);
       }
     } else {

@@ -39,8 +39,8 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
   if (f.is_runtime_frame()) {
     // Patch the pc of the now old last Java frame (we already set the anchor to enterSpecial)
     // so that when target goes back to Java it will actually return to the preempt cleanup stub.
-    frame::common_abi* abi = (frame::common_abi*)f.sp();
-    abi->lr = (uint64_t)StubRoutines::cont_preempt_stub();
+    frame::z_common_abi* abi = (frame::z_common_abi*)f.sp();
+    abi->return_pc = (uint64_t)StubRoutines::cont_preempt_stub();
   } else {
     // The target will check for preemption once it returns to the interpreter
     // or the native wrapper code and will manually jump to the preempt stub.
