@@ -1533,6 +1533,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // overwritten since "__ call_stub(signature_handler);" (except for
   // ARG1 and ARG2 for static methods).
 
+  // TODO: https://bugs.openjdk.org/browse/JDK-8338383
   __ call_c(Z_R1/*native_method_entry*/);
 
   // NOTE: frame::interpreter_frame_result() depends on these stores.

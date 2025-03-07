@@ -2273,6 +2273,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
 
     __ set_last_Java_frame(oldSP, Z_R10 /* gc map pc */);
 
+    // TODO: https://bugs.openjdk.org/browse/JDK-8338383
     // Do the call.
     __ load_const_optimized(Z_R1_scratch, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_locking_C));
     __ call(Z_R1_scratch);
