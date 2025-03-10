@@ -1534,7 +1534,9 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // ARG1 and ARG2 for static methods).
 
   // TODO: https://bugs.openjdk.org/browse/JDK-8338383
+  __ push_cont_fastpath();
   __ call_c(Z_R1/*native_method_entry*/);
+  __ pop_cont_fastpath();
 
   // NOTE: frame::interpreter_frame_result() depends on these stores.
   __ z_stg(Z_RET, _z_ijava_state_neg(lresult), Z_fp);
