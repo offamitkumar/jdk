@@ -1757,7 +1757,7 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
     // yield failed - continuation is pinned
     __ bind(L_pinned);
-    __ stop("pinned down");
+
     // handle pending exception thrown by freeze
     __ load_and_test_long(Rtmp, Address(Z_thread, Thread::pending_exception_offset()));
     __ z_bre(L_return); // return if no exception is pending
