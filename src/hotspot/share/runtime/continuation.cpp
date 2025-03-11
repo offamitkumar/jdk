@@ -146,7 +146,7 @@ static void verify_preempt_preconditions(JavaThread* current, oop continuation) 
 freeze_result Continuation::try_preempt(JavaThread* current, oop continuation) {
   verify_preempt_preconditions(current, continuation);
 
-  if (LockingMode == LM_LEGACY) {
+  if (LockingMode == LM_LEGACY S390_ONLY(|| true)) {
     return freeze_unsupported;
   }
 
