@@ -26,7 +26,8 @@
 #ifndef CPU_S390_FRAME_S390_INLINE_HPP
 #define CPU_S390_FRAME_S390_INLINE_HPP
 
-#include "code/codeCache.hpp"
+#include "code/codeBlob.inline.hpp"
+#include "code/codeCache.inline.hpp"
 #include "code/vmreg.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
