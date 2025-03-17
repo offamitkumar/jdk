@@ -130,7 +130,8 @@ inline int StackChunkFrameStream<frame_kind>::interpreter_frame_num_oops() const
 template<>
 template<>
 inline void StackChunkFrameStream<ChunkFrames::Mixed>::update_reg_map_pd(RegisterMap* map) {
-  Unimplemented();
+  // TODO: are we sure ?
+  // nothing to do
 }
 
 template<>

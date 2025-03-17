@@ -31,8 +31,6 @@
 #include "utilities/macros.hpp"
 #include "runtime/continuationEntry.hpp"
 
-// TODO: Implement
-
 inline frame ContinuationEntry::to_frame() const {
   static CodeBlob* cb = CodeCache::find_blob_fast(entry_pc());
   assert(cb != nullptr, "");
@@ -45,7 +43,8 @@ inline intptr_t* ContinuationEntry::entry_fp() const {
 }
 
 inline void ContinuationEntry::update_register_map(RegisterMap* map) const {
-  Unimplemented();
+  // TODO: need to revisit
+  // Nothing to do (no non-volatile registers in java calling convention)
 }
 
 #endif // CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP

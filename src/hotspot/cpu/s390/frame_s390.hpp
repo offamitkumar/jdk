@@ -453,10 +453,16 @@
   // NOTE: Stack pointer is now held in the base class, so remove it from here.
 
   // Needed by deoptimization.
-  intptr_t* _unextended_sp;
+  union {
+    intptr_t* _unextended_sp;
+    int _offset_unextended_sp; // for use in stack-chunk frames
+  };
 
   // Frame pointer for this frame.
-  intptr_t* _fp;
+  union {
+    intptr_t* _fp;  // frame pointer
+    int _offset_fp; // relative frame pointer for use in stack-chunk frames
+  };
 
  public:
 
@@ -465,6 +471,9 @@
   // Accessors
 
   inline intptr_t* fp() const { assert_absolute(); return _fp; }
+  void set_fp(intptr_t* newfp)  { _fp = newfp; }
+  int offset_fp() const         { assert_offset();  return _offset_fp; }
+  void set_offset_fp(int value) { assert_on_heap(); _offset_fp = value; }
 
  private:
 

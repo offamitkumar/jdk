@@ -46,7 +46,7 @@
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
-
+long fubar = 0;
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp.
@@ -3200,22 +3200,27 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     if (return_barrier_exception) {
-      // FIXME: register usages need to be checked again
-      __ stop("return barrier exception, register usages is fucked up" FILE_AND_LINE);
-      __ z_lgr(Z_tmp_1, Z_RET); // save return value containing the exception oop
-      __ z_lg(Z_tmp_2, _z_common_abi(return_pc), Z_SP); // exception pc
+      Register handler = Z_R1_scratch;
+      __ load_const_optimized(Z_ARG2, (uintptr_t)&fubar);
+      __ z_agsi(0, Z_ARG2, 1);
+      __ z_lg(Z_ARG2, _z_common_abi(return_pc), Z_SP); // exception pc
       __ save_return_pc();
-      __ push_frame_abi160(0);
+      __ push_frame_abi160(0 + 2 * BytesPerWord);
+      __ z_stg(Z_RET , 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save return value containing the exception oop
+
+      __ z_stg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save exception_pc 
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), Z_thread, Z_ARG2);
+
       // Copy handler's address.
-      __ z_lgr(Z_R1, Z_RET); // will jump Z_R1 at the end.
-      __ pop_frame();
-      __ restore_return_pc();
+      __ z_lgr(handler, Z_RET);
+
       // Set up the arguments for the exception handler:
       // - Z_ARG1: exception oop
       // - Z_ARG2: exception pc
-      __ z_lgr(Z_ARG1, Z_tmp_1); // exception oop
-      __ z_lgr(Z_ARG2, Z_tmp_2); // exception pc
+      __ z_lg(Z_ARG1, 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception oop
+      __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc 
+      __ pop_frame();
+      __ restore_return_pc();
     } else {
       // We're "returning" into the topmost thawed frame; see Thaw::push_return_frame
       __ z_lg(Z_R1_scratch, _z_common_abi(return_pc), Z_SP);

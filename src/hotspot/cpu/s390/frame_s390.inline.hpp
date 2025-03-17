@@ -351,16 +351,15 @@ inline int frame::sender_sp_ret_address_offset() {
 }
 
 inline void frame::set_unextended_sp(intptr_t* value) {
-  Unimplemented();
+  _unextended_sp = value;
 }
 
 inline int frame::offset_unextended_sp() const {
-  Unimplemented();
-  return 0;
+  assert_offset();   return _offset_unextended_sp;
 }
 
 inline void frame::set_offset_unextended_sp(int value) {
-  Unimplemented();
+  assert_on_heap();  _offset_unextended_sp = value;
 }
 
 //------------------------------------------------------------------------------
@@ -382,7 +381,6 @@ inline frame frame::sender_raw(RegisterMap* map) const {
   map->set_include_argument_oops(false);
 
   if (map->in_cont()) { // already in an h-stack
-    assert(false, FILE_AND_LINE);
     return map->stack_chunk()->sender(*this, map);
   }
 
