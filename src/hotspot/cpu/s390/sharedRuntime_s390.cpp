@@ -1554,7 +1554,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // i2i entry used at interp_only_mode only
   interpreted_entry_offset = __ pc() - start;
   {
-    __ stop("interpreter step through");
 #ifdef ASSERT
     NearLabel is_interp_only;
     __ load_and_test_int(Z_R0_scratch, Address(Z_thread, JavaThread::interp_only_mode_offset()));
@@ -1576,7 +1575,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // The frame is complete here, but we only record it for the compiled entry, so the frame would appear unsafe,
     // but that's okay because at the very worst we'll miss an async sample, but we're in interp_only_mode anyway.
 
-    __ verify_oop(reg_cont_obj); // TODO: this check is value ? I just took it from x86
+    __ verify_oop(reg_cont_obj);
 
     fill_continuation_entry(masm, reg_cont_obj, reg_is_virtual);
 
@@ -1592,8 +1591,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
     // See also corresponding call below.
     // Make sure the call is patchable
 
-    // NOTE/ TODO / FIXME : this is a call made best of my guess. It would be wrong and should be stepped through
-    __ stop("step through this call here");
     address c2i_call_pc = __ pc();
     while ((__ offset() + NativeCall::call_far_pcrelative_displacement_offset) % NativeCall::call_far_pcrelative_displacement_alignment != 0) {
       __ nop();
