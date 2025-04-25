@@ -3900,8 +3900,6 @@ RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
 
   int framesize = frame::z_abi_160_size / VMRegImpl::stack_slot_size;
   address start = __ pc();
-  // FIXME, TODO : remove below debug code
-  __ stop("found: generate_jfr_write_checkpoint usage, we can step through, I don't know if Z_tmp_[1,2] are correct register to use here.");
   __ save_return_pc(); // save return_pc (Z_R14)
   __ push_frame_abi160(0);
   int frame_complete = __ pc() - start;
@@ -3909,12 +3907,10 @@ RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
 
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, JfrIntrinsicSupport::write_checkpoint), Z_thread);
   address calls_return_pc = __ last_calls_return_pc();
-
   __ reset_last_Java_frame();
 
   // The handle is dereferenced through a load barrier.
-
-  __ resolve_global_jobject(Z_ARG1, Z_tmp_1, Z_tmp_2); // Z_R10 & Z_R11, are these live ?
+  __ resolve_global_jobject(Z_ARG1, Z_tmp_1, Z_tmp_2);
   __ pop_frame();
   __ restore_return_pc();
   __ z_br(Z_R14);
@@ -3939,8 +3935,6 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
   int framesize = frame::z_abi_160_size / VMRegImpl::stack_slot_size;
   address start = __ pc();
-  // FIXME, TODO : remove below debug code
-  __ stop("found: generate_jfr_return_lease usage, we can step through");
   __ save_return_pc(); // save return_pc (Z_R14)
   __ push_frame_abi160(0);
   int frame_complete = __ pc() - start;
