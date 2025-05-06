@@ -40,4 +40,8 @@
 
   bool pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava);
 
+  JFR_ONLY(static ByteSize last_sender_Java_fp_offset() {
+      return byte_offset_of(JavaThread, _anchor) + JavaFrameAnchor::last_sender_Java_fp_offset();
+  })
+
 #endif // OS_CPU_LINUX_S390_JAVATHREAD_LINUX_S390_HPP
