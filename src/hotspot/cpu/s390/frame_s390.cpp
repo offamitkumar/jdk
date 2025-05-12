@@ -192,7 +192,8 @@ void frame::interpreter_frame_set_locals(intptr_t* locs)  {
 // sender_sp
 
 intptr_t* frame::interpreter_frame_sender_sp() const {
-  return sender_sp();
+  assert(is_interpreted_frame(), "interpreted frame expected");
+  return (intptr_t*)at(_z_ijava_idx(sender_sp));
 }
 
 frame frame::sender_for_entry_frame(RegisterMap *map) const {
@@ -263,12 +264,7 @@ frame frame::sender_for_interpreter_frame(RegisterMap *map) const {
     }
   }
 
-  // FIXME / TODO: instead of grabbing sender_sp from ijava state, PPC is using unextended_sp here.
-  // TODO: but if we do the same, we are getting crash in abstractInterpreter file. This needs to be
-  // TODO: investigated. Whether should we switch to unextended_sp and fix those assert failure
-  // TODO: or just leave it as it is. This might cause a problem in loom implementation so whenever something fails
-  // TODO: this could be very potential reason.
-  return frame(sender_sp(), sender_pc, (intptr_t*)(ijava_state()->sender_sp));
+  return frame(sender_sp(), sender_pc, unextended_sp);
 }
 
 void frame::patch_pc(Thread* thread, address pc) {
