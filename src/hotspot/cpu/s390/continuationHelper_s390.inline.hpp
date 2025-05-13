@@ -53,9 +53,8 @@ inline int ContinuationHelper::frame_align_words(int size) {
   return size & 1;
 }
 
-inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* sp) {
-  Unimplemented();
-  return nullptr;
+inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* p) {
+  return align_down(p, frame::frame_alignment);
 }
 
 template<typename FKind>
