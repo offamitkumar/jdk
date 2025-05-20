@@ -510,7 +510,6 @@
  public:
   inline z_ijava_state* ijava_state() const;
 
-
   inline intptr_t* interpreter_frame_esp() const;
 
   // Where z_ijava_state.esp is saved.
