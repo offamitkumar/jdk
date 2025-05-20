@@ -46,7 +46,7 @@
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
-long fubar = 0;
+
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp.
@@ -3201,8 +3201,6 @@ class StubGenerator: public StubCodeGenerator {
 
     if (return_barrier_exception) {
       Register handler = Z_R1_scratch;
-      __ load_const_optimized(Z_ARG2, (uintptr_t)&fubar);
-      __ z_agsi(0, Z_ARG2, 1);
       __ z_lg(Z_ARG2, _z_common_abi(return_pc), Z_SP); // exception pc
       __ save_return_pc();
       __ push_frame_abi160(0 + 2 * BytesPerWord);
