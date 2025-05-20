@@ -276,7 +276,22 @@ inline intptr_t* ThawBase::push_cleanup_continuation() {
 
 template <typename ConfigT>
 inline void Thaw<ConfigT>::patch_caller_links(intptr_t* sp, intptr_t* bottom) {
-  Unimplemented();
+  for (intptr_t* callers_sp; sp < bottom; sp = callers_sp) {
+    address pc = (address)((frame::z_java_abi*) sp)->return_pc;
+    assert(pc != nullptr, "");
+    // see ThawBase::patch_return() which gets called just before
+    bool is_entry_frame = pc == StubRoutines::cont_returnBarrier() || pc == _cont.entryPC();
+    if (is_entry_frame) {
+      callers_sp = _cont.entryFP();
+    } else {
+      assert(!Interpreter::contains(pc), "sp:" PTR_FORMAT " pc:" PTR_FORMAT, p2i(sp), p2i(pc));
+      // TODO: 8290965: PPC64: Implement post-call NOPs
+      CodeBlob* cb = CodeCache::find_blob(pc);
+      callers_sp = sp + cb->frame_size();
+    }
+    // set the back link
+    ((frame::z_java_abi*) sp)->callers_sp = (intptr_t) callers_sp;
+  }
 }
 
 inline void ThawBase::prefetch_chunk_pd(void* start, int size) {
