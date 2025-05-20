@@ -1139,21 +1139,10 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   // z_ijava_state->locals - i*BytesPerWord points to i-th Java local (i starts at 0)
   // z_ijava_state->locals = Z_esp + parameter_count bytes
 
-<<<<<<< HEAD
-  __ z_ldgr(Z_F1, Z_R1); // preserve Z_R1, holding cache offset
-
-  __ z_sgrk(Z_R1, Z_locals, fp); // Z_R1 = Z_locals - fp();
-  __ z_srlg(Z_R1, Z_R1, Interpreter::logStackElementSize);
-  // Store relativized Z_locals, see frame::interpreter_frame_locals().
-  __ z_stg(Z_R1, _z_ijava_state_neg(locals), fp);
-
-  __ z_lgdr(Z_R1, Z_F1); // restore R1
-=======
   __ z_sgrk(Z_R0, Z_locals, fp); // Z_R0 = Z_locals - fp();
   __ z_srlg(Z_R0, Z_R0, Interpreter::logStackElementSize);
   // Store relativized Z_locals, see frame::interpreter_frame_locals().
   __ z_stg(Z_R0, _z_ijava_state_neg(locals), fp);
->>>>>>> master
 
   // z_ijava_state->oop_temp = nullptr;
   __ store_const(Address(fp, oop_tmp_offset), 0);
@@ -1188,26 +1177,6 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   // z_ijava_state->esp = Z_esp = z_ijava_state->monitors;
   __ add2reg(Z_esp, -frame::z_ijava_state_size, fp);
 
-<<<<<<< HEAD
-  __ z_ldgr(Z_F1, Z_R1); // TODO: this could be removed, we are presering Z_R1 for handling locals,
-                         // Once that PR merges this could be changed. In between anyway we are not
-                         // in need for Z_R1's original content.
-
-  __ z_sgrk(Z_R1, Z_esp, fp);
-  __ z_srag(Z_R1, Z_R1, Interpreter::logStackElementSize);
-  __ z_stg(Z_R1, _z_ijava_state_neg(monitors), fp);
-
-  __ z_lgdr(Z_R1, Z_F1);
-
-  __ add2reg(Z_esp, -Interpreter::stackElementSize);
-
-  __ z_ldgr(Z_F1, Z_R1); // this is not required, once locals PR merges.
-  __ z_sgrk(Z_R1, Z_esp, fp);
-  __ z_srag(Z_R1, Z_R1, Interpreter::logStackElementSize);
-  __ z_stg(Z_R1, _z_ijava_state_neg(esp), fp);
-
-  __ z_lgdr(Z_R1, Z_F1);
-=======
   __ z_sgrk(Z_R0, Z_esp, fp);
   __ z_srag(Z_R0, Z_R0, Interpreter::logStackElementSize);
   __ z_stg(Z_R0, _z_ijava_state_neg(monitors), fp);
@@ -1215,7 +1184,6 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   __ add2reg(Z_esp, -Interpreter::stackElementSize);
 
   __ save_esp(fp);
->>>>>>> master
 
   // z_ijava_state->cpoolCache = Z_R1_scratch (see load above);
   __ z_stg(Z_R1_scratch, _z_ijava_state_neg(cpoolCache), fp);
