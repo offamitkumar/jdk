@@ -1674,29 +1674,35 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // --- Exception handling path
   exception_offset = __ pc() - start;
 
-  // FIXME: taken from stubGenerator, grep for exception_handler_for_return_address
-  __ stop("exception is there: sharedRuntime_s390.cpp");
-  __ z_lgr(Z_ARG2, Z_R14); // Copy exception pc into Z_ARG2.
+  // Load caller's return pc
+  __ z_lg(Z_ARG2, _z_common_abi(callers_sp), Z_SP);
+  __ z_lg(Z_ARG2, _z_common_abi(return_pc), Z_ARG2);
+
   __ save_return_pc();
-  __ push_frame_abi160(0);
+  __ push_frame_abi160(0 + 2 * BytesPerWord);
+
+  __ z_stg(Z_ARG1, 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save return value containing the exception oop
+  __ z_stg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save exception_pc
+
   // Find exception handler.
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address),
                   Z_thread,
                   Z_ARG2);
+
   // Copy handler's address.
   __ z_lgr(Z_R1, Z_RET);
-  __ pop_frame();
-  __ restore_return_pc();
+
   // Set up the arguments for the exception handler:
   // - Z_ARG1: exception oop
   // - Z_ARG2: exception pc
-  // Load pending exception oop.
-  __ z_lg(Z_ARG1, in_bytes(Thread::pending_exception_offset()), Z_thread);
-  // The exception pc is the return address in the caller,
-  // must load it into Z_ARG2
-  __ z_lgr(Z_ARG2, Z_R14);
-  // Clear the pending exception.
-  __ clear_mem(Address(Z_thread, in_bytes(Thread::pending_exception_offset())), sizeof(void *));
+  __ z_lg(Z_ARG1, 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception oop
+  __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc
+
+  __ pop_frame(); // pop frame pushed before runtime call
+
+  __ pop_frame(); // pop enterSpecial frame
+  __ restore_return_pc();
+
   // Jump to exception handler
   __ z_br(Z_R1 /*handler address*/);
 }
