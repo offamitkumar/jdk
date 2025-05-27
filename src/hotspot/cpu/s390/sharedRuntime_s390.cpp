@@ -1667,12 +1667,24 @@ static void gen_continuation_enter(MacroAssembler* masm,
   continuation_enter_cleanup(masm);
 
   // Pop frame and return
+  DEBUG_ONLY(__ z_lg(Z_R0, Address(Z_SP, 0)));
   __ add2reg(Z_SP, framesize_words * wordSize);
+
+#ifdef ASSERT
+  NearLabel ok;
+  __ z_cgr(Z_R0, Z_SP);
+  __ z_bre(ok);
+  __ stop("inconsistent frame size");
+  __ bind(ok);
+#endif // ASSERT
+
   __ restore_return_pc();
   __ z_br(Z_R14);
 
   // --- Exception handling path
   exception_offset = __ pc() - start;
+
+  continuation_enter_cleanup(masm);
 
   // Load caller's return pc
   __ z_lg(Z_ARG2, _z_common_abi(callers_sp), Z_SP);
@@ -1699,6 +1711,7 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc
 
   __ pop_frame(); // pop frame pushed before runtime call
+  // __ restore_return_pc(); // can be skipped
 
   __ pop_frame(); // pop enterSpecial frame
   __ restore_return_pc();
