@@ -54,6 +54,11 @@ void RegisterMap::check_location_valid() {
 // Profiling/safepoint support
 
 bool frame::safe_for_sender(JavaThread *thread) {
+  if (is_heap_frame()) {
+    assert(false, "someone is using this");
+    return true;
+  }
+
   address sp = (address)_sp;
   address fp = (address)_fp;
   address unextended_sp = (address)_unextended_sp;
@@ -119,6 +124,14 @@ bool frame::safe_for_sender(JavaThread *thread) {
     z_common_abi* sender_abi = (z_common_abi*)fp;
     intptr_t* sender_sp = (intptr_t*) fp;
     address   sender_pc = (address)   sender_abi->return_pc;
+
+    if (Continuation::is_return_barrier_entry(sender_pc)) {
+      assert(false, "wow_continuations - who is using this code");
+      // If our sender_pc is the return barrier, then our "real" sender is the continuation entry
+      frame s = Continuation::continuation_bottom_sender(thread, *this, sender_sp);
+      sender_sp = s.sp();
+      sender_pc = s.pc();
+    }
 
     // We must always be able to find a recognizable pc.
     CodeBlob* sender_blob = CodeCache::find_blob(sender_pc);
