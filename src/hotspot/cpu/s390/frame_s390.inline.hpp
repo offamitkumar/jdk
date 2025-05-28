@@ -323,11 +323,11 @@ inline JavaCallWrapper** frame::entry_frame_call_wrapper_addr() const {
 }
 
 inline oop frame::saved_oop_result(RegisterMap* map) const {
-  return *((oop*) map->location(Z_R2->as_VMReg(), nullptr));  // R2 is return register.
+  return *((oop*) map->location(Z_R2->as_VMReg(), sp()));  // R2 is return register.
 }
 
 inline void frame::set_saved_oop_result(RegisterMap* map, oop obj) {
-  *((oop*) map->location(Z_R2->as_VMReg(), nullptr)) = obj;  // R2 is return register.
+  *((oop*) map->location(Z_R2->as_VMReg(), sp())) = obj;  // R2 is return register.
 }
 
 inline intptr_t* frame::real_fp() const {
