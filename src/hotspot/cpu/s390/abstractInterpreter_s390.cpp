@@ -148,6 +148,9 @@ void AbstractInterpreter::layout_activation(Method* method,
                                             frame* interpreter_frame,
                                             bool is_top_frame,
                                             bool is_bottom_frame) {
+#ifdef ASSERT
+  guarantee(!caller->is_native_frame(), "should not be here with a native caller");
+#endif // ASSERT
   // TOP_IJAVA_FRAME:
   //
   //    0 [TOP_IJAVA_FRAME_ABI]         -+
