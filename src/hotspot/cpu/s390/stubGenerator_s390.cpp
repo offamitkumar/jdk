@@ -3187,16 +3187,6 @@ class StubGenerator: public StubCodeGenerator {
     __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG2);
     __ z_lgr(Z_SP, Z_RET); // Z_RET contains the SP of the thawed top frame
 
-    if (return_barrier_exception) {
-      // if there is exception then we need to add the register save area, to make sure that
-      // interpreter frame isn't get corroupted.
-      __ z_lg(Z_ARG2, _z_common_abi(return_pc), Z_SP);
-      __ z_lghi(Z_R1, -frame::z_abi_160_size);
-      __ z_agr(Z_R1, Z_SP);
-      __ resize_frame_absolute(Z_R1, Z_R2, true);
-      __ z_stg(Z_ARG2, _z_common_abi(return_pc), Z_SP);
-    }
-
     if (return_barrier) {
       // we're now in the caller of the frame that returned to the barrier
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
@@ -3216,7 +3206,7 @@ class StubGenerator: public StubCodeGenerator {
       __ push_frame_abi160(0 + 2 * BytesPerWord);
       __ z_stg(Z_RET , 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save return value containing the exception oop
 
-      __ z_stg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save exception_pc
+      __ z_stg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save exception_pc 
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), Z_thread, Z_ARG2);
 
       // Copy handler's address.
@@ -3226,7 +3216,7 @@ class StubGenerator: public StubCodeGenerator {
       // - Z_ARG1: exception oop
       // - Z_ARG2: exception pc
       __ z_lg(Z_ARG1, 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception oop
-      __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc
+      __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc 
       __ pop_frame();
       __ restore_return_pc();
     } else {
