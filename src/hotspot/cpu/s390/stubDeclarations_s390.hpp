@@ -44,7 +44,7 @@
                                            do_arch_blob,                \
                                            do_arch_entry,               \
                                            do_arch_entry_init)          \
-  do_arch_blob(continuation, 2000)                                      \
+  do_arch_blob(continuation, 5000)                                      \
 
 
 #define STUBGEN_COMPILER_BLOBS_ARCH_DO(do_stub,                         \

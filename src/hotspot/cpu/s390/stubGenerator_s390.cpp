@@ -3223,7 +3223,7 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_cont_thaw(StubGenStubId stub_id) {
+  address generate_cont_thaw(StubId stub_id) {
     if (!Continuations::enabled()) return nullptr;
 
     Continuation::thaw_kind kind;
@@ -3231,17 +3231,17 @@ class StubGenerator: public StubCodeGenerator {
     bool return_barrier_exception;
 
     switch (stub_id) {
-      case cont_thaw_id:
+      case StubId::stubgen_cont_thaw_id:
         kind = Continuation::thaw_top;
         return_barrier = false;
         return_barrier_exception = false;
         break;
-      case cont_returnBarrier_id:
+      case StubId::stubgen_cont_returnBarrier_id:
         kind = Continuation::thaw_return_barrier;
         return_barrier = true;
         return_barrier_exception = false;
         break;
-      case cont_returnBarrierExc_id:
+      case StubId::stubgen_cont_returnBarrierExc_id:
         kind = Continuation::thaw_return_barrier_exception;
         return_barrier = true;
         return_barrier_exception = true;
@@ -3291,7 +3291,6 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(L_thaw_success);
 
     // Make room for the thawed frames and align the stack.
-    // TODO: Are we sure about z_abi_160_size ?
     __ add64(Z_RET, frame::z_abi_160_size);
 
     { // stack alignment
@@ -3301,6 +3300,7 @@ class StubGenerator: public StubCodeGenerator {
     __ resize_frame( /* offset = */ Z_RET,/* fp = */ Z_R1, /* load_fp = */ true);
 
     __ z_lghi(Z_ARG2, kind);
+    __ add64(Z_SP, -frame::z_abi_160_size);  // Register save area for Continuation::thaw
     __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG2);
     __ z_lgr(Z_SP, Z_RET); // Z_RET contains the SP of the thawed top frame
 
@@ -3346,15 +3346,15 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_cont_thaw() {
-    return generate_cont_thaw(StubGenStubId::cont_thaw_id);
+    return generate_cont_thaw(StubId::stubgen_cont_thaw_id);
   }
 
   address generate_cont_returnBarrier() {
-    return generate_cont_thaw(StubGenStubId::cont_returnBarrier_id);
+    return generate_cont_thaw(StubId::stubgen_cont_returnBarrier_id);
   }
 
   address generate_cont_returnBarrier_exception() {
-    return generate_cont_thaw(StubGenStubId::cont_returnBarrierExc_id);
+    return generate_cont_thaw(StubId::stubgen_cont_returnBarrierExc_id);
   }
 
   // exception handler for upcall stubs
