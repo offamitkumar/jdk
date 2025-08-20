@@ -3223,7 +3223,7 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  address generate_cont_thaw(StubGenStubId stub_id) {
+  address generate_cont_thaw(StubId stub_id) {
     if (!Continuations::enabled()) return nullptr;
 
     Continuation::thaw_kind kind;
@@ -3231,17 +3231,17 @@ class StubGenerator: public StubCodeGenerator {
     bool return_barrier_exception;
 
     switch (stub_id) {
-      case cont_thaw_id:
+      case StubId::stubgen_cont_thaw_id:
         kind = Continuation::thaw_top;
         return_barrier = false;
         return_barrier_exception = false;
         break;
-      case cont_returnBarrier_id:
+      case StubId::stubgen_cont_returnBarrier_id:
         kind = Continuation::thaw_return_barrier;
         return_barrier = true;
         return_barrier_exception = false;
         break;
-      case cont_returnBarrierExc_id:
+      case StubId::stubgen_cont_returnBarrierExc_id:
         kind = Continuation::thaw_return_barrier_exception;
         return_barrier = true;
         return_barrier_exception = true;
@@ -3346,15 +3346,15 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_cont_thaw() {
-    return generate_cont_thaw(StubGenStubId::cont_thaw_id);
+    return generate_cont_thaw(StubId::stubgen_cont_thaw_id);
   }
 
   address generate_cont_returnBarrier() {
-    return generate_cont_thaw(StubGenStubId::cont_returnBarrier_id);
+    return generate_cont_thaw(StubId::stubgen_cont_returnBarrier_id);
   }
 
   address generate_cont_returnBarrier_exception() {
-    return generate_cont_thaw(StubGenStubId::cont_returnBarrierExc_id);
+    return generate_cont_thaw(StubId::stubgen_cont_returnBarrierExc_id);
   }
 
   // exception handler for upcall stubs

@@ -3918,7 +3918,7 @@ int SpinPause() {
 // It returns a jobject handle to the event writer.
 // The handle is dereferenced and the return value is the event writer oop.
 RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
-  const char* name = SharedRuntime::stub_name(SharedStubId::jfr_write_checkpoint_id);
+  const char* name = SharedRuntime::stub_name(StubId::shared_jfr_write_checkpoint_id);
   CodeBuffer code(name, 512, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
 
@@ -3953,7 +3953,7 @@ RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
 
 // For c2: call to return a leased buffer.
 RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
-  const char* name = SharedRuntime::stub_name(SharedStubId::jfr_return_lease_id);
+  const char* name = SharedRuntime::stub_name(StubId::shared_jfr_return_lease_id);
   CodeBuffer code(name, 512, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
 
