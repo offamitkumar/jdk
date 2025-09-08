@@ -50,7 +50,14 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
 }
 
 inline int ContinuationHelper::frame_align_words(int size) {
-  return size & 1;
+  // no frame alignment required on s390.
+  // even worse,
+  /*
+     _cont_stack_bottom = _cont.entrySP() + (_cont.argsize() == 0 ? frame::metadata_words_at_top : 0)
+      - ContinuationHelper::frame_align_words(_cont.argsize()); // see alignment in thaw
+  */
+  // above code will start causing issues as one will be subtracted.
+  return 0;
 }
 
 inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* p) {
