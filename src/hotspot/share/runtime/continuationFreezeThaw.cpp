@@ -209,6 +209,7 @@ template<typename ConfigT, bool preempt> static inline freeze_result freeze_inte
 static inline int prepare_thaw_internal(JavaThread* thread, bool return_barrier);
 template<typename ConfigT> static inline intptr_t* thaw_internal(JavaThread* thread, const Continuation::thaw_kind kind);
 
+static inline intptr_t *extend_interpreter_frame(intptr_t *sp);
 
 // Entry point to freeze. Transitions are handled manually
 // Called from gen_continuation_yield() in sharedRuntime_<cpu>.cpp through Continuation::freeze_entry();
@@ -239,7 +240,9 @@ static JRT_LEAF(intptr_t*, thaw(JavaThread* thread, int kind))
 
   // we might modify the code cache via BarrierSetNMethod::nmethod_entry_barrier
   MACOS_AARCH64_ONLY(ThreadWXEnable __wx(WXWrite, thread));
-  return ConfigT::thaw(thread, (Continuation::thaw_kind)kind);
+  intptr_t* sp = ConfigT::thaw(thread, (Continuation::thaw_kind)kind);
+  S390_ONLY(sp = extend_interpreter_frame(sp);)
+  return sp;
 JRT_END
 
 JVM_ENTRY(jint, CONT_isPinned0(JNIEnv* env, jobject cont_scope)) {

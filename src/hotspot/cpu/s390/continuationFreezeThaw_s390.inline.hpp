@@ -296,4 +296,22 @@ inline void ThawBase::prefetch_chunk_pd(void* start, int size) {
 
 }
 
+inline intptr_t *extend_interpreter_frame(intptr_t *sp) {
+  frame::z_common_abi unextended_abi_frame = *(frame::z_common_abi*)sp;
+  if (Interpreter::contains((address)unextended_abi_frame.return_pc)) {
+    intptr_t *old_sp = sp;
+    sp -= (frame::z_abi_160_size // - frame::z_common_abi_size
+           ) / sizeof sp[0];
+    frame::z_common_abi *extended_abi_frame = (frame::z_common_abi*)sp;
+    *extended_abi_frame = unextended_abi_frame;
+    tty->print("old_sp %p\n"
+               "frame {sp %p, pc %p} @ %p\n",
+               (address)old_sp,
+               (address)unextended_abi_frame.callers_sp,
+               (address)unextended_abi_frame.return_pc,
+               (address)sp);
+  }
+  return sp;
+}
+
 #endif // CPU_S390_CONTINUATION_S390_INLINE_HPP

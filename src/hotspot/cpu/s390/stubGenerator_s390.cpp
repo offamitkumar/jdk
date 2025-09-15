@@ -3291,7 +3291,6 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(L_thaw_success);
 
     // Make room for the thawed frames and align the stack.
-    // TODO: Are we sure about z_abi_160_size ?
     __ add64(Z_RET, frame::z_abi_160_size);
 
     { // stack alignment
@@ -3301,6 +3300,7 @@ class StubGenerator: public StubCodeGenerator {
     __ resize_frame( /* offset = */ Z_RET,/* fp = */ Z_R1, /* load_fp = */ true);
 
     __ z_lghi(Z_ARG2, kind);
+    __ add64(Z_SP, -frame::z_abi_160_size);  // Register save area for Continuation::thaw
     __ call_VM_leaf(Continuation::thaw_entry(), Z_thread, Z_ARG2);
     __ z_lgr(Z_SP, Z_RET); // Z_RET contains the SP of the thawed top frame
 
