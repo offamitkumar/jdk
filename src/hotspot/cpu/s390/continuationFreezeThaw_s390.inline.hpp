@@ -304,7 +304,7 @@ inline intptr_t *extend_interpreter_frame(intptr_t *sp) {
            ) / sizeof sp[0];
     frame::z_common_abi *extended_abi_frame = (frame::z_common_abi*)sp;
     *extended_abi_frame = unextended_abi_frame;
-    tty->print("old_sp %p\n"
+    log_develop_trace(continuations)("old_sp %p\n"
                "frame {sp %p, pc %p} @ %p\n",
                (address)old_sp,
                (address)unextended_abi_frame.callers_sp,
