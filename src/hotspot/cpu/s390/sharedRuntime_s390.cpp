@@ -3204,6 +3204,13 @@ void SharedRuntime::generate_deopt_blob() {
 
   // stack: (caller_of_deoptee, ...).
 
+  // Freezing continuation frames requires that the caller is trimmed to unextended sp if compiled.
+  // If not compiled the loaded value is equal to the current SP (see frame::initial_deoptimization_info())
+  // and the frame is effectively not resized.
+  Register caller_sp = Z_R1_scratch;
+  __ z_lg(caller_sp, Address(unroll_block_reg, Deoptimization::UnrollBlock::initial_info_offset()));
+  __ resize_frame_absolute(caller_sp, Z_R0, true);
+
   // loop through the `UnrollBlock' info and create interpreter frames.
   push_skeleton_frames(masm, true/*deopt*/,
                   unroll_block_reg,
