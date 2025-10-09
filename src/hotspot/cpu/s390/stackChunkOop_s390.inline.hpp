@@ -26,11 +26,15 @@
 #define CPU_S390_STACKCHUNKOOP_S390_INLINE_HPP
 
 inline void stackChunkOopDesc::relativize_frame_pd(frame& fr) const {
-  Unimplemented();
+  if (fr.is_interpreted_frame()) {
+    fr.set_offset_fp(relativize_address(fr.fp()));
+  }
 }
 
 inline void stackChunkOopDesc::derelativize_frame_pd(frame& fr) const {
-  Unimplemented();
+  if (fr.is_interpreted_frame()) {
+    fr.set_fp(derelativize_address(fr.offset_fp()));
+  }
 }
 
 #endif // CPU_S390_STACKCHUNKOOP_S390_INLINE_HPP
