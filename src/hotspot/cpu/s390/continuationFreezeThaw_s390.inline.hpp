@@ -184,6 +184,10 @@ inline void FreezeBase::patch_pd(frame& hf, const frame& caller) {
 #endif
 }
 
+inline void FreezeBase::patch_pd_unused(intptr_t* sp) {
+  Unimplemented();
+}
+
 inline void FreezeBase::patch_stack_pd(intptr_t* frame_sp, intptr_t* heap_sp) {
   // Nothing to do. The backchain is reconstructed when thawing (see Thaw<ConfigT>::patch_caller_links())
 }
