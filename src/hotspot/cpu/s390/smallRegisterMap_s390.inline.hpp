@@ -30,7 +30,7 @@
 
 class SmallRegisterMap;
 
-// Java frames don't have callee saved registers (except for rfp), so we can use a smaller SmallRegisterMapType
+// Java frames don't have callee saved registers, so we can use a smaller RegisterMap
 template <bool IncludeArgs>
 class SmallRegisterMapType {
   friend SmallRegisterMap;
@@ -39,25 +39,23 @@ class SmallRegisterMapType {
   ~SmallRegisterMapType() = default;
   NONCOPYABLE(SmallRegisterMapType);
 
-  static void assert_is_rfp(VMReg r) NOT_DEBUG_RETURN
-                                     DEBUG_ONLY({ Unimplemented(); })
-public:
   // as_RegisterMap is used when we didn't want to templatize and abstract over RegisterMap type to support SmallRegisterMap
   // Consider enhancing SmallRegisterMap to support those cases
   const RegisterMap* as_RegisterMap() const { return nullptr; }
   RegisterMap* as_RegisterMap() { return nullptr; }
 
   RegisterMap* copy_to_RegisterMap(RegisterMap* map, intptr_t* sp) const {
-    Unimplemented();
+    map->clear();
+    map->set_include_argument_oops(this->include_argument_oops());
     return map;
   }
 
   inline address location(VMReg reg, intptr_t* sp) const {
-    Unimplemented();
+    assert(false, "Reg: %s", reg->name());
     return nullptr;
   }
 
-  inline void set_location(VMReg reg, address loc) { assert_is_rfp(reg); }
+  inline void set_location(VMReg reg, address loc) { assert(false, "Reg: %s", reg->name()); }
 
   JavaThread* thread() const {
   #ifndef ASSERT

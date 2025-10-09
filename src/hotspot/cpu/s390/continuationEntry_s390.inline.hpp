@@ -25,22 +25,28 @@
 #ifndef CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
 #define CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
 
+#include "oops/method.inline.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/registerMap.hpp"
+#include "utilities/macros.hpp"
 #include "runtime/continuationEntry.hpp"
 
-// TODO: Implement
-
 inline frame ContinuationEntry::to_frame() const {
-  Unimplemented();
-  return frame();
+  static CodeBlob* cb = CodeCache::find_blob_fast(entry_pc());
+  assert(cb != nullptr, "");
+  assert(cb->as_nmethod()->method()->is_continuation_enter_intrinsic(), "");
+  return frame(entry_sp(), entry_pc(), entry_sp(), entry_fp(), cb);
 }
 
 inline intptr_t* ContinuationEntry::entry_fp() const {
-  Unimplemented();
-  return nullptr;
+  return (intptr_t*)((address)this + size());
 }
 
 inline void ContinuationEntry::update_register_map(RegisterMap* map) const {
-  Unimplemented();
+  // No register map update needed for s390.
+  // In the Java calling convention on s390, all registers are volatile (caller-saved),
+  // so there are no non-volatile (callee-saved) registers that need to be tracked
+  // in the register map for continuation entry frames.
 }
 
 #endif // CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
