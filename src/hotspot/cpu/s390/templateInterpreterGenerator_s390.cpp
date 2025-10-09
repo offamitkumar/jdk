@@ -717,13 +717,18 @@ address TemplateInterpreterGenerator::generate_safept_entry_for (TosState state,
                                                                 address runtime_entry) {
   address entry = __ pc();
   __ push(state);
+  __ push_cont_fastpath();
   __ call_VM(noreg, runtime_entry);
+  __ pop_cont_fastpath();
   __ dispatch_via(vtos, Interpreter::_normal_table.table_for (vtos));
   return entry;
 }
 
 address TemplateInterpreterGenerator::generate_cont_resume_interpreter_adapter() {
-  return nullptr;
+  if (!Continuations::enabled()) return nullptr;
+  address start = __ pc();
+  __ stop("generate_cont_resume_interpreter_adapter");
+  return start;
 }
 
 
@@ -1523,7 +1528,10 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // overwritten since "__ call_stub(signature_handler);" (except for
   // ARG1 and ARG2 for static methods).
 
+  // TODO: https://bugs.openjdk.org/browse/JDK-8338383
+  __ push_cont_fastpath();
   __ call_c(Z_R1/*native_method_entry*/);
+  __ pop_cont_fastpath();
 
   // NOTE: frame::interpreter_frame_result() depends on these stores.
   __ z_stg(Z_RET, _z_ijava_state_neg(lresult), Z_fp);
@@ -2173,6 +2181,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                    JavaThread::popframe_force_deopt_reexecution_bit,
                    Z_tmp_1, false);
 
+    __ pop_cont_fastpath();
     // Continue in deoptimization handler.
     __ z_br(Z_R14);
 
@@ -2188,6 +2197,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                        false,  // install_monitor_exception
                        false); // notify_jvmdi
   __ z_lg(Z_fp, _z_abi(callers_sp), Z_SP); // Restore frame pointer.
+  __ pop_cont_fastpath();
   {
     Register top_frame_sp = Z_R1_scratch;
     __ z_lg(top_frame_sp, Address(Z_fp, _z_ijava_state_neg(top_frame_sp)));
@@ -2261,6 +2271,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // Remove the activation (without doing throws on illegalMonitorExceptions).
   __ remove_activation(vtos, noreg/*ret.pc already loaded*/, false/*throw exc*/, true/*install exc*/, false/*notify jvmti*/);
   __ z_lg(Z_fp, _z_abi(callers_sp), Z_SP); // Restore frame pointer.
+  __ pop_cont_fastpath();
 
   __ get_vm_result_oop(Z_ARG1);     // Restore exception.
   __ verify_oop(Z_ARG1);

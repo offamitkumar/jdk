@@ -32,68 +32,110 @@
 #ifdef ASSERT
 template <ChunkFrames frame_kind>
 inline bool StackChunkFrameStream<frame_kind>::is_in_frame(void* p0) const {
-  Unimplemented();
-  return true;
+  assert(!is_done(), "");
+  assert(is_compiled(), "");
+  intptr_t* p = (intptr_t*)p0;
+  int argsize = (_cb->as_nmethod()->num_stack_arg_slots() * VMRegImpl::stack_slot_size) >> LogBytesPerWord;
+  int frame_size = _cb->frame_size() + (argsize > 0 ? argsize + frame::metadata_words_at_top : 0);
+  return (p - unextended_sp()) >= 0 && (p - unextended_sp()) < frame_size;
 }
 #endif
 
 template <ChunkFrames frame_kind>
 inline frame StackChunkFrameStream<frame_kind>::to_frame() const {
-  Unimplemented();
-  return frame();
+  if (is_done()) {
+    return frame(_sp, _sp, nullptr, nullptr, nullptr, nullptr, true);
+  } else {
+    // TODO: need to verify this. I don't know whether it's true for s390x or not.
+    // Compiled frames on heap don't have back links. See FreezeBase::patch_pd() and frame::setup().
+    return frame(sp(), unextended_sp(), Interpreter::contains(pc()) ? fp() : nullptr, pc(), cb(), _oopmap, true);
+  }
 }
 
 template <ChunkFrames frame_kind>
 inline address StackChunkFrameStream<frame_kind>::get_pc() const {
-  Unimplemented();
-  return nullptr;
+  assert(!is_done(), "");
+  return (address)((frame::z_common_abi*) _sp)->return_pc;
 }
 
 template <ChunkFrames frame_kind>
 inline intptr_t* StackChunkFrameStream<frame_kind>::fp() const {
-  Unimplemented();
-  return nullptr;
+  // See FreezeBase::patch_pd() and frame::setup()
+  assert((frame_kind == ChunkFrames::Mixed && is_interpreted()), "");
+  intptr_t* fp_addr = (intptr_t*)&((frame::z_common_abi*)_sp)->callers_sp;
+  assert(*(intptr_t**)fp_addr != nullptr, "");
+  // derelativize
+  return fp_addr + *fp_addr;
 }
 
 template <ChunkFrames frame_kind>
 inline intptr_t* StackChunkFrameStream<frame_kind>::derelativize(int offset) const {
-  Unimplemented();
-  return nullptr;
+  intptr_t* fp = this->fp();
+  assert(fp != nullptr, "");
+  return fp + fp[offset];
 }
 
 template <ChunkFrames frame_kind>
 inline intptr_t* StackChunkFrameStream<frame_kind>::unextended_sp_for_interpreter_frame() const {
-  Unimplemented();
-  return nullptr;
+  // TODO: comment on return is valid ?
+  assert_is_interpreted_and_frame_type_mixed();
+  return derelativize(_z_ijava_idx(esp)) + 1 - frame::metadata_words; // On s390 esp points to the next free slot
 }
 
 template <ChunkFrames frame_kind>
 inline void StackChunkFrameStream<frame_kind>::next_for_interpreter_frame() {
-  Unimplemented();
+  assert_is_interpreted_and_frame_type_mixed();
+  if (derelativize(_z_ijava_idx(locals)) + 1 >= _end) {
+    _unextended_sp = _end;
+    _sp = _end;
+  } else {
+    _unextended_sp = derelativize(_z_ijava_idx(sender_sp));
+    _sp = this->fp();
+  }
 }
 
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_size() const {
-  Unimplemented();
-  return 0;
+  assert_is_interpreted_and_frame_type_mixed();
+  intptr_t* top = unextended_sp(); // later subtract argsize if callee is interpreted
+  intptr_t* bottom = derelativize(_z_ijava_idx(locals)) + 1;
+  return (int)(bottom - top);
 }
 
+// Size of stack args in words (P0..Pn above). Only valid if the caller is also
+// interpreted. The function is also called if the caller is compiled but the
+// result is not used in that case (same on x86).
+// See also setting of sender_sp in ContinuationHelper::InterpretedFrame::patch_sender_sp()
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_stack_argsize() const {
-  Unimplemented();
-  return 0;
+  assert_is_interpreted_and_frame_type_mixed();
+  frame::z_ijava_state* state = (frame::z_ijava_state*)((uintptr_t)fp() - frame::z_ijava_state_size);
+  int diff = (int)(state->locals - (state->sender_sp + frame::metadata_words_at_top) + 1);
+  assert(diff == -frame::metadata_words_at_top || ((Method*)state->method)->size_of_parameters() == diff,
+      "size_of_parameters(): %d diff: %d sp: " PTR_FORMAT " fp:" PTR_FORMAT,
+      ((Method*)state->method)->size_of_parameters(), diff, p2i(sp()), p2i(fp()));
+  return diff;
 }
 
 template <ChunkFrames frame_kind>
 inline int StackChunkFrameStream<frame_kind>::interpreter_frame_num_oops() const {
-  Unimplemented();
-  return 0;
+  assert_is_interpreted_and_frame_type_mixed();
+  ResourceMark rm;
+  InterpreterOopMap mask;
+  frame f = to_frame();
+  f.interpreted_frame_oop_map(&mask);
+  return  mask.num_oops()
+          + 1 // for the mirror oop
+          + (f.interpreter_frame_method()->is_native() ? 1 : 0) // temp oop slot
+          + pointer_delta_as_int((intptr_t*)f.interpreter_frame_monitor_begin(),
+                                 (intptr_t*)f.interpreter_frame_monitor_end())/BasicObjectLock::size();
 }
 
 template<>
 template<>
 inline void StackChunkFrameStream<ChunkFrames::Mixed>::update_reg_map_pd(RegisterMap* map) {
-  Unimplemented();
+  // TODO: are we sure ?
+  // nothing to do
 }
 
 template<>

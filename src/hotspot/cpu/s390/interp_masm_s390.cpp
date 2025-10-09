@@ -165,6 +165,51 @@ void InterpreterMacroAssembler::dispatch_via(TosState state, address *table) {
 // to perform additional, template interpreter specific tasks before actually
 // calling their MacroAssembler counterparts.
 
+void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result, address entry_point,
+                                        Register arg_1, bool check_exceptions) {
+  if (!Continuations::enabled()) {
+    call_VM(oop_result, entry_point, arg_1, check_exceptions);
+    return;
+  }
+
+#ifdef ASSERT
+  {
+    NearLabel ok;
+    z_cghsi(in_bytes(JavaThread::preempt_alternate_return_offset()), Z_thread, 0);
+    z_bre(ok);
+    stop("Should not have alternate return address set");
+    bind(ok);
+  }
+#endif // ASSERT
+
+  Label resume_pc, not_preempted;
+  push_cont_fastpath();
+
+  assert(arg_1 != Z_ARG1, "register corruption");
+
+  // We set resume_pc as last java pc. It will be saved if the vthread gets preempted.
+  // Later execution will continue right there.
+  lgr_if_needed(Z_ARG2, arg_1);
+
+  call_VM(oop_result, entry_point, false /*check_exceptions*/, &resume_pc /* last_java_pc */);
+
+  pop_cont_fastpath();
+
+  // Jump to handler if the call was preempted
+  z_lg(Z_R1_scratch, Address(Z_thread, in_bytes(JavaThread::preempt_alternate_return_offset())));
+  z_ltgr(Z_R1_scratch, Z_R1_scratch);
+  z_brz(not_preempted);
+
+  z_mvghi(Address(Z_thread, in_bytes(JavaThread::preempt_alternate_return_offset())), 0);
+  z_br(Z_R1_scratch);  // branch to handler in Z_R1_scratch
+
+  bind(resume_pc); // Location to resume execution
+
+  stop("restore_after_resume");
+
+  bind(not_preempted);
+}
+
 void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point) {
   bool allow_relocation = true; // Fenerally valid variant. Assume code is relocated.
   // interpreter specific
@@ -193,20 +238,20 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result, Register last_
   save_esp();
   // super call
   MacroAssembler::call_VM_base(oop_result, last_java_sp,
-                               entry_point, allow_relocation, check_exceptions);
+                               entry_point, allow_relocation, check_exceptions, nullptr);
   restore_bcp();
 }
 
 void InterpreterMacroAssembler::call_VM_base(Register oop_result, Register last_java_sp,
                                              address entry_point, bool allow_relocation,
-                                             bool check_exceptions) {
+                                             bool check_exceptions, Label* last_java_pc) {
   // interpreter specific
 
   save_bcp();
   save_esp();
   // super call
   MacroAssembler::call_VM_base(oop_result, last_java_sp,
-                               entry_point, allow_relocation, check_exceptions);
+                               entry_point, allow_relocation, check_exceptions, last_java_pc);
   restore_bcp();
 }
 
@@ -697,7 +742,7 @@ void InterpreterMacroAssembler::get_monitors(Register reg) {
   bind(ok);
 #endif // ASSERT
   mem2reg_opt(reg, Address(Z_fp, _z_ijava_state_neg(monitors)));
-  z_slag(reg, reg, Interpreter::logStackElementSize);
+  z_slag(reg, reg, Interpreter::logStackElementSize); // sign preserved
   z_agr(reg, Z_fp);
 }
 
@@ -1003,6 +1048,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   verify_oop(Z_tos, state);
 
   pop_interpreter_frame(return_pc, Z_ARG2, Z_ARG3);
+  pop_cont_fastpath();
   BLOCK_COMMENT("} remove_activation");
 }
 
@@ -1023,9 +1069,9 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
   z_bru(done);
 
   bind(slow_case);
-  call_VM(noreg,
-          CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
-          monitor);
+  call_VM_preemptable(noreg,
+                      CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
+                      monitor);
   bind(done);
 }
 

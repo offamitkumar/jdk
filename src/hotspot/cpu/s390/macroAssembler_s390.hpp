@@ -516,17 +516,19 @@ class MacroAssembler: public Assembler {
     Register        last_java_sp,      // To set up last_Java_frame in stubs; use noreg otherwise.
     address         entry_point,       // The entry point.
     bool            check_exception);  // Flag which indicates if exception should be checked.
+
   virtual void call_VM_base(
     Register        oop_result,       // Where an oop-result ends up if any; use noreg otherwise.
     Register        last_java_sp,     // To set up last_Java_frame in stubs; use noreg otherwise.
     address         entry_point,      // The entry point.
     bool            allow_relocation, // Flag to request generation of relocatable code.
-    bool            check_exception); // Flag which indicates if exception should be checked.
+    bool            check_exception,  // Flag which indicates if exception should be checked.
+    Label           *last_java_pc);
 
   // Call into the VM.
   // Passes the thread pointer (in Z_ARG1) as a prepended argument.
   // Makes sure oop return values are visible to the GC.
-  void call_VM(Register oop_result, address entry_point, bool check_exceptions = true);
+  void call_VM(Register oop_result, address entry_point, bool check_exceptions = true, Label* last_java_pc = nullptr);
   void call_VM(Register oop_result, address entry_point, Register arg_1, bool check_exceptions = true);
   void call_VM(Register oop_result, address entry_point, Register arg_1, Register arg_2, bool check_exceptions = true);
   void call_VM(Register oop_result, address entry_point, Register arg_1, Register arg_2,
@@ -570,6 +572,8 @@ class MacroAssembler: public Assembler {
 
   // Get the pc where the last call will return to. Returns _last_calls_return_pc.
   inline address last_calls_return_pc();
+
+  void post_call_nop();
 
   static int ic_check_size();
   int ic_check(int end_alignment);
@@ -802,7 +806,7 @@ class MacroAssembler: public Assembler {
  private:
   void set_last_Java_frame(Register last_Java_sp, Register last_Java_pc, bool allow_relocation);
   void reset_last_Java_frame(bool allow_relocation);
-  void set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, Register tmp1, bool allow_relocation);
+  void set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, Register tmp1, bool allow_relocation, Label* last_java_pc = nullptr);
  public:
   inline void set_last_Java_frame(Register last_java_sp, Register last_Java_pc);
   inline void set_last_Java_frame_static(Register last_java_sp, Register last_Java_pc);
@@ -1106,6 +1110,9 @@ class MacroAssembler: public Assembler {
   // Only for use on z15 or later s390 implementations.
   void pop_count_int_with_ext3(Register dst, Register src);
   void pop_count_long_with_ext3(Register dst, Register src);
+
+  void push_cont_fastpath();
+  void pop_cont_fastpath();
 
   void load_on_condition_imm_32(Register dst, int64_t i2, branch_condition cc);
   void load_on_condition_imm_64(Register dst, int64_t i2, branch_condition cc);

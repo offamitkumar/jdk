@@ -197,7 +197,8 @@ void AbstractInterpreter::layout_activation(Method* method,
     assert(is_bottom_frame && (sender_sp == caller->unextended_sp()),
            "must initialize sender_sp of bottom skeleton frame when pushing it");
   } else {
-    assert(caller->is_entry_frame() || caller->is_upcall_stub_frame(), "is there a new frame type??");
+    // FIXME: sender_sp correctly calculated for native frames ?
+    assert(caller->is_entry_frame() || caller->is_upcall_stub_frame() || caller->is_native_frame(), "is there a new frame type??");
     sender_sp = caller->sp(); // Call_stub only uses it's fp.
   }
 

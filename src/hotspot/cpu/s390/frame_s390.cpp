@@ -54,6 +54,11 @@ void RegisterMap::check_location_valid() {
 // Profiling/safepoint support
 
 bool frame::safe_for_sender(JavaThread *thread) {
+  if (is_heap_frame()) {
+    assert(false, "someone is using this");
+    return true;
+  }
+
   address sp = (address)_sp;
   address fp = (address)_fp;
   address unextended_sp = (address)_unextended_sp;
@@ -119,6 +124,14 @@ bool frame::safe_for_sender(JavaThread *thread) {
     z_common_abi* sender_abi = (z_common_abi*)fp;
     intptr_t* sender_sp = (intptr_t*) fp;
     address   sender_pc = (address)   sender_abi->return_pc;
+
+    if (Continuation::is_return_barrier_entry(sender_pc)) {
+      assert(false, "wow_continuations - who is using this code");
+      // If our sender_pc is the return barrier, then our "real" sender is the continuation entry
+      frame s = Continuation::continuation_bottom_sender(thread, *this, sender_sp);
+      sender_sp = s.sp();
+      sender_pc = s.pc();
+    }
 
     // We must always be able to find a recognizable pc.
     CodeBlob* sender_blob = CodeCache::find_blob(sender_pc);
@@ -192,7 +205,8 @@ void frame::interpreter_frame_set_locals(intptr_t* locs)  {
 // sender_sp
 
 intptr_t* frame::interpreter_frame_sender_sp() const {
-  return sender_sp();
+  assert(is_interpreted_frame(), "interpreted frame expected");
+  return (intptr_t*)at(_z_ijava_idx(sender_sp));
 }
 
 frame frame::sender_for_entry_frame(RegisterMap *map) const {
@@ -252,8 +266,18 @@ JavaThread** frame::saved_thread_address(const frame& f) {
 }
 
 frame frame::sender_for_interpreter_frame(RegisterMap *map) const {
-  // Pass callers sender_sp as unextended_sp.
-  return frame(sender_sp(), sender_pc(), (intptr_t*)(ijava_state()->sender_sp));
+  // This is the sp before any possible extension (adapter/locals).
+  intptr_t* unextended_sp = interpreter_frame_sender_sp();
+  address sender_pc = this->sender_pc();
+  if (Continuation::is_return_barrier_entry(sender_pc)) {
+    if (map->walk_cont()) { // about to walk into an h-stack
+      return Continuation::top_frame(*this, map);
+    } else {
+      return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp());
+    }
+  }
+
+  return frame(sender_sp(), sender_pc, unextended_sp);
 }
 
 void frame::patch_pc(Thread* thread, address pc) {
@@ -648,6 +672,8 @@ extern "C" void bt_max(intptr_t *start_sp, intptr_t *top_pc, int max_frames) {
 }
 
 #if !defined(PRODUCT)
+#define DESCRIBE_ADDRESS_MAGIC(name) \
+  values.describe(frame_no, (intptr_t*)&ijava_state()->name, #name "_number_debug");
 
 #define DESCRIBE_ADDRESS(name) \
   values.describe(frame_no, (intptr_t*)&ijava_state()->name, #name);
@@ -656,25 +682,38 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
   if (is_interpreted_frame()) {
     // Describe z_ijava_state elements.
     DESCRIBE_ADDRESS(method);
+    DESCRIBE_ADDRESS(mirror);
     DESCRIBE_ADDRESS(locals);
     DESCRIBE_ADDRESS(monitors);
     DESCRIBE_ADDRESS(cpoolCache);
     DESCRIBE_ADDRESS(bcp);
-    DESCRIBE_ADDRESS(mdx);
     DESCRIBE_ADDRESS(esp);
-    DESCRIBE_ADDRESS(sender_sp);
+    DESCRIBE_ADDRESS(mdx);
     DESCRIBE_ADDRESS(top_frame_sp);
+    DESCRIBE_ADDRESS(sender_sp);
     DESCRIBE_ADDRESS(oop_tmp);
     DESCRIBE_ADDRESS(lresult);
     DESCRIBE_ADDRESS(fresult);
+    DESCRIBE_ADDRESS_MAGIC(magic);
+  }
+
+  if (is_java_frame() || Continuation::is_continuation_enterSpecial(*this)) {
+    intptr_t* ret_pc_loc = (intptr_t*)&own_abi()->return_pc;
+    address ret_pc = *(address*)ret_pc_loc;
+    values.describe(frame_no, ret_pc_loc,
+        Continuation::is_return_barrier_entry(ret_pc) ? "return address (return barrier)" : "return address");
   }
 }
 
 #endif // !PRODUCT
 
 intptr_t *frame::initial_deoptimization_info() {
-  // Used to reset the saved FP.
-  return fp();
+  // `this` is the caller of the deoptee. We want to trim it, if compiled, to
+  // unextended_sp. This is necessary if the deoptee frame is the bottom frame
+  // of a continuation on stack (more frames could be in a StackChunk) as it
+  // will pop its stack args. Otherwise the recursion in
+  // FreezeBase::recurse_freeze_java_frame() would not stop at the bottom frame.
+  return is_compiled_frame() ? unextended_sp() : sp();
 }
 
 BasicObjectLock* frame::interpreter_frame_monitor_end() const {
