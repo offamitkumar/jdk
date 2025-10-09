@@ -130,6 +130,7 @@
 
   enum {
     z_native_abi_size = sizeof(z_native_abi),
+    z_abi_160_base_size = sizeof(z_abi_160_base),
     z_abi_160_size = sizeof(z_abi_160_base)
   };
 
@@ -452,10 +453,16 @@
   // NOTE: Stack pointer is now held in the base class, so remove it from here.
 
   // Needed by deoptimization.
-  intptr_t* _unextended_sp;
+  union {
+    intptr_t* _unextended_sp;
+    int _offset_unextended_sp; // for use in stack-chunk frames
+  };
 
   // Frame pointer for this frame.
-  intptr_t* _fp;
+  union {
+    intptr_t* _fp;  // frame pointer
+    int _offset_fp; // relative frame pointer for use in stack-chunk frames
+  };
 
  public:
 
@@ -463,18 +470,23 @@
 
   // Accessors
 
-  inline intptr_t* fp() const { return _fp; }
+  inline intptr_t* fp() const { assert_absolute(); return _fp; }
+  void set_fp(intptr_t* newfp)  { _fp = newfp; }
+  int offset_fp() const         { assert_offset();  return _offset_fp; }
+  void set_offset_fp(int value) { assert_on_heap(); _offset_fp = value; }
 
  private:
 
   // Initialize frame members (_pc and _sp must be given)
   inline void setup();
 
- // Constructors
-
  public:
+
+  // Constructors
+  inline frame(intptr_t* sp, intptr_t* fp, address pc);
   // To be used, if sp was not extended to match callee's calling convention.
   inline frame(intptr_t* sp, address pc, intptr_t* unextended_sp = nullptr, intptr_t* fp = nullptr, CodeBlob* cb = nullptr);
+  inline frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map, bool on_heap);
   inline frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc, CodeBlob* cb, const ImmutableOopMap* oop_map = nullptr);
 
   // Access frame via stack pointer.
@@ -495,15 +507,14 @@
   // template interpreter state
   inline z_ijava_state* ijava_state_unchecked() const;
 
- private:
-
+ public:
   inline z_ijava_state* ijava_state() const;
 
- public:
-
   inline intptr_t* interpreter_frame_esp() const;
+
   // Where z_ijava_state.esp is saved.
   inline void interpreter_frame_set_esp(intptr_t* esp);
+
   inline intptr_t* interpreter_frame_top_frame_sp();
   inline void interpreter_frame_set_top_frame_sp(intptr_t* top_frame_sp);
   inline void interpreter_frame_set_sender_sp(intptr_t* sender_sp);
@@ -550,14 +561,18 @@
     //
     // Normal return address is the instruction following the branch.
     pc_return_offset         = 0,
-    metadata_words           = 0,
+    // size, in words, of frame metadata (e.g. pc and link)
+    metadata_words           = sizeof(z_java_abi) >> LogBytesPerWord,
     metadata_words_at_bottom = 0,
-    metadata_words_at_top    = 0,
-    frame_alignment          = 16,
+    metadata_words_at_top    = sizeof(z_java_abi) >> LogBytesPerWord,
+    frame_alignment          = 8,
     // size, in words, of maximum shift in frame position due to alignment
-    align_wiggle             =  1
+    align_wiggle             =  0
   };
 
   static jint interpreter_frame_expression_stack_direction() { return -1; }
+
+  // returns the sending frame, without applying any barriers
+  inline frame sender_raw(RegisterMap* map) const;
 
 #endif // CPU_S390_FRAME_S390_HPP

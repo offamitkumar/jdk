@@ -303,8 +303,8 @@ inline void MacroAssembler::reset_last_Java_frame_static(void) {
   reset_last_Java_frame(false);
 }
 
-inline void MacroAssembler::set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, Register tmp1) {
-  set_top_ijava_frame_at_SP_as_last_Java_frame(sp, tmp1, true);
+inline void MacroAssembler::set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, Register tmp1, Label *jpc) {
+  set_top_ijava_frame_at_SP_as_last_Java_frame(sp, tmp1, true, jpc);
 }
 
 inline void MacroAssembler::set_top_ijava_frame_at_SP_as_last_Java_frame_static(Register sp, Register tmp1) {

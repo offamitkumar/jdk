@@ -208,7 +208,6 @@ template<typename ConfigT, bool preempt> static inline freeze_result freeze_inte
 static inline int prepare_thaw_internal(JavaThread* thread, bool return_barrier);
 template<typename ConfigT> static inline intptr_t* thaw_internal(JavaThread* thread, const Continuation::thaw_kind kind);
 
-
 // Entry point to freeze. Transitions are handled manually
 // Called from gen_continuation_yield() in sharedRuntime_<cpu>.cpp through Continuation::freeze_entry();
 template<typename ConfigT>
@@ -238,7 +237,8 @@ static JRT_LEAF(intptr_t*, thaw(JavaThread* thread, int kind))
 
   // we might modify the code cache via BarrierSetNMethod::nmethod_entry_barrier
   MACOS_AARCH64_ONLY(ThreadWXEnable __wx(WXWrite, thread));
-  return ConfigT::thaw(thread, (Continuation::thaw_kind)kind);
+  intptr_t* sp = ConfigT::thaw(thread, (Continuation::thaw_kind)kind);
+  return sp;
 JRT_END
 
 JVM_ENTRY(jint, CONT_isPinned0(JNIEnv* env, jobject cont_scope)) {
@@ -497,7 +497,10 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   _bottom_address = _cont.entrySP() - _cont.entry_frame_extension();
 #ifdef _LP64
-  if (((intptr_t)_bottom_address & 0xf) != 0) {
+  // on s390, alignment is of 8 byte instead of 16 byte like other architectures. So for us 0xf check fails
+  // and decrements _bottom_address which results in assert(FKind::frame_bottom(f) <= _bottom_address) failure.
+
+  if (((intptr_t)_bottom_address & NOT_S390(0xf) S390_ONLY(0x7)) != 0) {
     _bottom_address--;
   }
   assert(is_aligned(_bottom_address, frame::frame_alignment), "");
@@ -511,13 +514,16 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   assert(_cont.chunk_invariant(), "");
   assert(!Interpreter::contains(_cont.entryPC()), "");
-#if !defined(PPC64) || defined(ZERO)
-  static const int doYield_stub_frame_size = frame::metadata_words;
-#else
+#if defined(PPC64)
   static const int doYield_stub_frame_size = frame::native_abi_reg_args_size >> LogBytesPerWord;
+#elif defined(S390)
+  static const int doYield_stub_frame_size = frame::z_abi_160_base_size >> LogBytesPerWord;
+#else
+  static const int doYield_stub_frame_size = frame::metadata_words;
 #endif
   // With preemption doYield() might not have been resolved yet
-  assert(_preempt || SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size, "");
+  assert(_preempt || SharedRuntime::cont_doYield_stub()->frame_size() == doYield_stub_frame_size,
+      "_preempt = %d, cont_doYield_stub()->frame_size() = %d, doYield_stub_frame_size = %d", (_preempt ? 1 : 0), SharedRuntime::cont_doYield_stub()->frame_size(), doYield_stub_frame_size);
 
   if (preempt) {
     _last_frame = _thread->last_frame();
