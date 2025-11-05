@@ -37,6 +37,8 @@
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/upcallLinker.hpp"
+#include "runtime/continuation.hpp"
+#include "runtime/continuationEntry.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaThread.hpp"
@@ -3325,7 +3327,7 @@ class StubGenerator: public StubCodeGenerator {
       __ push_frame_abi160(0 + 2 * BytesPerWord);
       __ z_stg(Z_RET , 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save return value containing the exception oop
 
-      __ z_stg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save exception_pc 
+      __ z_stg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // save exception_pc
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), Z_thread, Z_ARG2);
 
       // Copy handler's address.
@@ -3335,7 +3337,7 @@ class StubGenerator: public StubCodeGenerator {
       // - Z_ARG1: exception oop
       // - Z_ARG2: exception pc
       __ z_lg(Z_ARG1, 0 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception oop
-      __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc 
+      __ z_lg(Z_ARG2, 1 * BytesPerWord + frame::z_abi_160_size, Z_SP); // load the exception pc
       __ pop_frame();
       __ restore_return_pc();
     } else {
@@ -3364,7 +3366,36 @@ class StubGenerator: public StubCodeGenerator {
     StubId stub_id = StubId::stubgen_cont_preempt_id;
     StubCodeMark mark(this, stub_id);
     address start = __ pc();
-    __ stop("generate_cont_preempt_stub not yet implemented");
+    // __ reset_last_Java_frame(false);
+    // _last_Java_sp = 0
+    // Clearing storage must be atomic here, so don't use clear_mem()!
+    __ store_const(Address(Z_thread, JavaThread::last_Java_sp_offset()), 0);
+
+    // _last_Java_pc = 0
+    __ store_const(Address(Z_thread, JavaThread::last_Java_pc_offset()), 0);
+
+    // Set sp to enterSpecial frame, i.e. remove all frames copied into the heap.
+    __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
+
+    Label preemption_cancelled;
+
+    __ z_cli(in_bytes(JavaThread::preemption_cancelled_offset()), Z_thread, 0);
+    __ z_brne(preemption_cancelled);
+
+    // Remove enterSpecial frame from the stack and return to Continuation.run() to unmount.
+    SharedRuntime::continuation_enter_cleanup(_masm);
+    __ pop_frame();
+    __ restore_return_pc();
+    __ z_br(Z_R14);
+
+    // We acquired the monitor after freezing the frames so call thaw to continue execution.
+    __ bind(preemption_cancelled);
+    __ z_mvi(in_bytes(JavaThread::preemption_cancelled_offset()), Z_thread, 0);
+
+    __ load_const_optimized(Z_R1, ContinuationEntry::thaw_call_pc_address());
+    __ z_lg(Z_R1, Address(Z_R1));
+    __ z_br(Z_R1);
+
     return start;
   }
 

@@ -1731,6 +1731,10 @@ static void gen_continuation_yield(MacroAssembler* masm,
     __ z_br(Z_R1_scratch);
 }
 
+void SharedRuntime::continuation_enter_cleanup(MacroAssembler* masm) {
+  ::continuation_enter_cleanup(masm);
+}
+
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 const methodHandle& method,
                                                 int compile_id,
