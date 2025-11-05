@@ -50,6 +50,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
                             Label *last_java_pc);
 
   void call_VM_preemptable(Register oop_result, address entry_point, Register arg_1, bool check_exceptions = true);
+  void restore_after_resume(Register fp);
 
   // Base routine for all dispatches.
   void dispatch_base(TosState state, address* table, bool generate_poll = false);

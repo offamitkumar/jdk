@@ -205,9 +205,16 @@ void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result, address
 
   bind(resume_pc); // Location to resume execution
 
-  stop("restore_after_resume");
+  restore_after_resume(noreg/* fp */);
 
   bind(not_preempted);
+}
+
+void InterpreterMacroAssembler::restore_after_resume(Register fp) {
+  if (!Continuations::enabled()) return;
+  load_const_optimized(Z_R1, Interpreter::cont_resume_interpreter_adapter());
+  call(Z_R1);
+  stop("crash in restore_after_resume");
 }
 
 void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point) {
