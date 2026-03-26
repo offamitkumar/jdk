@@ -196,11 +196,10 @@ void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result, address
   pop_cont_fastpath();
 
   // Jump to handler if the call was preempted
-  z_lg(Z_R1_scratch, Address(Z_thread, in_bytes(JavaThread::preempt_alternate_return_offset())));
-  z_ltgr(Z_R1_scratch, Z_R1_scratch);
+  z_ltg(Z_R1_scratch, Address(Z_thread, JavaThread::preempt_alternate_return_offset()));
   z_brz(not_preempted);
 
-  z_mvghi(Address(Z_thread, in_bytes(JavaThread::preempt_alternate_return_offset())), 0);
+  z_mvghi(Address(Z_thread, JavaThread::preempt_alternate_return_offset()), 0);
   z_br(Z_R1_scratch);  // branch to handler in Z_R1_scratch
 
   bind(resume_pc); // Location to resume execution
