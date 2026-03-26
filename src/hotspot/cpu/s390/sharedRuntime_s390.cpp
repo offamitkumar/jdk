@@ -2205,6 +2205,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     // Load the oop for the object or class. R_carg2_classorobject contains
     // either the handlized oop from the incoming arguments or the handlized
     // class mirror (if the method is static).
+    // TODO: r_oop is not going be changed, so why are we loading it again and again.
     __ z_lg(r_oop, 0, Z_ARG2);
 
     lock_offset = (lock_slot_offset * VMRegImpl::stack_slot_size);
@@ -2234,6 +2235,8 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     __ z_lgr(Z_ARG3, Z_thread);
 
     __ set_last_Java_frame(oldSP, Z_R10 /* gc map pc */);
+    // TODO: maybe rename Z_R10 to r_java_pc ?
+    assert(Z_R10->is_nonvolatile(), "Z_R10 needs to be preserved accross complete_monitor_locking_C call");
 
     // TODO: https://bugs.openjdk.org/browse/JDK-8338383
     // Do the call.
