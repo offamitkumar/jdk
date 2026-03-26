@@ -1446,6 +1446,7 @@ static void fill_continuation_entry(MacroAssembler* masm, Register reg_cont_obj,
 //   None.
 //
 // Kills:
+//   Z_R0_scratch (in debug builds)
 //   Z_R10 (when CheckJNICalls is enabled)
 //
 static void continuation_enter_cleanup(MacroAssembler* masm) {
@@ -1454,6 +1455,10 @@ static void continuation_enter_cleanup(MacroAssembler* masm) {
 #ifdef ASSERT
   __ z_cg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
   __ asm_assert(Assembler::bcondEqual, FILE_AND_LINE ": incorrect Z_SP", 0x1bb);
+
+  __ z_lgf(Z_R0, Address(Z_SP, ContinuationEntry::cookie_offset()));
+  __ z_cfi(Z_R0, ContinuationEntry::cookie_value());
+  __ asm_assert(Assembler::bcondEqual, FILE_AND_LINE ": incorrect cookie value", 0x1cc);
 #endif // ASSERT
 
   __ z_mvc(Address(Z_thread, JavaThread::cont_fastpath_offset()), /* move to */
