@@ -5924,6 +5924,28 @@ void MacroAssembler::asm_assert_frame_size(Register expected_size, Register tmp,
 #endif // ASSERT
 }
 
+#ifdef ASSERT
+void MacroAssembler::clobber_nonvolatile_registers() {
+  BLOCK_COMMENT("clobber_nonvolatile_registers {");
+  static const Register regs[] = {
+    Z_R6,
+    Z_R7,
+    // don't zap Z_thread (Z_R8)
+    Z_R9,
+    Z_R10,
+    Z_R11,
+    Z_R12,
+    Z_R13
+  };
+  Register bad = regs[0];
+  load_const_optimized(bad, 0xbad0101babe11111);
+  for (uint32_t i = 1; i < (sizeof(regs) / sizeof(Register)); i++) {
+    z_lgr(regs[i], bad);
+  }
+  BLOCK_COMMENT("} clobber_nonvolatile_registers");
+}
+#endif // ASSERT
+
 // Save and restore functions: Exclude Z_R0.
 void MacroAssembler::save_volatile_regs(Register dst, int offset, bool include_fp, bool include_flags) {
   z_stmg(Z_R1, Z_R5, offset, dst); offset += 5 * BytesPerWord;

@@ -981,6 +981,10 @@ class MacroAssembler: public Assembler {
   }
   void asm_assert_frame_size(Register expected_size, Register tmp, const char* msg, int id);
 
+  // Load bad values into registers that are nonvolatile according to the ABI except Z_thread.
+  // This is done after vthread preemption and before vthread resume.
+  void clobber_nonvolatile_registers() NOT_DEBUG_RETURN;
+
   // Save and restore functions: Exclude Z_R0.
   void save_volatile_regs(   Register dst, int offset, bool include_fp, bool include_flags);
   void restore_volatile_regs(Register src, int offset, bool include_fp, bool include_flags);

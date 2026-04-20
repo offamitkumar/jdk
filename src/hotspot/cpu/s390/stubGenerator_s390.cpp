@@ -3259,6 +3259,10 @@ class StubGenerator: public StubCodeGenerator {
 
     // TODO: Handle Valhalla return types. May require generating different return barriers.
 
+    if (kind == Continuation::thaw_top) {
+      __ clobber_nonvolatile_registers(); // Except Z_thread
+    }
+
     if (return_barrier) {
       // FIXME / TODO : We need to be sure that Z_F8 and Z_R9 are not holding something useful here.
       __ z_ldgr(Z_F8, Z_RET);
@@ -3366,13 +3370,19 @@ class StubGenerator: public StubCodeGenerator {
     StubId stub_id = StubId::stubgen_cont_preempt_id;
     StubCodeMark mark(this, stub_id);
     address start = __ pc();
-    // __ reset_last_Java_frame(false);
-    // _last_Java_sp = 0
-    // Clearing storage must be atomic here, so don't use clear_mem()!
-    __ store_const(Address(Z_thread, JavaThread::last_Java_sp_offset()), 0);
 
-    // _last_Java_pc = 0
-    __ store_const(Address(Z_thread, JavaThread::last_Java_pc_offset()), 0);
+    __ clobber_nonvolatile_registers(); // Except Z_thread
+
+    {
+      // TODO switch to reset_last_Java_frame again
+      // __ reset_last_Java_frame(false);
+      // _last_Java_sp = 0
+      // Clearing storage must be atomic here, so don't use clear_mem()!
+      __ store_const(Address(Z_thread, JavaThread::last_Java_sp_offset()), 0);
+
+      // _last_Java_pc = 0
+      __ store_const(Address(Z_thread, JavaThread::last_Java_pc_offset()), 0);
+    }
 
     // Set sp to enterSpecial frame, i.e. remove all frames copied into the heap.
     __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
