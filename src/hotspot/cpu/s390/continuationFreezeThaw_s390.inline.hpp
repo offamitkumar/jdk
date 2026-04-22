@@ -267,7 +267,7 @@ inline void ThawBase::patch_pd(frame& f, const frame& caller) {
 }
 
 inline void ThawBase::patch_pd(frame& f, intptr_t* caller_sp) {
-  Unimplemented();
+  assert(f.own_abi()->callers_sp == (uint64_t)caller_sp, "should have been fixed by patch_caller_links");
 }
 
 inline intptr_t* ThawBase::push_cleanup_continuation() {
