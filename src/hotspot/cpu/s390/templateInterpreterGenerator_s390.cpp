@@ -2086,8 +2086,7 @@ address TemplateInterpreterGenerator::generate_CRC32C_updateBytes_entry(Abstract
 
 address TemplateInterpreterGenerator::generate_currentThread() {
   uint64_t entry_off = __ offset();
-
-  __ z_lg(Z_RET, Address(Z_thread, JavaThread::threadObj_offset()));
+  __ z_lg(Z_RET, Address(Z_thread, JavaThread::vthread_offset()));
   __ resolve_oop_handle(Z_RET);
 
   // Restore caller sp for c2i case.
