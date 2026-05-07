@@ -39,7 +39,9 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
   if (f.is_runtime_frame()) {
     // Patch the pc of the now old last Java frame (we already set the anchor to enterSpecial)
     // so that when target goes back to Java it will actually return to the preempt cleanup stub.
-    frame::z_common_abi* abi = (frame::z_common_abi*)f.sp();
+    // monitorenter blob on s390(in C1) pushes frame to save the live register, that's the frame on top when we return from Runtime1::monitorenter(). We need to step over this frame and patch the return PC in the frame before.
+    intptr_t* caller_sp = f.sp() + f.cb()->frame_size();
+    frame::z_common_abi* abi = (frame::z_common_abi*)caller_sp;
     abi->return_pc = (uint64_t)StubRoutines::cont_preempt_stub();
   } else {
     // The target will check for preemption once it returns to the interpreter
