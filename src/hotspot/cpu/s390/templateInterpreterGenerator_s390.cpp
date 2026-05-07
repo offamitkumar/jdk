@@ -1647,7 +1647,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     __ z_ltg(Z_R1_scratch, Address(Z_thread, JavaThread::preempt_alternate_return_offset()));
     __ z_brz(not_preempted); // if 0, jump to not_preempted
     __ z_mvghi(Address(Z_thread, JavaThread::preempt_alternate_return_offset()), 0);
-    __ call(Z_R1);
+    __ z_br(Z_R1_scratch);
 
     // Execution will be resumed here when the vthread becomes runnable again.
     __ bind(*resume_pc);
