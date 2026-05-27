@@ -3373,16 +3373,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ clobber_nonvolatile_registers(); // Except Z_thread
 
-    {
-      // TODO switch to reset_last_Java_frame again
-      // __ reset_last_Java_frame(false);
-      // _last_Java_sp = 0
-      // Clearing storage must be atomic here, so don't use clear_mem()!
-      __ store_const(Address(Z_thread, JavaThread::last_Java_sp_offset()), 0);
-
-      // _last_Java_pc = 0
-      __ store_const(Address(Z_thread, JavaThread::last_Java_pc_offset()), 0);
-    }
+    __ reset_last_Java_frame(/*check_last_java_sp=*/ false);
 
     // Set sp to enterSpecial frame, i.e. remove all frames copied into the heap.
     __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));

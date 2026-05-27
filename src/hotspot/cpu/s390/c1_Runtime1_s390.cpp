@@ -58,7 +58,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   // Therefore we load the PC into Z_R1_scratch and let set_last_Java_frame() save
   // it into the frame anchor.
   Label resume;
-  z_larl(Z_R1_scratch, target(resume));
+  z_larl(Z_R1_scratch, resume);
   set_last_Java_frame(Z_SP, Z_R1_scratch);
 
   // ARG1 must hold thread address.
@@ -67,24 +67,12 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   address return_pc = nullptr;
   align_call_far_patchable(this->pc());
   return_pc = call_c_opt(entry_point);
+
   bind(resume);
   int call_offset = offset(); // (int)(return_pc - addr_at(0));
   assert(return_pc != nullptr, "const section overflow");
 
-  if (false) {
-    // TODO: make sure reset_last_java_frame take one argument i.e. (false) to
-    // avoid testing last_java_pc
-    reset_last_Java_frame();
-  } else {
-    // TODO switch to reset_last_Java_frame again
-    // __ reset_last_Java_frame(false);
-    // _last_Java_sp = 0
-    // Clearing storage must be atomic here, so don't use clear_mem()!
-    store_const(Address(Z_thread, JavaThread::last_Java_sp_offset()), 0);
-
-    // _last_Java_pc = 0
-    store_const(Address(Z_thread, JavaThread::last_Java_pc_offset()), 0);
-  }
+  reset_last_Java_frame(/* check_last_java_sp= */ false);
 
   // Check for pending exceptions.
   {

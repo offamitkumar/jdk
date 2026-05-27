@@ -2489,13 +2489,10 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   // Clear "last Java frame" SP and PC.
   //--------------------------------------------------------------------
 
-  if (method->is_object_wait0()) {
-    // Last java frame won't be set if we're resuming after preemption
-    __ store_const(Address(Z_thread, JavaThread::last_Java_sp_offset()), 0);
-    __ store_const(Address(Z_thread, JavaThread::last_Java_pc_offset()), 0);
-  } else {
-    __ reset_last_Java_frame();
-  }
+
+  // Last java frame won't be set if we're resuming after preemption
+  bool maybe_preempted = method->is_object_wait0();
+  __ reset_last_Java_frame(/* check_last_java_sp = */ !maybe_preempted);
 
   // Unpack oop result, e.g. JNIHandles::resolve result.
   if (is_reference_type(ret_type)) {

@@ -3824,19 +3824,21 @@ void MacroAssembler::set_last_Java_frame(Register last_Java_sp, Register last_Ja
   BLOCK_COMMENT("} set_last_Java_frame");
 }
 
-void MacroAssembler::reset_last_Java_frame(bool allow_relocation) {
+void MacroAssembler::reset_last_Java_frame(bool check_last_java_sp, bool allow_relocation) {
   BLOCK_COMMENT("reset_last_Java_frame {");
 
-  if (allow_relocation) {
-    asm_assert_mem8_isnot_zero(in_bytes(JavaThread::last_Java_sp_offset()),
-                               Z_thread,
-                               "SP was not set, still zero",
-                               0x202);
-  } else {
-    asm_assert_mem8_isnot_zero_static(in_bytes(JavaThread::last_Java_sp_offset()),
-                                      Z_thread,
-                                      "SP was not set, still zero",
-                                      0x202);
+  if (check_last_java_sp) {
+    if (allow_relocation) {
+      asm_assert_mem8_isnot_zero(in_bytes(JavaThread::last_Java_sp_offset()),
+                                 Z_thread,
+                                 "SP was not set, still zero",
+                                 0x202);
+    } else {
+      asm_assert_mem8_isnot_zero_static(in_bytes(JavaThread::last_Java_sp_offset()),
+                                        Z_thread,
+                                        "SP was not set, still zero",
+                                        0x202);
+    }
   }
 
   // _last_Java_sp = 0

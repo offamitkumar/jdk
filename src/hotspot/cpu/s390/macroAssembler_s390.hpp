@@ -805,13 +805,13 @@ class MacroAssembler: public Assembler {
   // Support for last Java frame (but use call_VM instead where possible).
  private:
   void set_last_Java_frame(Register last_Java_sp, Register last_Java_pc, bool allow_relocation);
-  void reset_last_Java_frame(bool allow_relocation);
+  void reset_last_Java_frame(bool check_last_java_sp, bool allow_relocation);
   void set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, Register tmp1, bool allow_relocation, Label* last_java_pc = nullptr);
  public:
   inline void set_last_Java_frame(Register last_java_sp, Register last_Java_pc);
   inline void set_last_Java_frame_static(Register last_java_sp, Register last_Java_pc);
-  inline void reset_last_Java_frame(void);
-  inline void reset_last_Java_frame_static(void);
+  inline void reset_last_Java_frame(bool check_last_java_sp = true);
+  inline void reset_last_Java_frame_static(bool check_last_java_sp = true);
   inline void set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, Register tmp1, Label* jpc = nullptr);
   inline void set_top_ijava_frame_at_SP_as_last_Java_frame_static(Register sp, Register tmp1);
 
