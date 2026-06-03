@@ -211,8 +211,37 @@ void Runtime1::initialize_pd() {
 }
 
 uint Runtime1::runtime_blob_current_thread_offset(frame f) {
-  Unimplemented();
-  return 0;
+  CodeBlob* cb = f.cb();
+  assert(cb == Runtime1::blob_for(StubId::c1_monitorenter_id) ||
+         cb == Runtime1::blob_for(StubId::c1_monitorenter_nofpu_id), "must be");
+  assert(cb != nullptr && cb->is_runtime_stub(), "invalid frame");
+
+  // Calculate the offset of Z_thread (Z_R8) in the saved register area.
+  // Both c1_monitorenter_id and c1_monitorenter_nofpu_id have the same frame layout:
+  // - c1_monitorenter_id uses RegisterSaver::all_registers (saves FPU regs)
+  // - c1_monitorenter_nofpu_id uses RegisterSaver::all_integer_registers (excludes FPU regs but reserves space)
+  //
+  // From RegisterSaver_LiveRegs and RegisterSaver_LiveIntRegs:
+  // Both have 15 float register slots (F0, F2-F15, F1 is excluded as scratch)
+  // Then integer registers: R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13
+  // Z_thread is Z_R8, which is the 7th integer register (index 6 from R2)
+  //
+  // Stack layout from SP:
+  //   [0..159]     : z_abi_160
+  //   [160..279]   : 15 float register slots (15 * 8 = 120 bytes)
+  //   [280..327]   : R2-R7 (6 * 8 = 48 bytes)
+  //   [328..335]   : R8 (Z_thread) <- this is what we need
+  //
+  // Offset = 160 + 120 + 48 = 328 bytes from SP
+  // Return value is in 64-bit words: 328 / 8 = 41
+
+  const int float_reg_slots = 15;      // F0, F2-F15 (F1 is scratch, excluded)
+  const int int_regs_before_r8 = 6;    // R2, R3, R4, R5, R6, R7
+  const int z_thread_offset = frame::z_abi_160_size +
+                               (float_reg_slots * 8) +
+                               (int_regs_before_r8 * 8);
+
+  return z_thread_offset / 8;  // Convert to 64-bit words
 }
 
 OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) {

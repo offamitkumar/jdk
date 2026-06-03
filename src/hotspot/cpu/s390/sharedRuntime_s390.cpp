@@ -2900,8 +2900,7 @@ uint SharedRuntime::out_preserve_stack_slots() {
 }
 
 VMReg SharedRuntime::thread_register() {
-  Unimplemented();
-  return nullptr;
+  return Z_thread->as_VMReg();
 }
 
 //
