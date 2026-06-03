@@ -3264,9 +3264,13 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     if (return_barrier) {
-      // FIXME / TODO : We need to be sure that Z_F8 and Z_R9 are not holding something useful here.
-      __ z_ldgr(Z_F8, Z_RET);
-      __ z_ldr(Z_F9, Z_FRET);
+      // Save return values in non-volatile float registers to preserve them across VM calls.
+      // Z_F8 and Z_F9 are non-volatile (callee-saved) registers on s390 (F8-F15 are non-volatile).
+      // They are safe to use here because:
+      // 1. clobber_nonvolatile_registers() is NOT called for return_barrier cases (only for thaw_top)
+      // 2. These registers are preserved across the VM leaf calls (prepare_thaw, thaw_entry)
+      __ z_ldgr(Z_F8, Z_RET);   // Save integer return value in non-volatile float register
+      __ z_ldr(Z_F9, Z_FRET);   // Save float return value in non-volatile float register
 
       DEBUG_ONLY(__ z_lg(Z_R1_scratch, _z_common_abi(callers_sp), Z_SP);)
       __ z_lg(Z_SP, Address(Z_thread, JavaThread::cont_entry_offset()));
@@ -3316,9 +3320,8 @@ class StubGenerator: public StubCodeGenerator {
       // we're now in the caller of the frame that returned to the barrier
       // restore return value (no safepoint in the call to thaw, so even an oop return value should be OK)
 
-      // TODO/FIXME Z_F8 and Z_F9 are used out of nowhere. They work, but is there a better solution?
-      __ z_lgdr(Z_RET, Z_F8);
-      __ z_ldr(Z_FRET, Z_F9);
+      __ z_lgdr(Z_RET, Z_F8);    // Restore integer return value
+      __ z_ldr(Z_FRET, Z_F9);    // Restore float return value
     } else {
       // we're now on the yield frame (which is in an address above us b/c rsp has been pushed down)
       __ z_lghi(Z_RET, 0); // return 0 (success) from doYield
