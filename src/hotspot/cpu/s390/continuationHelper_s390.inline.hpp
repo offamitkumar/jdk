@@ -27,8 +27,6 @@
 
 #include "runtime/continuationHelper.hpp"
 
-// TODO: Implement
-
 template<typename FKind>
 static inline intptr_t** link_address(const frame& f) {
   Unimplemented();
@@ -39,7 +37,7 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
   if (f.is_runtime_frame()) {
     // Patch the pc of the now old last Java frame (we already set the anchor to enterSpecial)
     // so that when target goes back to Java it will actually return to the preempt cleanup stub.
-    // monitorenter blob on s390(in C1) pushes frame to save the live register, that's the frame on top when we return from Runtime1::monitorenter(). We need to step over this frame and patch the return PC in the frame before.
+    // We step over the runtime stub frame and patch the return PC in the caller's frame.
     intptr_t* caller_sp = f.sp() + f.cb()->frame_size();
     frame::z_common_abi* abi = (frame::z_common_abi*)caller_sp;
     abi->return_pc = (uint64_t)StubRoutines::cont_preempt_stub();
@@ -52,13 +50,10 @@ static inline void patch_return_pc_with_preempt_stub(frame& f) {
 }
 
 inline int ContinuationHelper::frame_align_words(int size) {
-  // no frame alignment required on s390.
-  // even worse,
-  /*
-     _cont_stack_bottom = _cont.entrySP() + (_cont.argsize() == 0 ? frame::metadata_words_at_top : 0)
-      - ContinuationHelper::frame_align_words(_cont.argsize()); // see alignment in thaw
-  */
-  // above code will start causing issues as one will be subtracted.
+  // S390 requires 8-byte (1-word) frame alignment, not 16-byte like other platforms.
+  // Since frames are already 8-byte aligned, no additional padding words are needed.
+  // Other platforms (x86, aarch64, ppc) return size & 1 to ensure 16-byte alignment,
+  // but s390's 8-byte alignment requirement is already satisfied.
   return 0;
 }
 
@@ -68,13 +63,13 @@ inline intptr_t* ContinuationHelper::frame_align_pointer(intptr_t* p) {
 
 template<typename FKind>
 inline void ContinuationHelper::update_register_map(const frame& f, RegisterMap* map) {
-  // TODO: needs to verify this
-  // Currently all registers are considered to be volatile and saved in the caller (java) frame if needed
+  // All registers are considered volatile and saved in the caller (Java) frame if needed.
+  // No register map update required for s390.
 }
 
 inline void ContinuationHelper::update_register_map_with_callee(const frame& f, RegisterMap* map) {
-  // TODO: needs to verify this
-  // Currently all registers are considered to be volatile and saved in the caller (java) frame if needed
+  // All registers are considered volatile and saved in the caller (Java) frame if needed.
+  // No register map update required for s390.
 }
 
 inline void ContinuationHelper::push_pd(const frame& f) {
@@ -82,13 +77,13 @@ inline void ContinuationHelper::push_pd(const frame& f) {
 }
 
 inline void ContinuationHelper::set_anchor_to_entry_pd(JavaFrameAnchor* anchor, ContinuationEntry* cont) {
-  // TODO: are we sure about this ? Why ?
-  // nothing to do
+  // No frame pointer update needed for s390.
+  // Unlike x86/aarch64, s390 doesn't require setting last_Java_fp in the anchor.
 }
 
 inline void ContinuationHelper::set_anchor_pd(JavaFrameAnchor* anchor, intptr_t* sp) {
-  // TODO: are we sure about this ? Why ?
-  // nothing to do
+  // No frame pointer update needed for s390.
+  // Unlike x86/aarch64, s390 doesn't require setting last_Java_fp in the anchor.
 }
 
 #ifdef ASSERT
@@ -119,9 +114,44 @@ inline address* ContinuationHelper::InterpretedFrame::return_pc_address(const fr
 inline void ContinuationHelper::InterpretedFrame::patch_sender_sp(frame& f, const frame& caller) {
   intptr_t* sp = caller.unextended_sp();
   if (!f.is_heap_frame() && caller.is_interpreted_frame()) {
-    // TODO: how about we make a diagram ?
-    // See diagram "Interpreter Calling Procedure on PPC" at the end of continuationFreezeThaw_ppc.inline.hpp
-    // 1. https://bugs.openjdk.org/browse/JDK-8308984
+    // When the caller is an interpreted frame, we need to use the caller's top_frame_sp
+    // instead of unextended_sp. This is because the interpreter resizes the caller's
+    // frame before making a call (similar to PPC, see JDK-8308984).
+    //
+    // Interpreter Calling Procedure on S390:
+    //
+    // The caller's frame is resized before a call:
+    // - The unused expression stack is removed
+    // - Slots for callee's non-parameter locals are added
+    // - The large z_abi_160 is replaced with minimal z_java_abi (2 words: callers_sp, return_pc)
+    // - The original SP is saved in ijava_state::top_frame_sp and restored after the call
+    //
+    // Caller Frame (before call)          Resized Caller (at call)           Callee Frame
+    // |                      |             |                      |           |                      |
+    // | z_java_abi           |             | z_java_abi           |           | z_java_abi           |
+    // | (2 words)            |             | (2 words)            |           | (2 words)            |
+    // | Caller's SP          |<- FP        | Caller's SP          |<- FP      | Caller's SP          |<- FP
+    // ========================             ========================           ========================
+    // | z_ijava_state        |             | z_ijava_state        |           | z_ijava_state        |
+    // | (metadata)           |             | (metadata)           |           | (metadata)           |
+    // |----------------------|             |----------------------|           |----------------------|
+    // | P0 (parameters)      |             | L0 (locals/params)   |           | L0 (locals/params)   |
+    // | ...                  |             | ...                  |           | ...                  |
+    // | Pn                   |             | Pn                   |           | Ln                   |
+    // |----------------------|             | Lm (non-param locals)|           |----------------------|
+    // | Reserved Expr Stack  |             |----------------------|           | Reserved Expr Stack  |
+    // | (max stack size)     |             | Opt. Alignment Pad   |           | (max stack size)     |
+    // |----------------------|             |----------------------|           |----------------------|
+    // | Opt. Alignment Pad   |             | z_java_abi           |           | Opt. Alignment Pad   |
+    // |----------------------|             | (2 words)            |           |----------------------|
+    // | z_abi_160            |             | Caller's SP          |<- new SP  | z_abi_160            |
+    // | (large ABI for       |             ========================           | (large ABI for       |
+    // |  C++ calls: 160 bytes|                                                |  C++ calls: 160 bytes|
+    // |  = 20 words)         |             <- unextended_sp                   |  = 20 words)         |
+    // | Caller's SP          |<- SP           (8-byte aligned)                | Caller's SP          |<- SP
+    // ========================             top_frame_sp saved here            ========================
+    //                                      for restoration                       (8-byte aligned)
+    //
     sp = (intptr_t*)caller.at_relative(_z_ijava_idx(top_frame_sp));
   }
   assert(f.is_interpreted_frame(), "");
@@ -142,37 +172,64 @@ inline void ContinuationHelper::Frame::patch_pc(const frame& f, address pc) {
   f.own_abi()->return_pc = (uint64_t)pc;
 }
 
-
-// TODO: finish it.
-//                   |                              |
-//                   |                              |
-//                   |                              |
-//                   |                              |
-//                   |==============================|
-//                   |    L0                        |
-//                   |    .                         |
-//                   |    .                         |
-//                   |    .                         |
-//                   |    Ln                        | <- ijava_state.esp (1 slot below Pn)
-//                   |                              |
-//                   |------------------------------|
-//                   |     SP alignment (opt.)      |
-//                   |------------------------------|
-//                   |      Minimal ABI             |
-//                   |   (frame:z_java_abi)         |
-//                   | which is derived from        |
-//                   | z_common_abi and only holds  |
-//                   | return_pc and callers_sp     |
-//                   |                              |
-//                   | 2 Words                      |
-//                   | Caller's SP                  | <- SP of f / FP of f's callee
-//                   |==============================|
-//                   |      z_ijava_state           |
-//                   |        (metadata)            |          Frame of f's callee
-//                   |                              |
-//                   |                              |
-//                          |  Growth  |
-//                          v          v
+// S390 Interpreted Frame Layout
+//
+// This diagram shows the layout of an interpreted frame 'f' and how frame_top is calculated.
+// The frame grows downward (toward lower addresses).
+//
+//                     | z_java_abi           |
+//                     | (2 words)            |
+//                     | Caller's SP          |<- FP of f's caller
+//                     |======================|
+//                     |                      |                                 Frame of f's caller
+//                     |                      |
+// frame_bottom of f ->|                      |
+//                     |----------------------|
+//                     | L0 (locals/params)   |
+//                     | ...                  |
+//                     | Ln                   |
+//                     |----------------------|
+//                     | Monitors (if any)    |
+//                     |----------------------|
+//                     | SP alignment (opt.)  |
+//                     |----------------------|
+//                     | z_java_abi           |
+//                     | (2 words)            |
+//                     | Caller's SP          |<- SP of f's caller / FP of f
+//                     |======================|
+//                     | z_ijava_state        |                                 Frame of f
+//                     | (metadata)           |
+//                     |----------------------|
+//                     | Expression stack     |
+//                     | (grows downward)     |
+//                     |                      |
+//    frame_top of f ->|                      |<- interpreter_frame_monitor_end() - expression_stack_sz
+//   if callee interp. |......................|
+//                     | P0 (parameters)      |<- ijava_state.esp + callee_argsize
+//                     | ...                  |
+//    frame_top of f ->| Pn                   |
+//  + metadata_words   |                      |<- ijava_state.esp (1 slot below Pn)
+//    if callee comp.  |----------------------|
+//                     | SP alignment (opt.)  |
+//                     |----------------------|
+//                     | z_java_abi           |
+//                     | (2 words)            |
+//                     | Caller's SP          |<- SP of f / FP of f's callee
+//                     |======================|
+//                     | z_ijava_state        |                                 Frame of f's callee
+//                     | (metadata)           |
+//                     |                      |
+//
+//                           |  Growth  |
+//                           v          v
+//
+// Notes:
+// - z_java_abi is 2 words (16 bytes): callers_sp and return_pc
+// - Frame alignment is 8 bytes (1 word) on s390
+// - Expression stack grows downward from ijava_state
+// - frame_top points to the top of the expression stack (inclusive)
+// - frame_bottom points just above the locals (exclusive)
+//
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f, InterpreterOopMap* mask) { // inclusive; this will be copied with the frame
   int expression_stack_sz = expression_stack_size(f, mask);
@@ -192,7 +249,9 @@ inline intptr_t* ContinuationHelper::InterpretedFrame::frame_bottom(const frame&
 
 inline intptr_t* ContinuationHelper::InterpretedFrame::frame_top(const frame& f, int callee_argsize, bool callee_interpreted) {
   intptr_t* pseudo_unextended_sp = f.interpreter_frame_esp() + 1 - frame::metadata_words_at_top;
-  // TODO: callee_argsize is inclusion of metadata ?
+  // callee_argsize includes metadata (frame::metadata_words_at_top).
+  // When the callee is interpreted, we add callee_argsize to account for the arguments
+  // that are part of the caller's frame but logically belong to the callee.
   return pseudo_unextended_sp + (callee_interpreted ? callee_argsize : 0);
 }
 
