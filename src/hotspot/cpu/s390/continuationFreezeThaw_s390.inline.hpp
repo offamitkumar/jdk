@@ -225,7 +225,6 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
   if (FKind::interpreted) {
     intptr_t locals_offset = *f.addr_at(_z_ijava_idx(locals));
 
-    // TODO: update this comment ?
     // If the caller.is_empty(), i.e. we're freezing into an empty chunk, then we set
     // the chunk's argsize in finalize_freeze and make room for it above the unextended_sp
     // See also comment on StackChunkFrameStream<frame_kind>::interpreter_frame_size()
@@ -235,7 +234,13 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
       ? ContinuationHelper::InterpretedFrame::stack_argsize(f) + frame::metadata_words_at_top
       : 0;
 
-    // TODO: this works but I don't know why, I don't know what does it even do ?
+    // Calculate the new frame's FP in the heap chunk.
+    // Starting from caller's unextended_sp, we:
+    // - subtract 1 for the z_parent_ijava_frame_abi (which sits just below the locals)
+    // - subtract locals_offset (distance from FP to locals in the original frame)
+    // - add overlap (to account for shared stack args when caller is interpreted or empty)
+    // This positions FP such that locals are correctly placed relative to the caller's frame.
+    // See diagram at line 91-118 for the frame layout.
     fp = caller.unextended_sp() - 1 - locals_offset + overlap;
 
     // esp points one slot below the last argument
@@ -255,7 +260,6 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
     *hf.addr_at(_z_ijava_idx(esp))    = f.interpreter_frame_esp() - f.fp();
     return hf;
   } else {
-    // TODO: needs to step through it at some point of time.
     int fsize = FKind::size(f);
     sp = caller.unextended_sp() - fsize;
     if (caller.is_interpreted_frame()) {
@@ -394,7 +398,10 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
 //
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
-  // nothing to do (TODO: why ? will it be same for s390)
+  // Nothing to do on s390 and ppc. On x86/aarch64/riscv, the unextended_sp is stored
+  // in interpreter_frame_last_sp and needs to be restored from there. On s390/ppc,
+  // the frame structure doesn't have interpreter_frame_last_sp; instead, the unextended_sp
+  // is directly maintained in the frame and doesn't need adjustment.
 }
 
 inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
@@ -431,8 +438,6 @@ inline void FreezeBase::patch_pd(frame& hf, const frame& caller) {
   }
 #ifdef ASSERT
   else {
-    // TODO: is below comment valid ?
-
     // For compiled frames the back link is actually redundant. It gets computed
     // as unextended_sp + frame_size.
 
@@ -468,7 +473,6 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
   assert(is_aligned(caller.fp(), frame::frame_alignment), PTR_FORMAT, p2i(caller.fp()));
   // caller.sp() can be unaligned. This is fixed below.
   if (FKind::interpreted) {
-    // TODO: needs to be checked below comment validity.
     // Note: we have to overlap with the caller, at least if it is interpreted, to match the
     // max_thawing_size calculation during freeze. See also comment above.
     intptr_t* heap_sp = hf.unextended_sp();
@@ -483,8 +487,9 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
     // alignment of sp is done by callee or in finish_thaw()
     frame_sp -= padding;
 
-    // TODO: really ??
-    // On s390x esp points to the next free slot on the expression stack and sp + metadata points to the last parameter
+    // On s390 esp points to the first free slot on the expression stack (see frame_s390.hpp).
+    // The assertion verifies that frame_sp + metadata_words_at_top points to the slot above esp,
+    // which corresponds to the last parameter position.
     DEBUG_ONLY(intptr_t* esp = fp + *hf.addr_at(_z_ijava_idx(esp));)
     assert(frame_sp + frame::metadata_words_at_top == esp+1, " frame_sp=" PTR_FORMAT " esp=" PTR_FORMAT, p2i(frame_sp), p2i(esp));
     caller.set_sp(fp);
