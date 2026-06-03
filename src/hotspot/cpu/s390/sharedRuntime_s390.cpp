@@ -1689,7 +1689,6 @@ static void gen_continuation_yield(MacroAssembler* masm,
 
   // Save return pc and push entry frame
   __ save_return_pc();
-  // TODO: verify this frame size being pushed
   __ push_frame(framesize_bytes);
 
     DEBUG_ONLY(__ block_comment("Frame Complete (gen_continuation_yield):"));
@@ -1704,7 +1703,6 @@ static void gen_continuation_yield(MacroAssembler* masm,
     OopMap* map = new OopMap(framesize_bytes / VMRegImpl::stack_slot_size, 1);
     oop_maps->add_gc_map(last_java_pc - start, map);
 
-    // TODO: can we do better z_larl ?
     __ z_larl(Rtmp, last_java_pc);
     __ set_last_Java_frame(Z_SP, Rtmp);
     __ call_VM_leaf(Continuation::freeze_entry(), Z_thread, Z_SP);
@@ -2205,7 +2203,6 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     // Load the oop for the object or class. R_carg2_classorobject contains
     // either the handlized oop from the incoming arguments or the handlized
     // class mirror (if the method is static).
-    // TODO: r_oop is not going be changed, so why are we loading it again and again.
     __ z_lg(r_oop, 0, Z_ARG2);
 
     lock_offset = (lock_slot_offset * VMRegImpl::stack_slot_size);
@@ -2235,7 +2232,6 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     __ z_lgr(Z_ARG3, Z_thread);
 
     __ set_last_Java_frame(oldSP, Z_R10 /* gc map pc */);
-    // TODO: maybe rename Z_R10 to r_java_pc ?
     assert(Z_R10->is_nonvolatile(), "Z_R10 needs to be preserved accross complete_monitor_locking_C call");
 
     // TODO: https://bugs.openjdk.org/browse/JDK-8338383
