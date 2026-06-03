@@ -43,8 +43,10 @@ inline intptr_t* ContinuationEntry::entry_fp() const {
 }
 
 inline void ContinuationEntry::update_register_map(RegisterMap* map) const {
-  // TODO: need to revisit
-  // Nothing to do (no non-volatile registers in java calling convention)
+  // No register map update needed for s390.
+  // In the Java calling convention on s390, all registers are volatile (caller-saved),
+  // so there are no non-volatile (callee-saved) registers that need to be tracked
+  // in the register map for continuation entry frames.
 }
 
 #endif // CPU_S390_CONTINUATIONENTRY_S390_INLINE_HPP
