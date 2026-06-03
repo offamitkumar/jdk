@@ -73,6 +73,152 @@ inline frame FreezeBase::sender(const frame& f) {
          : frame(sender_sp, sender_pc, sender_sp);
 }
 
+//
+// Heap frames differ from stack frames in the following aspects:
+//
+// - they are just word aligned (8-byte aligned on s390)
+// - the unextended sp of interpreted frames is set such that
+//   unextended sp + frame::metadata_words_at_top + 1 points to the last call parameter
+//
+// The difference in respect to the unextended sp is required to comply with shared code.
+// Furthermore compiled frames have invalid back links (see
+// Thaw<ConfigT>::patch_caller_links() and FreezeBase::patch_pd())
+//
+// === New Interpreted Frame ==========================================================================================
+//
+// ### Interpreted Caller: Overlap new frame with Caller
+//
+//     Caller on entry                                     New frame with resized Caller
+//
+//     | z_parent_ijava_frame_abi|                         |                        |
+//     | (z_common_abi)          |<- FP of caller          | Caller's SP            |<- FP of caller
+//     ===========================                         ===========================
+//     | ijava_state             |                         | ijava_state            |
+//     |                         |                         |                        |
+//     |-------------------------|                  -----  |------------------------|
+//     | P0                      |                    ^    | L0 aka P0              |
+//     | :                       |                    |    | :      :               |
+//     | Pn                      |<- unext. SP        |    | :      Pn              |<- unext. SP
+//     |-------------------------|   + metadata     overlap| :                      |   + metadata
+//     | z_parent_ijava_frame_abi|                    |    | Lm                     |
+//     | (z_common_abi)          |<- SP == unext. SP  v    |------------------------|<- unextended SP of caller (1)
+//     ===========================   of caller      -----  | z_parent_ijava_frame_abi|
+//                                                         | (z_common_abi)         |<- new SP of caller / FP of new frame
+//      overlap = stack_argsize(f)                         ===========================       ^
+//                + frame::metadata_words_at_top           | ijava_state            |       |
+//                                                         |                        |       |
+//      Where f is the frame to be relocated on the heap.  |------------------------|       |
+//      See also StackChunkFrameStream::frame_size().      | Expressions            |   FP - esp of f
+//                                                         | P0                     |       |
+//                                                         | :                      |       |
+//                            |  Growth  |                 | Pi                     |       v
+//                            v          v                 |------------------------|      ---
+//                                                         | z_parent_ijava_frame_abi|
+//                                                         | (z_common_abi)         |<- unextended SP /
+//                                                         ===========================   SP of new frame
+//
+// ### Compiled Caller: No Overlap
+//
+//     The caller is resized to accommodate the callee's locals and abi but there is _no_ overlap with
+//     the original caller frame.
+//
+//     Caller on entry                                     New frame with resized Caller
+//
+//     | z_java_abi             |                          |                        |
+//     | (z_common_abi)         |<- FP of caller           | Caller's SP            |<- FP of caller
+//     ===========================                         ===========================
+//     |                        |                          |                        |
+//     |                        |                          |                        |
+//     |------------------------|                          |------------------------|
+//     | z_java_abi             |                          | z_java_abi             |
+//     | (z_common_abi)         |<- SP == unext. SP        | (z_common_abi)         |<- unext. SP of caller
+//     ===========================   of caller             |------------------------|
+//                                                         | L0 aka P0              |
+//                                                         | :      :               |
+//      overlap = 0                                        | :      Pn              |
+//                                                         | Lm                     |
+//      f is the frame to be relocated on the heap         |------------------------|
+//                                                         | z_java_abi             |
+//                                                         | (z_common_abi)         |<- new SP of caller / FP of new frame
+//                                                         ===========================      ^
+//                                                         | ijava_state            |       |
+//                             |  Growth  |                |                        |       |
+//                             v          v                |------------------------|       |
+//                                                         | Expressions            |   FP - esp of f
+//                                                         | P0                     |       |
+//                                                         | :                      |       |
+//                                                         | Pi                     |       v
+//                                                         |------------------------|      ---
+//                                                         | z_parent_ijava_frame_abi|
+//                                                         | (z_common_abi)         |<- unextended SP /
+//                                                         ===========================   SP of new frame
+//
+// (1) Caller's unextended SP is preserved in callee's frame::ijava_state::sender_sp
+//     (See ContinuationHelper::InterpretedFrame::patch_sender_sp). This is required
+//     by StackChunkFrameStream<frame_kind>::next_for_interpreter_frame().
+//
+// === New Compiled Frame =============================================================================================
+//
+// ### Interpreted Caller: No Overlap
+//
+//     The caller is resized to accommodate the callee's stack arguments and abi but there is _no_ overlap with
+//     the original caller frame.
+//
+//     Note: a new ABI is added to the caller even if there are no stackargs.
+//     This is necessary to comply with shared code.
+//
+//     Caller on entry                                     New frame with resized Caller
+//
+//     | z_parent_ijava_frame_abi|                         | z_parent_ijava_frame_abi|
+//     | (z_common_abi)          |<- FP of caller          | (z_common_abi)          |<- FP of caller
+//     ===========================                         ===========================
+//     | ijava_state             |                         | ijava_state             |
+//     |                         |                         |                         |
+//     |-------------------------|                         |-------------------------|
+//     | P0                      |                         | P0                      |
+//     | :                       |                         | :                       |
+//     | Pn                      |<- unext. SP             | Pn                      |<- unext. SP
+//     |-------------------------|   + metadata            |-------------------------|   + metadata
+//     | z_parent_ijava_frame_abi|                         | z_parent_ijava_frame_abi|
+//     | (z_common_abi)          |<- SP == unext. SP       | (z_common_abi)          |<- unextended SP of caller (1)
+//     ===========================   of caller             |-------------------------|
+//                                                         | Stack Args              |
+//      overlap = 0                                        | (if any)                |
+//                                                         |-------------------------|
+//      f is the frame to be relocated on the heap         | z_java_abi              |
+//                                                         | (z_common_abi)          |<- new SP of caller / FP of new frame
+//                                                         ===========================
+//                                                         |                         |
+//                             |  Growth  |                |                         |
+//                             v          v                |-------------------------|
+//                                                         | z_java_abi              |
+//                                                         | (z_common_abi)          |<- SP == unext. SP of new frame
+//                                                         ===========================
+//
+// ### Compiled Caller: Stackargs + ABI Overlap
+//
+//     Caller on entry                                     New frame with resized Caller
+//
+//     | z_java_abi             |                          | z_java_abi             |
+//     | (z_common_abi)         |<- FP of caller           | (z_common_abi)         |<- FP of caller
+//     ===========================                         ===========================
+//     |                        |                          |                        |
+//     |                        |                          |                        |
+//     |------------------------|                   -----  |------------------------|
+//     | Stack Args             |                     ^    | Stack Args             |
+//     | (if any)               |                     |    | (if any)               |
+//     |------------------------|                  overlap |------------------------|
+//     | z_java_abi             |                     |    | z_java_abi             |
+//     | (z_common_abi)         |<- SP == unext. SP   v    | (z_common_abi)         |<- SP == unext. SP of caller
+//     ===========================   of caller       -----  ===========================   / FP of new frame
+//                                                         |                        |
+//      overlap = stack_argsize(f)                         |                        |
+//                + frame::metadata_words_at_top           |------------------------|
+//                                                         | z_java_abi             |
+//      Where f is the frame to be relocated on the heap.  | (z_common_abi)         |<- SP == unext. SP of new frame
+//      See also StackChunkFrameStream::frame_size().      ===========================
+//
+
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller) {
   assert(FKind::is_instance(f), "");
   intptr_t *sp, *fp;
@@ -126,6 +272,126 @@ template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& calle
     return frame(sp, sp, fp, f.pc(), nullptr, nullptr, true /* on_heap */);
   }
 }
+
+// === New Interpreted Frame ================================================================================================================
+//
+// ### Non-Interpreted Caller (compiled, enterSpecial): No Overlap
+//
+//     Heap Frame `hf`                                   `hf` gets copied to stack _without_ overlapping the caller
+//
+//     |                      |                            Non-Interpreted |                      |
+//     |                      |<- bottom                   Caller          |----------------------|
+//     |----------------------|    ^                                       | z_java_abi           |<- unextended SP
+//     | L0 aka P0            |    |                                   --- ========================
+//     | :      :             |    |                                    ^  | L0 aka P0            |
+//     | :      Pn            |    |                                    |  | :      :             | Parameters do
+//     | :                    |    |                                    |  | :      Pn            | not overlap with
+//     | Lm                   |    |                                    |  | :                    | caller!
+//     |----------------------| `fsize`                                 |  | :                    |
+//     | z_java_abi           |    |                                       | :                    |
+//     ========================    |                     `fsize` + padding | Lm                   |
+//     |                      |    |                                       |----------------------|
+//     | z_ijava_state        |    |                                    |  | Opt. Align. Padding  |
+//     |                      |    |                                    |  |----------------------|
+//     |----------------------|    |                                    |  | z_java_abi           |<- new SP of caller
+//     | L0 aka P0            |    |                                    |  ========================   / FP of new frame
+//     | :      :             |    |                                    |  |                      |   (aligned)
+//     | :      Pn            |<- unext. SP + metadata                  |  | z_ijava_state        |
+//     | :                    |    |                                    |  |                      |
+//     | Lm                   |    |                                    |  |----------------------|
+//     |----------------------|    v                                    |  | P0                   |
+//     | z_java_abi           |<- SP / unextended SP                    |  | :                    |
+//     ========================                                         |  | Pi                   |<- unextended SP + metadata
+//                                                                      |  |----------------------|
+//                                           | Growth |                 v  | z_java_abi           |<- unextended SP / SP of new frame
+//                                           v        v                --- ========================   (not yet aligned(1))
+//
+//
+// ### Interpreted Caller: Overlap with Caller
+//
+//     Caller                                                              New frame with resized/aligned Caller
+//
+//     |                      |                                            |                      |
+//     | z_ijava_state        |                                            | z_ijava_state        |
+//     |----------------------|                                            |----------------------|
+//     | non param. expr.     |                                     bottom | non param. expr.     |
+//     | - - - - - - - - - -  |                           ---           ^  | - - - - - - - - - -  |
+//     | P0                   |                            ^            |  | L0 aka P0            |
+//     | :                    |                            |            |  | :      :             |
+//     | Pn                   |<- unextended SP           overlap       |  | :      Pn            |<- unextended SP
+//     |----------------------|   + metadata_words_at_top  |            |  | :                    |   + metadata_words_at_top
+//     | z_java_abi           |<- unextended SP            v            |  | :                    |   (unaligned)
+//     ========================   / SP of new frame       ---           |  | :                    |   of caller
+//                                (not yet aligned(1))                  |  | Lm                   |
+//                                                                `fsize`  |----------------------|
+//       overlap = stack_argsize(hf)                              + padding| Opt. Align. Padding  |
+//                 + frame::metadata_words_at_top                       |  |----------------------|
+//                                                                      |  | z_java_abi           |<- new SP of caller
+//                                                                      |  ========================   / FP of new frame
+//                                                                      |  |                      |   (aligned)
+//                                  | Growth |                          |  | z_ijava_state        |
+//                                  v        v                          |  |                      |
+//                                                                      |  |----------------------|
+//                                                                      |  | P0                   |
+//                                                                      |  | :                    |
+//                                                                      |  | Pi                   |<- unextended SP
+//                                                                      |  |----------------------|    + metadata_words_at_top
+//                                                                      v  | z_java_abi           |<- unextended SP / SP of new frame
+//                                                                     --- ========================   (not yet aligned(1))
+//
+//
+//  (1) The SP / unextended SP of the new interpreted frame is not aligned. It
+//      gets aligned when its callee is pushed on stack or in finish_thaw() if
+//      it is the top frame. This allows addressing parameters: unextended SP + metadata_words_at_top
+//
+//  (2) If caller is interpreted then its z_ijava_state::sender_sp will be used as sender sp
+//      of the new frame (see ContinuationHelper::InterpretedFrame::patch_sender_sp() and diagram at the end of this file)
+//
+//  (3) The size of alignment padding required when thawing frames is accounted for
+//      in FreezeBase::_align_size.
+//
+// === New Compiled Frame ===================================================================================================================
+//
+//        Compiled Caller                              Interpreted Caller
+//
+//        - stackargs+abi overlap with caller          - gets resized for stackargs
+//        - no alignment padding                       - SP gets aligned
+//                                                     - no overlap with orig.
+//                                                       caller
+//   O C
+//   r a  |                      |                     |                      |
+//   i l  |                      |                     |                      |
+//   g l  |----------------------|                     |                      |
+//   i e  | Stack Args           |                     |                      |
+//   n r  | (if any)             |                     |----------------------|
+//   a    |----------------------|                     | z_java_abi           |
+//   l    | z_java_abi           |<- unext. SP / SP    | (unused)             |<- unal.unext.SP
+//  - - - ======================== - - - - - - - - - - |----------------------|- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//    N   |                      |                     | Opt. Align. Padding  |
+//    e   |                      |                     |----------------------|
+//    w   |----------------------|                     | Stack Args           |
+//        | z_java_abi           |<- unext. SP / SP    | (if any)             |
+//    F   ========================                     |----------------------|
+//    r                                                | z_java_abi           |<- caller's SP
+//    a                                                ======================== / new frame's FP
+//    m                                                |                      |   (aligned)
+//    e                                                |                      |
+//                                                     |----------------------|
+//                                                     | z_java_abi           |<- unext. SP / SP
+//                                                     ========================
+//
+//  If the new frame is at the bottom just above the ContinuationEntry frame then the stackargs
+//  don't overlap the caller either even though it is compiled because the size is not
+//  limited/known. In contrast to the interpreted caller case the abi overlaps with the caller
+//  if there are no stackargs. This is to comply with shared code (see e.g. StackChunkFrameStream<frame_kind>::frame_size())
+//
+//  Note: On s390, the z_java_abi (z_common_abi) is 16 bytes containing:
+//        - callers_sp (8 bytes) - backchain pointer
+//        - return_pc (8 bytes)
+//
+//  The backchain (callers_sp) is reconstructed during thawing via Thaw<ConfigT>::patch_caller_links()
+//  for compiled frames. For interpreted frames, it's set via patch_callee_link_relative().
+//
 
 void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
   // nothing to do (TODO: why ? will it be same for s390)
