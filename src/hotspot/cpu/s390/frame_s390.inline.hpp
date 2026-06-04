@@ -50,7 +50,6 @@ inline void frame::setup() {
   }
 
   if (_fp == nullptr) {
-    // TODO: https://bugs.openjdk.org/browse/JDK-8338383
     // The back link for compiled frames on the heap is not valid
     if (is_heap_frame()) {
       // fp for interpreted frames should have been derelativized and passed to the constructor
@@ -83,8 +82,12 @@ inline void frame::setup() {
     }
   }
 
-  // TODO: should we improve below assert of just remove it ?
-  // assert(_on_heap || is_aligned(_sp, frame::frame_alignment), "SP must be 8-byte aligned");
+  // Continuation frames on the java heap are not aligned.
+  // When thawing interpreted frames the sp can be unaligned (see new_stack_frame()).
+  assert(_on_heap ||
+         ((is_aligned(_sp, alignment_in_bytes) || is_interpreted_frame()) &&
+          (is_aligned(_fp, alignment_in_bytes) || !is_fully_initialized())),
+         "invalid alignment sp:" PTR_FORMAT " unextended_sp:" PTR_FORMAT " fp:" PTR_FORMAT, p2i(_sp), p2i(_unextended_sp), p2i(_fp));
 }
 
 // Constructors
