@@ -463,12 +463,13 @@ inline void FreezeBase::patch_stack_pd(intptr_t* frame_sp, intptr_t* heap_sp) {
 }
 
 inline intptr_t* AnchorMark::anchor_mark_set_pd() {
-  Unimplemented();
-  return nullptr;
+  // Nothing to do on s390 because the interpreter does not use SP as expression stack pointer.
+  // Instead there is a dedicated register Z_esp which is not affected by VM calls.
+  return _top_frame.sp();
 }
 
 inline void AnchorMark::anchor_mark_clear_pd() {
-  Unimplemented();
+  // Nothing to do. See anchor_mark_set_pd().
 }
 
 inline frame ThawBase::new_entry_frame() {

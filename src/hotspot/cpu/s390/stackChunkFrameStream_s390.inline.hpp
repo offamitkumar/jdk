@@ -46,8 +46,9 @@ inline frame StackChunkFrameStream<frame_kind>::to_frame() const {
   if (is_done()) {
     return frame(_sp, _sp, nullptr, nullptr, nullptr, nullptr, true);
   } else {
-    // TODO: need to verify this. I don't know whether it's true for s390x or not.
-    // Compiled frames on heap don't have back links. See FreezeBase::patch_pd() and frame::setup().
+    // Compiled frames on heap don't have back links on s390. The back link is redundant
+    // and gets computed as unextended_sp + frame_size. In debug builds, FreezeBase::patch_pd()
+    // explicitly sets it to badAddress.
     return frame(sp(), unextended_sp(), Interpreter::contains(pc()) ? fp() : nullptr, pc(), cb(), _oopmap, true);
   }
 }

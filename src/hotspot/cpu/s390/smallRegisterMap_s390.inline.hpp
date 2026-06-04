@@ -39,6 +39,7 @@ class SmallRegisterMapType {
   ~SmallRegisterMapType() = default;
   NONCOPYABLE(SmallRegisterMapType);
 
+  public:
   // as_RegisterMap is used when we didn't want to templatize and abstract over RegisterMap type to support SmallRegisterMap
   // Consider enhancing SmallRegisterMap to support those cases
   const RegisterMap* as_RegisterMap() const { return nullptr; }
