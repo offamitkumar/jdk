@@ -443,6 +443,14 @@
 
  private:
 
+
+ #ifdef ASSERT
+  enum special_backlink_values : uint64_t {
+    NOT_FULLY_INITIALIZED = 0xDEADBEEF8
+  };
+  bool is_fully_initialized()       const { return (uint64_t)_fp != NOT_FULLY_INITIALIZED; }
+#endif // ASSERT
+
   //  STACK:
   //            ...
   //            [THIS_FRAME]             <-- this._sp (stack pointer for this frame)
@@ -474,6 +482,9 @@
   void set_fp(intptr_t* newfp)  { _fp = newfp; }
   int offset_fp() const         { assert_offset();  return _offset_fp; }
   void set_offset_fp(int value) { assert_on_heap(); _offset_fp = value; }
+
+  // Mark a frame as not fully initialized. Must not be used for frames in the valid back chain.
+  void mark_not_fully_initialized() const { DEBUG_ONLY(own_abi()->callers_sp = NOT_FULLY_INITIALIZED;)  }
 
  private:
 
