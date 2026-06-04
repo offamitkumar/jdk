@@ -2395,7 +2395,7 @@ void TemplateTable::resolve_cache_and_index_for_method(int byte_no,
   // Class initialization barrier slow path lands here as well.
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache);
   __ load_const_optimized(Z_ARG2, (int)code);
-  __ call_VM(noreg, entry, Z_ARG2);
+  __ call_VM_preemptable(noreg, entry, Z_ARG2);
 
   // Update registers with resolved info.
   __ load_method_entry(Rcache, index);
@@ -2445,7 +2445,7 @@ void TemplateTable::resolve_cache_and_index_for_field(int byte_no,
   // Class initialization barrier slow path lands here as well.
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache);
   __ load_const_optimized(Z_ARG2, (int)code);
-  __ call_VM(noreg, entry, Z_ARG2);
+  __ call_VM_preemptable(noreg, entry, Z_ARG2);
 
   // Update registers with resolved info.
   __ load_field_entry(cache, index);
@@ -4022,7 +4022,7 @@ void TemplateTable::_new() {
   __ bind(slow_case);
   __ get_constant_pool(Z_ARG2);
   __ get_2_byte_integer_at_bcp(Z_ARG3/*dest*/, 1, InterpreterMacroAssembler::Unsigned);
-  call_VM(Z_tos, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), Z_ARG2, Z_ARG3);
+  __ call_VM_preemptable(Z_tos, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), Z_ARG2, Z_ARG3);
   __ verify_oop(Z_tos);
 
   // continue

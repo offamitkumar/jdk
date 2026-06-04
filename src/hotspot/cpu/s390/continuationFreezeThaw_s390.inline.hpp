@@ -405,9 +405,16 @@ void FreezeBase::adjust_interpreted_frame_unextended_sp(frame& f) {
 }
 
 inline void FreezeBase::prepare_freeze_interpreted_top_frame(frame& f) {
-  // nothing to do
-  DEBUG_ONLY( intptr_t* lspp = f.interpreter_frame_top_frame_sp();)
-  assert(lspp == f.unextended_sp(), "should be top_frame_sp : " INTPTR_FORMAT " unextended_sp: " INTPTR_FORMAT, p2i(lspp), p2i(f.unextended_sp()));
+  // Nothing to do. We don't save a last sp since we cannot use sp as esp.
+  // Instead the top frame is trimmed when making an i2i call. The original
+  // top_frame_sp is set when the frame is pushed (see generate_fixed_frame()).
+  // An interpreter top frame that was just thawed is resized to top_frame_sp by the
+  // resume adapter (see generate_cont_resume_interpreter_adapter()). So the assertion is
+  // false, if we freeze again right after thawing as we do when redoing a vm call wasn't
+  // successful.
+  assert(_thread->interp_redoing_vm_call() ||
+         ((intptr_t*)f.at_relative(_z_ijava_idx(top_frame_sp)) == f.unextended_sp()),
+         "top_frame_sp:" PTR_FORMAT " usp:" PTR_FORMAT, f.at_relative(_z_ijava_idx(top_frame_sp)), p2i(f.unextended_sp()));
 }
 
 inline void FreezeBase::relativize_interpreted_frame_metadata(const frame& f, const frame& hf) {
@@ -566,8 +573,16 @@ inline intptr_t* ThawBase::push_cleanup_continuation() {
 }
 
 inline intptr_t* ThawBase::push_preempt_adapter() {
-  Unimplemented();
-  return nullptr;
+  frame enterSpecial = new_entry_frame();
+  frame::z_common_abi* enterSpecial_abi = (frame::z_common_abi*)enterSpecial.sp();
+
+  enterSpecial_abi->return_pc = (intptr_t)StubRoutines::cont_preempt_stub();
+
+  log_develop_trace(continuations, preempt)("push_preempt_adapter enterSpecial sp: " INTPTR_FORMAT " adapter pc: " INTPTR_FORMAT,
+                                            p2i(enterSpecial_abi),
+                                            p2i(StubRoutines::cont_preempt_stub()));
+
+  return enterSpecial.sp();
 }
 
 template <typename ConfigT>

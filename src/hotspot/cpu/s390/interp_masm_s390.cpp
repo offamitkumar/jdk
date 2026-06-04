@@ -171,46 +171,91 @@ void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result, address
     call_VM(oop_result, entry_point, arg_1, check_exceptions);
     return;
   }
+  call_VM_preemptable(oop_result, entry_point, arg_1, noreg /* arg_2 */, check_exceptions);
+}
+
+void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result, address entry_point,
+                                        Register arg_1, Register arg_2, bool check_exceptions) {
+  if (!Continuations::enabled()) {
+    call_VM(oop_result, entry_point, arg_1, arg_2, check_exceptions);
+    return;
+  }
+
+  Label resume_pc, not_preempted;
+  Register tmp = Z_R1_scratch;
+  assert(InterpreterRuntime::is_preemptable_call(entry_point), "VM call not preemptable, should use call_VM()");
+  assert_different_registers(arg_1, tmp);
+  assert_different_registers(arg_2, tmp);
 
 #ifdef ASSERT
   {
-    NearLabel ok;
-    z_ltg(Z_R0, Address(Z_thread, JavaThread::preempt_alternate_return_offset()));
-    z_brz(ok); // if 0, we are good
-    stop("Should not have alternate return address set");
-    bind(ok);
+    NearLabel L1;
+    asm_assert_mem8_is_zero(in_bytes(JavaThread::preempt_alternate_return_offset()), Z_thread,
+                           "Should not have alternate return address set", 100);
+    // We check this counter in patch_return_pc_with_preempt_stub() during freeze.
+    z_asi(Address(Z_thread, JavaThread::interp_at_preemptable_vmcall_cnt_offset()), 1);
+    z_lt(tmp, Address(Z_thread, JavaThread::interp_at_preemptable_vmcall_cnt_offset()));
+    z_brh(L1);
+    stop("call_VM_preemptable_helper: should be > 0");
+    bind(L1);
   }
 #endif // ASSERT
 
-  Label resume_pc, not_preempted;
-  push_cont_fastpath();
-
-  assert(arg_1 != Z_ARG1, "register corruption");
-
-  // We set resume_pc as last java pc. It will be saved if the vthread gets preempted.
-  // Later execution will continue right there.
   lgr_if_needed(Z_ARG2, arg_1);
+  assert(arg_2 != Z_ARG2, "smashed argument");
 
-  call_VM(oop_result, entry_point, false /*check_exceptions*/, &resume_pc /* last_java_pc */);
+  if (arg_2 != noreg) {
+    lgr_if_needed(Z_ARG3, arg_2);
+  }
 
+  // Force freeze slow path.
+  push_cont_fastpath();
+  // Make VM call. In case of preemption set last_pc to the one we want to resume to.
+  // Note: call_VM_base will use resume_pc label to set last_Java_pc.
+  call_VM(noreg, entry_point, false /*check_exceptions*/, &resume_pc /* last_java_pc */);
   pop_cont_fastpath();
 
-  // Jump to handler if the call was preempted
-  z_ltg(Z_R1_scratch, Address(Z_thread, JavaThread::preempt_alternate_return_offset()));
+
+#ifdef ASSERT
+  {
+    NearLabel L;
+    z_asi(Address(Z_thread, JavaThread::interp_at_preemptable_vmcall_cnt_offset()), -1);
+    z_lt(tmp, Address(Z_thread, JavaThread::interp_at_preemptable_vmcall_cnt_offset()));
+    z_brnl(L);
+    stop("call_VM_preemptable_helper: should be >= 0");
+    bind(L);
+  }
+#endif // ASSERT
+
+  // Check if preempted.
+  z_ltg(tmp, Address(Z_thread, JavaThread::preempt_alternate_return_offset()));
   z_brz(not_preempted);
 
+  // Preempted. Frames are already frozen on heap.
   z_mvghi(Address(Z_thread, JavaThread::preempt_alternate_return_offset()), 0);
-  z_br(Z_R1_scratch);  // branch to handler in Z_R1_scratch
+  z_br(tmp);  // branch to handler in Z_R1_scratch
 
   bind(resume_pc); // Location to resume execution
-
   restore_after_resume(noreg/* fp */);
 
   bind(not_preempted);
+
+  if (check_exceptions) {
+    NearLabel ok;
+    load_and_test_long(tmp, Address(Z_thread, Thread::pending_exception_offset()));
+    z_bre(ok);
+    load_const_optimized(tmp, StubRoutines::forward_exception_entry());
+    z_br(tmp);
+    bind(ok);
+  }
+
+  // get oop result if there is one and reset the value in the thread
+  if (oop_result->is_valid()) {
+    get_vm_result_oop(oop_result);
+  }
 }
 
 void InterpreterMacroAssembler::restore_after_resume(Register fp) {
-  // TODO: What's the use of "fp" register coming as an argument ?
   if (!Continuations::enabled()) return;
   load_const_optimized(Z_R1, Interpreter::cont_resume_interpreter_adapter());
   call(Z_R1);
@@ -1026,6 +1071,14 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
                                                   bool install_monitor_exception,
                                                   bool notify_jvmti) {
   BLOCK_COMMENT("remove_activation {");
+
+#ifdef ASSERT
+  {
+    asm_assert_mem8_is_zero(in_bytes(JavaThread::preempt_alternate_return_offset()), Z_thread,
+                          "remove_activation: should not have alternate return address set", 101);
+  }
+#endif // ASSERT
+
   unlock_if_synchronized_method(state, throw_monitor_exception, install_monitor_exception);
 
   // Save result (push state before jvmti call and pop it afterwards) and notify jvmti.
