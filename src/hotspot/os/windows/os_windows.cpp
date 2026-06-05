@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "code/vtableStubs.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
+#include "cppstdlib/cstdlib.hpp"
 #include "interpreter/interpreter.hpp"
 #include "jvm.h"
 #include "jvmtifiles/jvmti.h"
@@ -333,14 +334,14 @@ void os::init_system_properties_values() {
     home_path = NEW_C_HEAP_ARRAY(char, strlen(home_dir) + 1, mtInternal);
     strcpy(home_path, home_dir);
     Arguments::set_java_home(home_path);
-    FREE_C_HEAP_ARRAY(char, home_path);
+    FREE_C_HEAP_ARRAY(home_path);
 
     dll_path = NEW_C_HEAP_ARRAY(char, strlen(home_dir) + strlen(bin) + 1,
                                 mtInternal);
     strcpy(dll_path, home_dir);
     strcat(dll_path, bin);
     Arguments::set_dll_dir(dll_path);
-    FREE_C_HEAP_ARRAY(char, dll_path);
+    FREE_C_HEAP_ARRAY(dll_path);
 
     if (!set_boot_path('\\', ';')) {
       vm_exit_during_initialization("Failed setting boot class path.", nullptr);
@@ -395,7 +396,7 @@ void os::init_system_properties_values() {
     strcat(library_path, ";.");
 
     Arguments::set_library_path(library_path);
-    FREE_C_HEAP_ARRAY(char, library_path);
+    FREE_C_HEAP_ARRAY(library_path);
   }
 
   // Default extensions directory
@@ -464,36 +465,63 @@ void os::current_stack_base_and_size(address* stack_base, size_t* stack_size) {
   *stack_size = size;
 }
 
-bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
-  MEMORY_BASIC_INFORMATION minfo;
-  committed_start = nullptr;
-  committed_size = 0;
-  address top = start + size;
-  const address start_addr = start;
-  while (start < top) {
-    VirtualQuery(start, &minfo, sizeof(minfo));
-    if ((minfo.State & MEM_COMMIT) == 0) {  // not committed
-      if (committed_start != nullptr) {
-        break;
-      }
-    } else {  // committed
-      if (committed_start == nullptr) {
-        committed_start = start;
-      }
-      size_t offset = start - (address)minfo.BaseAddress;
-      committed_size += minfo.RegionSize - offset;
-    }
-    start = (address)minfo.BaseAddress + minfo.RegionSize;
-  }
+bool os::first_resident_in_range(address start, size_t size, address& resident_start, size_t& resident_size) {
+  constexpr size_t stripe = 1024;  // query this many pages each time
+  PSAPI_WORKING_SET_EX_INFORMATION wsinfo[stripe];
 
-  if (committed_start == nullptr) {
-    assert(committed_size == 0, "Sanity");
-    return false;
-  } else {
-    assert(committed_start >= start_addr && committed_start < top, "Out of range");
-    // current region may go beyond the limit, trim to the limit
-    committed_size = MIN2(committed_size, size_t(top - committed_start));
+  size_t page_sz = os::vm_page_size();
+  uintx pages_left = size / page_sz;
+
+  assert(is_aligned(start, page_sz), "Start address must be page aligned");
+  assert(is_aligned(size, page_sz), "Size must be page aligned");
+
+  resident_start = nullptr;
+
+  uintx loops = (pages_left + stripe - 1) / stripe;
+  uintx resident_pages = 0;
+  address pos = start;
+  bool found_range = false;
+
+  for (uintx index = 0; index < loops && !found_range; index++) {
+    assert(pages_left > 0, "Nothing to do");
+    uintx pages_to_query = MIN2(pages_left, stripe);
+    pages_left -= pages_to_query;
+
+    for (uintx i = 0; i < pages_to_query; i++) {
+      wsinfo[i].VirtualAddress = (PVOID)(pos + i * page_sz);
+    }
+
+    BOOL success = QueryWorkingSetEx(GetCurrentProcess(), wsinfo, pages_to_query * sizeof(PSAPI_WORKING_SET_EX_INFORMATION));
+    if (!success) {
+      return false;
+    }
+
+    for (uintx i = 0; i < pages_to_query; i++) {
+      if (wsinfo[i].VirtualAttributes.Valid == 0) {
+        if (resident_start != nullptr) {
+          found_range = true;
+          break;
+        }
+        // Still searching for start of resident region
+      } else {
+        if (resident_start == nullptr) {
+          // Found first resident page in region
+          resident_start = pos + i * page_sz;
+        }
+        resident_pages++;
+      }
+    }
+    pos += pages_to_query * page_sz;
+  }
+  if (resident_start != nullptr) {
+    assert(resident_pages > 0, "Must have a resident region");
+    assert(resident_pages <= size / page_sz, "Resident size exceeds region size");
+    assert(resident_start >= start && resident_start < start + size, "Out of range");
+    resident_size = page_sz * resident_pages;
     return true;
+  } else {
+    assert(resident_pages == 0, "Should not have a resident region");
+    return false;
   }
 }
 
@@ -838,7 +866,15 @@ bool os::available_memory(physical_memory_size_type& value) {
   return win32::available_memory(value);
 }
 
+bool os::Machine::available_memory(physical_memory_size_type& value) {
+  return win32::available_memory(value);
+}
+
 bool os::free_memory(physical_memory_size_type& value) {
+  return win32::available_memory(value);
+}
+
+bool os::Machine::free_memory(physical_memory_size_type& value) {
   return win32::available_memory(value);
 }
 
@@ -857,7 +893,11 @@ bool os::win32::available_memory(physical_memory_size_type& value) {
   }
 }
 
-bool os::total_swap_space(physical_memory_size_type& value) {
+bool os::total_swap_space(physical_memory_size_type& value)  {
+  return Machine::total_swap_space(value);
+}
+
+bool os::Machine::total_swap_space(physical_memory_size_type& value) {
   MEMORYSTATUSEX ms;
   ms.dwLength = sizeof(ms);
   BOOL res = GlobalMemoryStatusEx(&ms);
@@ -871,6 +911,10 @@ bool os::total_swap_space(physical_memory_size_type& value) {
 }
 
 bool os::free_swap_space(physical_memory_size_type& value) {
+  return Machine::free_swap_space(value);
+}
+
+bool os::Machine::free_swap_space(physical_memory_size_type& value) {
   MEMORYSTATUSEX ms;
   ms.dwLength = sizeof(ms);
   BOOL res = GlobalMemoryStatusEx(&ms);
@@ -884,6 +928,10 @@ bool os::free_swap_space(physical_memory_size_type& value) {
 }
 
 physical_memory_size_type os::physical_memory() {
+  return win32::physical_memory();
+}
+
+physical_memory_size_type os::Machine::physical_memory() {
   return win32::physical_memory();
 }
 
@@ -910,6 +958,10 @@ int os::active_processor_count() {
     return ActiveProcessorCount;
   }
 
+  return Machine::active_processor_count();
+}
+
+int os::Machine::active_processor_count() {
   bool schedules_all_processor_groups = win32::is_windows_11_or_greater() || win32::is_windows_server_2022_or_greater();
   if (UseAllWindowsProcessorGroups && !schedules_all_processor_groups && !win32::processor_group_warning_displayed()) {
     win32::set_processor_group_warning_displayed(true);
@@ -1054,7 +1106,7 @@ void os::set_native_thread_name(const char *name) {
       HRESULT hr = _SetThreadDescription(current, unicode_name);
       if (FAILED(hr)) {
         log_debug(os, thread)("set_native_thread_name: SetThreadDescription failed - falling back to debugger method");
-        FREE_C_HEAP_ARRAY(WCHAR, unicode_name);
+        FREE_C_HEAP_ARRAY(unicode_name);
       } else {
         log_trace(os, thread)("set_native_thread_name: SetThreadDescription succeeded - new name: %s", name);
 
@@ -1077,7 +1129,7 @@ void os::set_native_thread_name(const char *name) {
           LocalFree(thread_name);
         }
 #endif
-        FREE_C_HEAP_ARRAY(WCHAR, unicode_name);
+        FREE_C_HEAP_ARRAY(unicode_name);
         return;
       }
     } else {
@@ -1715,6 +1767,8 @@ static int _print_module(const char* fname, address base_address,
 // same architecture as Hotspot is running on
 void * os::dll_load(const char *name, char *ebuf, int ebuflen) {
   log_info(os)("attempting shared library load of %s", name);
+  Events::log_dll_message(nullptr, "Attempting to load shared library %s", name);
+
   void* result;
   JFR_ONLY(NativeLibraryLoadEvent load_event(name, &result);)
   result = LoadLibrary(name);
@@ -2501,12 +2555,6 @@ LONG Handle_Exception(struct _EXCEPTION_POINTERS* exceptionInfo,
   return EXCEPTION_CONTINUE_EXECUTION;
 }
 
-
-// Used for PostMortemDump
-extern "C" void safepoints();
-extern "C" void find(int x);
-extern "C" void events();
-
 // According to Windows API documentation, an illegal instruction sequence should generate
 // the 0xC000001C exception code. However, real world experience shows that occasionnaly
 // the execution of an illegal instruction can generate the exception code 0xC000001E. This
@@ -2795,7 +2843,7 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
         if (cb != nullptr && cb->is_nmethod()) {
           nmethod* nm = cb->as_nmethod();
           frame fr = os::fetch_frame_from_context((void*)exceptionInfo->ContextRecord);
-          address deopt = nm->deopt_handler_begin();
+          address deopt = nm->deopt_handler_entry();
           assert(nm->insts_contains_inclusive(pc), "");
           nm->set_original_pc(&fr, pc);
           // Set pc to handler
@@ -2876,7 +2924,7 @@ class NUMANodeListHolder {
   int _numa_used_node_count;
 
   void free_node_list() {
-    FREE_C_HEAP_ARRAY(int, _numa_used_node_list);
+    FREE_C_HEAP_ARRAY(_numa_used_node_list);
   }
 
  public:
@@ -3254,11 +3302,10 @@ static char* map_or_reserve_memory_aligned(size_t size, size_t alignment, int fi
     // Do manual alignment
     aligned_base = align_up(extra_base, alignment);
 
-    bool rc = (file_desc != -1) ? os::unmap_memory(extra_base, extra_size) :
-                                  os::release_memory(extra_base, extra_size);
-    assert(rc, "release failed");
-    if (!rc) {
-      return nullptr;
+    if (file_desc != -1) {
+      os::unmap_memory(extra_base, extra_size);
+    } else {
+      os::release_memory(extra_base, extra_size);
     }
 
     // Attempt to map, into the just vacated space, the slightly smaller aligned area.
@@ -3491,11 +3538,6 @@ char* os::pd_reserve_memory_special(size_t bytes, size_t alignment, size_t page_
   return reserve_large_pages(bytes, addr, exec);
 }
 
-bool os::pd_release_memory_special(char* base, size_t bytes) {
-  assert(base != nullptr, "Sanity check");
-  return pd_release_memory(base, bytes);
-}
-
 static void warn_fail_commit_memory(char* addr, size_t bytes, bool exec) {
   int err = os::get_last_error();
   char buf[256];
@@ -3654,8 +3696,8 @@ bool os::pd_create_stack_guard_pages(char* addr, size_t size) {
   return os::commit_memory(addr, size, !ExecMem);
 }
 
-bool os::remove_stack_guard_pages(char* addr, size_t size) {
-  return os::uncommit_memory(addr, size);
+void os::remove_stack_guard_pages(char* addr, size_t size) {
+  os::uncommit_memory(addr, size);
 }
 
 static bool protect_pages_individually(char* addr, size_t bytes, unsigned int p, DWORD *old_status) {
@@ -3752,6 +3794,7 @@ size_t os::pd_pretouch_memory(void* first, void* last, size_t page_size) {
   return page_size;
 }
 
+void os::numa_set_thread_affinity(Thread *thread, int node) { }
 void os::numa_make_global(char *addr, size_t bytes)    { }
 void os::numa_make_local(char *addr, size_t bytes, int lgrp_hint)    { }
 size_t os::numa_get_groups_num()                       { return MAX2(numa_node_list_holder.get_count(), 1); }
@@ -4728,7 +4771,7 @@ static wchar_t* wide_abs_unc_path(char const* path, errno_t & err, int additiona
 
   LPWSTR unicode_path = nullptr;
   err = convert_to_unicode(buf, &unicode_path);
-  FREE_C_HEAP_ARRAY(char, buf);
+  FREE_C_HEAP_ARRAY(buf);
   if (err != ERROR_SUCCESS) {
     return nullptr;
   }
@@ -4756,9 +4799,9 @@ static wchar_t* wide_abs_unc_path(char const* path, errno_t & err, int additiona
   }
 
   if (converted_path != unicode_path) {
-    FREE_C_HEAP_ARRAY(WCHAR, converted_path);
+    FREE_C_HEAP_ARRAY(converted_path);
   }
-  FREE_C_HEAP_ARRAY(WCHAR, unicode_path);
+  FREE_C_HEAP_ARRAY(unicode_path);
 
   return static_cast<wchar_t*>(result); // LPWSTR and wchat_t* are the same type on Windows.
 }
@@ -4779,8 +4822,8 @@ int os::stat(const char *path, struct stat *sbuf) {
     path_to_target = get_path_to_target(wide_path);
     if (path_to_target == nullptr) {
       // it is a symbolic link, but we failed to resolve it
-      errno = ENOENT;
       os::free(wide_path);
+      errno = ENOENT;
       return -1;
     }
   }
@@ -4791,14 +4834,14 @@ int os::stat(const char *path, struct stat *sbuf) {
   // if getting attributes failed, GetLastError should be called immediately after that
   if (!bret) {
     DWORD errcode = ::GetLastError();
+    log_debug(os)("os::stat() failed to GetFileAttributesExW: GetLastError->%lu.", errcode);
+    os::free(wide_path);
+    os::free(path_to_target);
     if (errcode == ERROR_FILE_NOT_FOUND || errcode == ERROR_PATH_NOT_FOUND) {
       errno = ENOENT;
     } else {
       errno = 0;
     }
-    log_debug(os)("os::stat() failed to GetFileAttributesExW: GetLastError->%lu.", errcode);
-    os::free(wide_path);
-    os::free(path_to_target);
     return -1;
   }
 
@@ -4997,8 +5040,8 @@ int os::open(const char *path, int oflag, int mode) {
     path_to_target = get_path_to_target(wide_path);
     if (path_to_target == nullptr) {
       // it is a symbolic link, but we failed to resolve it
-      errno = ENOENT;
       os::free(wide_path);
+      errno = ENOENT;
       return -1;
     }
   }
@@ -5092,6 +5135,13 @@ jlong os::seek_to_file_offset(int fd, jlong offset) {
   return (jlong)::_lseeki64(fd, (__int64)offset, SEEK_SET);
 }
 
+int64_t os::ftell(FILE* file) {
+  return ::_ftelli64(file);
+}
+
+int os::fseek(FILE* file, int64_t offset, int whence) {
+  return ::_fseeki64(file,offset, whence);
+}
 
 jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::_lseeki64(fd, offset, whence);
@@ -5272,6 +5322,7 @@ char* os::realpath(const char* filename, char* outbuf, size_t outbuflen) {
     } else {
       errno = ENAMETOOLONG;
     }
+    ErrnoPreserver ep;
     permit_forbidden_function::free(p); // *not* os::free
   }
   return result;
@@ -5803,7 +5854,7 @@ int os::fork_and_exec(const char* cmd) {
     exit_code = -1;
   }
 
-  FREE_C_HEAP_ARRAY(char, cmd_string);
+  FREE_C_HEAP_ARRAY(cmd_string);
   return (int)exit_code;
 }
 
@@ -6251,6 +6302,10 @@ const void* os::get_saved_assert_context(const void** sigInfo) {
   }
   *sigInfo = nullptr;
   return nullptr;
+}
+
+void os::print_open_file_descriptors(outputStream* st) {
+  // File descriptor counting not supported on Windows.
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,9 @@
  */
 
 #include "cds/aotMetaspace.hpp"
-#include "cds/archiveHeapLoader.hpp"
 #include "cds/cdsConfig.hpp"
 #include "cds/dynamicArchive.hpp"
-#include "cds/heapShared.hpp"
+#include "cds/heapShared.inline.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderDataShared.hpp"
@@ -183,7 +182,6 @@ int             Universe::_base_vtable_size = 0;
 bool            Universe::_bootstrapping = false;
 bool            Universe::_module_initialized = false;
 bool            Universe::_fully_initialized = false;
-volatile bool   Universe::_is_shutting_down = false;
 
 OopStorage*     Universe::_vm_weak = nullptr;
 OopStorage*     Universe::_vm_global = nullptr;
@@ -323,7 +321,7 @@ void Universe::archive_exception_instances() {
 }
 
 void Universe::load_archived_object_instances() {
-  if (ArchiveHeapLoader::is_in_use()) {
+  if (HeapShared::is_archived_heap_in_use()) {
     for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
       int index = _archived_basic_type_mirror_indices[i];
       if (!is_reference_type((BasicType)i) && index >= 0) {
@@ -546,7 +544,7 @@ void Universe::genesis(TRAPS) {
       // Only modify the global variable inside the mutex.
       // If we had a race to here, the other dummy_array instances
       // and their elements just get dropped on the floor, which is fine.
-      MutexLocker ml(THREAD, FullGCALot_lock);
+      MutexLocker ml(THREAD, FullGCALot_lock, Mutex::_no_safepoint_check_flag);
       if (_fullgc_alot_dummy_array.is_empty()) {
         _fullgc_alot_dummy_array = OopHandle(vm_global(), dummy_array());
       }
@@ -558,34 +556,32 @@ void Universe::genesis(TRAPS) {
 
 void Universe::initialize_basic_type_mirrors(TRAPS) {
 #if INCLUDE_CDS_JAVA_HEAP
-    if (CDSConfig::is_using_archive() &&
-        ArchiveHeapLoader::is_in_use() &&
-        _basic_type_mirrors[T_INT].resolve() != nullptr) {
-      assert(ArchiveHeapLoader::can_use(), "Sanity");
-
-      // check that all basic type mirrors are mapped also
-      for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
-        if (!is_reference_type((BasicType)i)) {
-          oop m = _basic_type_mirrors[i].resolve();
-          assert(m != nullptr, "archived mirrors should not be null");
-        }
+  if (CDSConfig::is_using_archive() &&
+      HeapShared::is_archived_heap_in_use() &&
+      _basic_type_mirrors[T_INT].resolve() != nullptr) {
+    // check that all basic type mirrors are mapped also
+    for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
+      if (!is_reference_type((BasicType)i)) {
+        oop m = _basic_type_mirrors[i].resolve();
+        assert(m != nullptr, "archived mirrors should not be null");
       }
-    } else
-      // _basic_type_mirrors[T_INT], etc, are null if archived heap is not mapped.
+    }
+  } else
+    // _basic_type_mirrors[T_INT], etc, are null if not using an archived heap
 #endif
-    {
-      for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
-        BasicType bt = (BasicType)i;
-        if (!is_reference_type(bt)) {
-          oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, CHECK);
-          _basic_type_mirrors[i] = OopHandle(vm_global(), m);
-        }
-        CDS_JAVA_HEAP_ONLY(_archived_basic_type_mirror_indices[i] = -1);
+  {
+    for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
+      BasicType bt = (BasicType)i;
+      if (!is_reference_type(bt)) {
+        oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, CHECK);
+        _basic_type_mirrors[i] = OopHandle(vm_global(), m);
       }
+      CDS_JAVA_HEAP_ONLY(_archived_basic_type_mirror_indices[i] = -1);
     }
-    if (CDSConfig::is_dumping_heap()) {
-      HeapShared::init_scratch_objects_for_basic_type_mirrors(CHECK);
-    }
+  }
+  if (CDSConfig::is_dumping_heap()) {
+    HeapShared::init_scratch_objects_for_basic_type_mirrors(CHECK);
+  }
 }
 
 void Universe::fixup_mirrors(TRAPS) {
@@ -889,7 +885,7 @@ jint universe_init() {
   ObjLayout::initialize();
 
 #ifdef _LP64
-  AOTMetaspace::adjust_heap_sizes_for_dumping();
+  AOTMetaspace::init_heap_settings();
 #endif // _LP64
 
   GCConfig::arguments()->initialize_heap_sizes();
@@ -910,6 +906,21 @@ jint universe_init() {
   if (!JVMFlagLimit::check_all_constraints(JVMFlagConstraintPhase::AfterMemoryInit)) {
     return JNI_EINVAL;
   }
+
+  // Add main_thread to threads list to finish barrier setup with
+  // on_thread_attach.  Should be before starting to build Java objects in
+  // the AOT heap loader, which invokes barriers.
+  {
+    JavaThread* main_thread = JavaThread::current();
+    MutexLocker mu(Threads_lock);
+    Threads::add(main_thread);
+  }
+
+  HeapShared::initialize_writing_mode();
+
+  // Create the string table before the AOT object archive is loaded,
+  // as it might need to access the string table.
+  StringTable::create_table();
 
 #if INCLUDE_CDS
   if (CDSConfig::is_using_archive()) {
@@ -933,7 +944,6 @@ jint universe_init() {
 #endif
 
   SymbolTable::create_table();
-  StringTable::create_table();
 
   if (strlen(VerifySubSet) > 0) {
     Universe::initialize_verify_flags();
@@ -1172,12 +1182,12 @@ bool universe_post_init() {
     Universe::heap()->update_capacity_and_used_at_gc();
   }
 
-  // ("weak") refs processing infrastructure initialization
+  // Initialize serviceability
+  MemoryService::initialize(Universe::heap());
+
+  // Complete initialization
   Universe::heap()->post_initialize();
 
-  MemoryService::add_metaspace_memory_pools();
-
-  MemoryService::set_universe_heap(Universe::heap());
 #if INCLUDE_CDS
   AOTMetaspace::post_initialize(CHECK_false);
 #endif
@@ -1246,7 +1256,7 @@ void Universe::initialize_verify_flags() {
     }
     token = strtok_r(nullptr, delimiter, &save_ptr);
   }
-  FREE_C_HEAP_ARRAY(char, subset_list);
+  FREE_C_HEAP_ARRAY(subset_list);
 }
 
 bool Universe::should_verify_subset(uint subset) {
@@ -1338,7 +1348,7 @@ static void log_cpu_time() {
   const double gc_string_dedup_cpu_time = (double) CPUTimeUsage::GC::stringdedup() / NANOSECS_PER_SEC;
   const double gc_cpu_time = (double) gc_threads_cpu_time + gc_vm_thread_cpu_time + gc_string_dedup_cpu_time;
 
-  const double elasped_time = os::elapsedTime();
+  const double elapsed_time = os::elapsedTime();
   const bool has_error = CPUTimeUsage::Error::has_error();
 
   if (gc_cpu_time < process_cpu_time) {
@@ -1349,28 +1359,27 @@ static void log_cpu_time() {
     cpuLog.print("                                                                            CPUs");
     cpuLog.print("                                                               s       %%  utilized");
     cpuLog.print("   Process");
-    cpuLog.print("     Total                        %30.4f  %6.2f  %8.1f", process_cpu_time, 100.0, process_cpu_time / elasped_time);
-    cpuLog.print("     Garbage Collection           %30.4f  %6.2f  %8.1f", gc_cpu_time, percent_of(gc_cpu_time, process_cpu_time), gc_cpu_time / elasped_time);
-    cpuLog.print("       GC Threads                 %30.4f  %6.2f  %8.1f", gc_threads_cpu_time, percent_of(gc_threads_cpu_time, process_cpu_time), gc_threads_cpu_time / elasped_time);
-    cpuLog.print("       VM Thread                  %30.4f  %6.2f  %8.1f", gc_vm_thread_cpu_time, percent_of(gc_vm_thread_cpu_time, process_cpu_time), gc_vm_thread_cpu_time / elasped_time);
+    cpuLog.print("     Total                        %30.4f  %6.2f  %8.1f", process_cpu_time, 100.0, process_cpu_time / elapsed_time);
+    cpuLog.print("     Garbage Collection           %30.4f  %6.2f  %8.1f", gc_cpu_time, percent_of(gc_cpu_time, process_cpu_time), gc_cpu_time / elapsed_time);
+    cpuLog.print("       GC Threads                 %30.4f  %6.2f  %8.1f", gc_threads_cpu_time, percent_of(gc_threads_cpu_time, process_cpu_time), gc_threads_cpu_time / elapsed_time);
+    cpuLog.print("       VM Thread                  %30.4f  %6.2f  %8.1f", gc_vm_thread_cpu_time, percent_of(gc_vm_thread_cpu_time, process_cpu_time), gc_vm_thread_cpu_time / elapsed_time);
 
     if (UseStringDeduplication) {
-      cpuLog.print("       String Deduplication       %30.4f  %6.2f  %8.1f", gc_string_dedup_cpu_time, percent_of(gc_string_dedup_cpu_time, process_cpu_time), gc_string_dedup_cpu_time / elasped_time);
+      cpuLog.print("       String Deduplication       %30.4f  %6.2f  %8.1f", gc_string_dedup_cpu_time, percent_of(gc_string_dedup_cpu_time, process_cpu_time), gc_string_dedup_cpu_time / elapsed_time);
     }
     cpuLog.print("=====================================================================================");
   }
 }
 
 void Universe::before_exit() {
-  {
-    // Acquire the Heap_lock to synchronize with VM_Heap_Sync_Operations,
-    // which may depend on the value of _is_shutting_down flag.
-    MutexLocker hl(Heap_lock);
-    log_cpu_time();
-    AtomicAccess::release_store(&_is_shutting_down, true);
-  }
+  // Tell the GC that it is time to shutdown and to block requests for new GC pauses.
+  heap()->initiate_shutdown();
 
-  heap()->before_exit();
+  // Log CPU time statistics before stopping the GC threads.
+  log_cpu_time();
+
+  // Stop the GC threads.
+  heap()->stop();
 
   // Print GC/heap related information.
   Log(gc, exit) log;
@@ -1448,7 +1457,7 @@ uintptr_t Universe::verify_mark_bits() {
 #ifdef ASSERT
 // Release dummy object(s) at bottom of heap
 bool Universe::release_fullgc_alot_dummy() {
-  MutexLocker ml(FullGCALot_lock);
+  MutexLocker ml(FullGCALot_lock, Mutex::_no_safepoint_check_flag);
   objArrayOop fullgc_alot_dummy_array = (objArrayOop)_fullgc_alot_dummy_array.resolve();
   if (fullgc_alot_dummy_array != nullptr) {
     if (_fullgc_alot_dummy_next >= fullgc_alot_dummy_array->length()) {

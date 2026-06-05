@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020, 2022, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -31,13 +31,13 @@
 
 class CardTableBarrierSetAssembler: public BarrierSetAssembler {
 protected:
-  void store_check(MacroAssembler* masm, Register obj, Register tmp);
+  void store_check(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2);
 
   virtual void gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                Register addr, Register count, RegSet saved_regs) {}
 
   virtual void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
-                                                Register start, Register count, Register tmp, RegSet saved_regs);
+                                                Register start, Register count, Register tmp);
 
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
@@ -47,7 +47,7 @@ public:
                                   Register src, Register dst, Register count, RegSet saved_regs);
 
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
-                                  Register start, Register count, Register tmp, RegSet saved_regs);
+                                  Register start, Register count, Register tmp);
 
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);

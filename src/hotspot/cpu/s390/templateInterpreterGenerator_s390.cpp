@@ -1131,6 +1131,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   {
   // locals
   const Register local_addr = Z_ARG4;
+  const Register constants_addr = Z_ARG2;
 
   BLOCK_COMMENT("generate_fixed_frame: initialize interpreter state {");
 
@@ -1146,8 +1147,8 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   __ z_stg(Z_R10, _z_ijava_state_neg(sender_sp), fp);
 
   // Load cp cache and save it at the end of this block.
-  __ z_lg(Z_R1_scratch, Address(const_method, ConstMethod::constants_offset()));
-  __ z_lg(Z_R1_scratch, Address(Z_R1_scratch, ConstantPool::cache_offset()));
+  __ z_lg(constants_addr, Address(const_method, ConstMethod::constants_offset()));
+  __ z_lg(Z_R1_scratch, Address(constants_addr, ConstantPool::cache_offset()));
 
   // z_ijava_state->method = method;
   __ z_stg(Z_method, _z_ijava_state_neg(method), fp);
@@ -1210,7 +1211,9 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   __ z_stg(Z_R1_scratch, _z_ijava_state_neg(cpoolCache), fp);
 
   // Get mirror and store it in the frame as GC root for this Method*.
-  __ load_mirror_from_const_method(Z_R1_scratch, const_method);
+  __ mem2reg_opt(Z_R1_scratch, Address(constants_addr, ConstantPool::pool_holder_offset()));
+  __ mem2reg_opt(Z_R1_scratch, Address(Z_R1_scratch, Klass::java_mirror_offset()));
+  __ resolve_oop_handle(Z_R1_scratch, Z_R0_scratch, Z_R1_scratch);
   __ z_stg(Z_R1_scratch, _z_ijava_state_neg(mirror), fp);
 
   BLOCK_COMMENT("} generate_fixed_frame: initialize interpreter state");

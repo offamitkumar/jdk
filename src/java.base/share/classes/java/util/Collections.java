@@ -1642,7 +1642,7 @@ public final class Collections {
     /**
      * @serial include
      */
-    private static class UnmodifiableMap<K,V> implements Map<K,V>, Serializable {
+    static class UnmodifiableMap<K,V> implements Map<K,V>, Serializable {
         @java.io.Serial
         private static final long serialVersionUID = -1034234728574286014L;
 
@@ -5252,6 +5252,20 @@ public final class Collections {
         @Override
         public int hashCode() {
             return Objects.hashCode(element);
+        }
+        @Override
+        public Object[] toArray() {
+            return new Object[] {element};
+        }
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> T[] toArray(T[] a) {
+            if (a.length < 1)
+                a = (T[])Array.newInstance(a.getClass().getComponentType(), 1);
+            a[0] = (T)element;
+            if (a.length > 1)
+                a[1] = null;
+            return a;
         }
     }
 
