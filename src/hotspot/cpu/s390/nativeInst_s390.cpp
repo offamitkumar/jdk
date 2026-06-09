@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -651,14 +651,14 @@ void NativeDeoptInstruction::insert(address code_pos) {
 bool NativeDeoptInstruction::is_deopt_at(address instr){
   // Check if the instruction is an illtrap (illegal instruction used for deoptimization)
   if (!Assembler::is_z_illtrap(instr)) return false;
-  
+
   // Verify the instruction belongs to an nmethod
   CodeBlob* cb = CodeCache::find_blob(instr);
   if (cb == nullptr || !cb->is_nmethod()) {
     return false;
   }
   nmethod *nm = (nmethod *)cb;
-  
+
   // An illtrap at the verified_entry_point indicates the method is being made non-entrant,
   // not a deoptimization point. Return true only if the illtrap is elsewhere in the code.
   return nm->verified_entry_point() != instr;

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026 IBM Corporation. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +27,6 @@
 #define CPU_S390_CONTINUATIONHELPER_S390_INLINE_HPP
 
 #include "runtime/continuationHelper.hpp"
-
-template<typename FKind>
-static inline intptr_t** link_address(const frame& f) {
-  Unimplemented();
-  return nullptr;
-}
 
 static inline void patch_return_pc_with_preempt_stub(frame& f) {
   if (f.is_runtime_frame()) {

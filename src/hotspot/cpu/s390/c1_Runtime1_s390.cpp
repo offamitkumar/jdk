@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -69,7 +69,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   return_pc = call_c_opt(entry_point);
 
   bind(resume);
-  int call_offset = offset(); // (int)(return_pc - addr_at(0));
+  int call_offset = offset();
   assert(return_pc != nullptr, "const section overflow");
 
   reset_last_Java_frame(/* check_last_java_sp= */ false);
