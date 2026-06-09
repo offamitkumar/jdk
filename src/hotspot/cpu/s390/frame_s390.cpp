@@ -125,7 +125,6 @@ bool frame::safe_for_sender(JavaThread *thread) {
     address   sender_pc = (address)   sender_abi->return_pc;
 
     if (Continuation::is_return_barrier_entry(sender_pc)) {
-      assert(false, "wow_continuations - who is using this code");
       // If our sender_pc is the return barrier, then our "real" sender is the continuation entry
       frame s = Continuation::continuation_bottom_sender(thread, *this, sender_sp);
       sender_sp = s.sp();
