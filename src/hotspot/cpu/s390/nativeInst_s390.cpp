@@ -630,3 +630,36 @@ void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer)
   *(intptr_t*)instr_addr = load_const_bytes | bytes_after_jump;
   ICache::invalidate_range(instr_addr, 6);
 }
+
+void NativeDeoptInstruction::verify() {
+}
+
+void NativePostCallNop::make_deopt() {
+  NativeDeoptInstruction::insert(addr_at(0));
+}
+
+void NativeDeoptInstruction::insert(address code_pos) {
+  ResourceMark rm;
+  int code_size = 2; // z_illtrap is of 2 bytes
+  CodeBuffer cb(code_pos, code_size + 1);
+  MacroAssembler* a = new MacroAssembler(&cb);
+  a->z_illtrap();
+  // forcing CPU to reload these 2 bytes of instruction by setting current range invalid
+  ICache::invalidate_range(code_pos, code_size);
+}
+
+bool NativeDeoptInstruction::is_deopt_at(address instr){
+  // Check if the instruction is an illtrap (illegal instruction used for deoptimization)
+  if (!Assembler::is_z_illtrap(instr)) return false;
+  
+  // Verify the instruction belongs to an nmethod
+  CodeBlob* cb = CodeCache::find_blob(instr);
+  if (cb == nullptr || !cb->is_nmethod()) {
+    return false;
+  }
+  nmethod *nm = (nmethod *)cb;
+  
+  // An illtrap at the verified_entry_point indicates the method is being made non-entrant,
+  // not a deoptimization point. Return true only if the illtrap is elsewhere in the code.
+  return nm->verified_entry_point() != instr;
+}
