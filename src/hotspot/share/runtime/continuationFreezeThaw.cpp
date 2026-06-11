@@ -507,9 +507,6 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
   assert(!Interpreter::contains(_cont.entryPC()), "");
 
   _bottom_address = align_down(_cont.entrySP() - _cont.entry_frame_extension(), frame::frame_alignment);
-#ifdef _LP64
-  assert(is_aligned(_bottom_address, frame::frame_alignment), "");
-#endif
 
   log_develop_trace(continuations)("bottom_address: " INTPTR_FORMAT " entrySP: " INTPTR_FORMAT " argsize: " PTR_FORMAT,
                 p2i(_bottom_address), p2i(_cont.entrySP()), (_cont.entrySP() - _bottom_address) << LogBytesPerWord);
