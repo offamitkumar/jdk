@@ -506,14 +506,8 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   assert(!Interpreter::contains(_cont.entryPC()), "");
 
-  _bottom_address = _cont.entrySP() - _cont.entry_frame_extension();
+  _bottom_address = align_down(_cont.entrySP() - _cont.entry_frame_extension(), frame::frame_alignment);
 #ifdef _LP64
-  // on s390, alignment is of 8 byte instead of 16 byte like other architectures. So for us 0xf check fails
-  // and decrements _bottom_address which results in assert(FKind::frame_bottom(f) <= _bottom_address) failure.
-
-  if (((intptr_t)_bottom_address & NOT_S390(0xf) S390_ONLY(0x7)) != 0) {
-    _bottom_address--;
-  }
   assert(is_aligned(_bottom_address, frame::frame_alignment), "");
 #endif
 
@@ -525,9 +519,9 @@ FreezeBase::FreezeBase(JavaThread* thread, ContinuationWrapper& cont, intptr_t* 
 
   assert(_cont.chunk_invariant(), "");
   assert(!Interpreter::contains(_cont.entryPC()), "");
-#if defined(PPC64)
+#if defined(PPC64) && !defined(ZERO)
   static const int doYield_stub_frame_size = frame::native_abi_reg_args_size >> LogBytesPerWord;
-#elif defined(S390)
+#elif defined(S390) && !defined(ZERO)
   static const int doYield_stub_frame_size = frame::z_abi_160_base_size >> LogBytesPerWord;
 #else
   static const int doYield_stub_frame_size = frame::metadata_words;
