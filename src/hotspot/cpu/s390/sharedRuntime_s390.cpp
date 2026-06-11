@@ -1589,7 +1589,6 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // SharedRuntime::find_callee_info_helper() which calls
   // LinkResolver::resolve_continuation_enter() which resolves the call to
   // Continuation.enter(Continuation c, boolean isContinue).
-  // FIXME:: this call can be optimized see other Archs
   __ relocate(relocInfo::static_call_type);
   __ z_nop();
   __ z_brasl(Z_R14, SharedRuntime::get_resolve_static_call_stub());
