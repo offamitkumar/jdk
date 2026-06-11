@@ -241,7 +241,7 @@ uint Runtime1::runtime_blob_current_thread_offset(frame f) {
                                (float_reg_slots * 8) +
                                (int_regs_before_r8 * 8);
 
-  return z_thread_offset / 8;  // Convert to 64-bit words
+  return z_thread_offset / wordSize;
 }
 
 OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) {

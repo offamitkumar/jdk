@@ -574,6 +574,7 @@
     metadata_words           = sizeof(z_java_abi) >> LogBytesPerWord,
     metadata_words_at_bottom = 0,
     metadata_words_at_top    = sizeof(z_java_abi) >> LogBytesPerWord,
+    // in bytes
     frame_alignment          = 8,
     // size, in words, of maximum shift in frame position due to alignment
     align_wiggle             =  0
