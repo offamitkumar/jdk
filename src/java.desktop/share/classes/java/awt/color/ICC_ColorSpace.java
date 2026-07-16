@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -141,10 +141,11 @@ public class ICC_ColorSpace extends ColorSpace {
         if (profileClass != ICC_Profile.CLASS_INPUT
                 && profileClass != ICC_Profile.CLASS_DISPLAY
                 && profileClass != ICC_Profile.CLASS_OUTPUT
+                && profileClass != ICC_Profile.CLASS_DEVICELINK
                 && profileClass != ICC_Profile.CLASS_COLORSPACECONVERSION
                 && profileClass != ICC_Profile.CLASS_NAMEDCOLOR
                 && profileClass != ICC_Profile.CLASS_ABSTRACT) {
-            throw new IllegalArgumentException("Invalid profile type");
+            throw new IllegalArgumentException("Invalid profile class");
         }
 
         thisProfile = profile;
@@ -199,6 +200,7 @@ public class ICC_ColorSpace extends ColorSpace {
      *         the number of components in this {@code ColorSpace}
      * @throws NullPointerException if {@code colorvalue} is {@code null}
      */
+    @Override
     public float[] toRGB(float[] colorvalue) {
         if (this2srgb == null) {
             synchronized (this) {
@@ -248,6 +250,7 @@ public class ICC_ColorSpace extends ColorSpace {
      * @throws ArrayIndexOutOfBoundsException if array length is not at least 3
      * @throws NullPointerException if {@code rgbvalue} is {@code null}
      */
+    @Override
     public float[] fromRGB(float[] rgbvalue) {
         if (srgb2this == null) {
             synchronized (this) {
@@ -377,6 +380,7 @@ public class ICC_ColorSpace extends ColorSpace {
      *         the number of components in this {@code ColorSpace}
      * @throws NullPointerException if {@code colorvalue} is {@code null}
      */
+    @Override
     public float[] toCIEXYZ(float[] colorvalue) {
         if (this2xyz == null) {
             synchronized (this) {
@@ -509,6 +513,7 @@ public class ICC_ColorSpace extends ColorSpace {
      * @throws ArrayIndexOutOfBoundsException if array length is not at least 3
      * @throws NullPointerException if {@code colorvalue} is {@code null}
      */
+    @Override
     public float[] fromCIEXYZ(float[] colorvalue) {
         if (xyz2this == null) {
             synchronized (this) {
@@ -559,6 +564,7 @@ public class ICC_ColorSpace extends ColorSpace {
      *         than {@code numComponents - 1}
      * @since 1.4
      */
+    @Override
     public float getMinValue(int component) {
         rangeCheck(component);
         return minVal[component];
@@ -582,6 +588,7 @@ public class ICC_ColorSpace extends ColorSpace {
      *         than {@code numComponents - 1}
      * @since 1.4
      */
+    @Override
     public float getMaxValue(int component) {
         rangeCheck(component);
         return maxVal[component];

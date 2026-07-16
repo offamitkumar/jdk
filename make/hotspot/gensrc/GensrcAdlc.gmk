@@ -23,7 +23,10 @@
 # questions.
 #
 
-$(eval $(call IncludeCustomExtension, hotspot/gensrc/GensrcAdlc.gmk))
+include MakeIncludeStart.gmk
+ifeq ($(INCLUDE), true)
+
+################################################################################
 
 ifeq ($(call check-jvm-feature, compiler2), true)
 
@@ -167,6 +170,7 @@ ifeq ($(call check-jvm-feature, compiler2), true)
   ifeq ($(HOTSPOT_TARGET_CPU_ARCH), aarch64)
     AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \
         $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH)_vector.ad \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH)_atomic.ad \
     )))
   endif
 
@@ -260,3 +264,8 @@ ifeq ($(call check-jvm-feature, compiler2), true)
   TARGETS += $(ADLC_GENERATED_FILES)
 
 endif
+
+################################################################################
+
+endif # include guard
+include MakeIncludeEnd.gmk

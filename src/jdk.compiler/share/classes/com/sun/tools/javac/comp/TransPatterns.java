@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -244,16 +244,7 @@ public class TransPatterns extends TreeTranslator {
                 JCExpression translatedExpr = translate(tree.expr);
                 Symbol exprSym = TreeInfo.symbol(translatedExpr);
 
-                if (exprSym != null &&
-                    exprSym.kind == Kind.VAR &&
-                    exprSym.owner.kind.matches(Kinds.KindSelector.VAL_MTH)) {
-                    currentValue = (VarSymbol) exprSym;
-                } else {
-                    currentValue = new VarSymbol(Flags.FINAL | Flags.SYNTHETIC,
-                            names.fromString("patt" + variableIndex++ + target.syntheticNameChar() + "temp"),
-                            tempType,
-                            currentMethodSym);
-                }
+                currentValue = generateTempOrReuse(exprSym, tempType);
 
                 Type principalType = types.erasure(TreeInfo.primaryPatternType((pattern)));
                 JCExpression resultExpression = (JCExpression) this.<JCTree>translate(pattern);
@@ -281,6 +272,27 @@ public class TransPatterns extends TreeTranslator {
         } else {
             super.visitTypeTest(tree);
         }
+    }
+
+    // Reuse a non-constant local or parameter for the type test expression;
+    // otherwise synthesize a temp, since constant locals may not have bytecode local slots.
+    private VarSymbol generateTempOrReuse(Symbol exprSym, Type tempType) {
+        VarSymbol exprVar = exprSym != null &&
+                exprSym.kind == Kind.VAR &&
+                exprSym.owner.kind.matches(Kinds.KindSelector.VAL_MTH)
+                ? (VarSymbol) exprSym
+                : null;
+        if (exprVar != null && exprVar.getConstValue() == null) {
+            return exprVar;
+        }
+        VarSymbol temp = new VarSymbol(Flags.FINAL | Flags.SYNTHETIC,
+                names.fromString("patt" + variableIndex++ + target.syntheticNameChar() + "temp"),
+                tempType,
+                currentMethodSym);
+        if (exprVar != null) {
+            temp.setData(exprVar.getConstantValue());
+        }
+        return temp;
     }
 
     @Override
@@ -921,7 +933,7 @@ public class TransPatterns extends TreeTranslator {
                         JCBindingPattern binding = (JCBindingPattern) instanceofCheck.pattern;
                         hasUnconditional =
                                 (!types.erasure(binding.type).isPrimitive() ? instanceofCheck.allowNull :
-                                types.isUnconditionallyExact(commonNestedExpression.type, types.erasure(binding.type))) &&
+                                types.isUnconditionallyExactTypeBased(commonNestedExpression.type, types.erasure(binding.type))) &&
                                 accList.tail.isEmpty();
                         List<JCCaseLabel> newLabel;
 
@@ -1041,7 +1053,12 @@ public class TransPatterns extends TreeTranslator {
     private LoadableConstant toLoadableConstant(JCCaseLabel l, Type selector) {
         if (l.hasTag(Tag.PATTERNCASELABEL)) {
             Type principalType = principalType(((JCPatternCaseLabel) l).pat);
-            if (((JCPatternCaseLabel) l).pat.type.isReference()) {
+
+            if (target.switchBootstrapOnlyAllowsReferenceTypesAsCaseLabels()) {
+                principalType = types.boxedTypeOrType(principalType);
+            }
+
+            if (principalType.isReference()) {
                 if (types.isSubtype(selector, principalType)) {
                     return (LoadableConstant) selector;
                 } else {

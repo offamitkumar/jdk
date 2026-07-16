@@ -74,7 +74,7 @@ TEST_VM(metaspace, BlockTree_basic) {
   MetaWord* p = nullptr;
   MetaWord arr[10000];
 
-  ASSERT_LE(BlockTree::MinWordSize, (size_t)6); // Sanity check. Adjust if Node is changed.
+  ASSERT_LE(BlockTree::MinWordSize, (size_t)7); // Sanity check. Adjust if Node is changed.
 
   const size_t minws = BlockTree::MinWordSize;
 
@@ -143,7 +143,7 @@ static void test_find_nearest_fit_with_tree(const size_t sizes[], size_t request
     EXPECT_0(real_size);
   }
 
-  LOG(SIZE_FORMAT ": %zu.", request_size, real_size);
+  LOG("%zu: %zu.", request_size, real_size);
 
 }
 

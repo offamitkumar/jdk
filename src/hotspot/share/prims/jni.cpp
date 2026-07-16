@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2024 Red Hat, Inc.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -29,7 +29,6 @@
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoadInfo.hpp"
-#include "classfile/javaClasses.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/javaThreadStatus.hpp"
 #include "classfile/moduleEntry.hpp"
@@ -40,13 +39,11 @@
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jni.h"
 #include "jvm.h"
 #include "logging/log.hpp"
-#include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -72,7 +69,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -94,9 +91,6 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
-#if INCLUDE_JVMCI
-#include "jvmci/jvmciCompiler.hpp"
-#endif
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
@@ -216,7 +210,7 @@ intptr_t jfieldIDWorkaround::encode_klass_hash(Klass* k, int offset) {
       field_klass = super_klass;   // super contains the field also
       super_klass = field_klass->super();
     }
-    debug_only(NoSafepointVerifier nosafepoint;)
+    DEBUG_ONLY(NoSafepointVerifier nosafepoint;)
     uintptr_t klass_hash = field_klass->identity_hash();
     return ((klass_hash & klass_mask) << klass_shift) | checked_mask_in_place;
   } else {
@@ -236,7 +230,7 @@ bool jfieldIDWorkaround::klass_hash_ok(Klass* k, jfieldID id) {
   uintptr_t as_uint = (uintptr_t) id;
   intptr_t klass_hash = (as_uint >> klass_shift) & klass_mask;
   do {
-    debug_only(NoSafepointVerifier nosafepoint;)
+    DEBUG_ONLY(NoSafepointVerifier nosafepoint;)
     // Could use a non-blocking query for identity_hash here...
     if ((k->identity_hash() & klass_mask) == klass_hash)
       return true;
@@ -411,7 +405,7 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
     int offset = InstanceKlass::cast(k1)->field_offset( slot );
     JNIid* id = InstanceKlass::cast(k1)->jni_id_for(offset);
     assert(id != nullptr, "corrupt Field object");
-    debug_only(id->set_is_static_field_id();)
+    DEBUG_ONLY(id->set_is_static_field_id();)
     // A jfieldID for a static field is a JNIid specifying the field holder and the offset within the Klass*
     ret = jfieldIDWorkaround::to_static_jfieldID(id);
     return ret;
@@ -473,7 +467,7 @@ JNI_ENTRY(jclass, jni_GetSuperclass(JNIEnv *env, jclass sub))
   // return mirror for superclass
   Klass* super = k->java_super();
   // super2 is the value computed by the compiler's getSuperClass intrinsic:
-  debug_only(Klass* super2 = ( k->is_array_klass()
+  DEBUG_ONLY(Klass* super2 = ( k->is_array_klass()
                                  ? vmClasses::Object_klass()
                                  : k->super() ) );
   assert(super == super2,
@@ -529,7 +523,7 @@ JNI_ENTRY(jint, jni_ThrowNew(JNIEnv *env, jclass clazz, const char *message))
   jint ret = JNI_OK;
   DT_RETURN_MARK(ThrowNew, jint, (const jint&)ret);
 
-  InstanceKlass* k = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz)));
+  InstanceKlass* k = java_lang_Class::as_InstanceKlass(JNIHandles::resolve_non_null(clazz));
   Symbol*  name = k->name();
   Handle class_loader (THREAD,  k->class_loader());
   THROW_MSG_LOADER_(name, (char *)message, class_loader, JNI_OK);
@@ -870,8 +864,7 @@ static void jni_invoke_static(JNIEnv *env, JavaValue* result, jobject receiver, 
   // Create object to hold arguments for the JavaCall, and associate it with
   // the jni parser
   ResourceMark rm(THREAD);
-  int number_of_parameters = method->size_of_parameters();
-  JavaCallArguments java_args(number_of_parameters);
+  JavaCallArguments java_args(method->size_of_parameters());
 
   assert(method->is_static(), "method should be static");
 
@@ -907,7 +900,7 @@ static void jni_invoke_nonstatic(JNIEnv *env, JavaValue* result, jobject receive
         selected_method = m;
     } else if (!m->has_itable_index()) {
       // non-interface call -- for that little speed boost, don't handlize
-      debug_only(NoSafepointVerifier nosafepoint;)
+      DEBUG_ONLY(NoSafepointVerifier nosafepoint;)
       // jni_GetMethodID makes sure class is linked and initialized
       // so m should have a valid vtable index.
       assert(m->valid_vtable_index(), "no valid vtable index");
@@ -1870,6 +1863,32 @@ address jni_GetDoubleField_addr() {
   return (address)jni_GetDoubleField;
 }
 
+static void log_debug_if_final_static_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
+  if (log_is_enabled(Debug, jni)) {
+    fieldDescriptor fd;
+    bool found = ik->find_field_from_offset(offset, true, &fd);
+    assert(found, "bad field offset");
+    assert(fd.is_static(), "static/instance mismatch");
+    if (fd.is_final() && !fd.is_mutable_static_final()) {
+      ResourceMark rm(current);
+      log_debug(jni)("%s mutated final static field %s.%s", func_name, ik->external_name(), fd.name()->as_C_string());
+    }
+  }
+}
+
+static void log_debug_if_final_instance_field(JavaThread* current, const char* func_name, InstanceKlass* ik, int offset) {
+  if (log_is_enabled(Debug, jni)) {
+    fieldDescriptor fd;
+    bool found = ik->find_field_from_offset(offset, false, &fd);
+    assert(found, "bad field offset");
+    assert(!fd.is_static(), "static/instance mismatch");
+    if (fd.is_final()) {
+      ResourceMark rm(current);
+      log_debug(jni)("%s mutated final instance field %s.%s", func_name, ik->external_name(), fd.name()->as_C_string());
+    }
+  }
+}
+
 JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value))
   HOTSPOT_JNI_SETOBJECTFIELD_ENTRY(env, obj, (uintptr_t) fieldID, value);
   oop o = JNIHandles::resolve_non_null(obj);
@@ -1882,6 +1901,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
+  log_debug_if_final_instance_field(thread, "SetObjectField", InstanceKlass::cast(k), offset);
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
 
@@ -1904,6 +1924,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_Set##Result##Field(JNIEnv *env, jobject obj, jfi
     o = JvmtiExport::jni_SetField_probe(thread, obj, o, k, fieldID, false, SigType, (jvalue *)&field_value); \
   } \
   o->Fieldname##_field_put(offset, value); \
+  log_debug_if_final_instance_field(thread, "Set<Type>Field", InstanceKlass::cast(k), offset); \
   ReturnProbe; \
 JNI_END
 
@@ -1996,9 +2017,9 @@ JNI_ENTRY(jfieldID, jni_GetStaticFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a static field is a JNIid specifying the field holder and the offset within the Klass*
   JNIid* id = fd.field_holder()->jni_id_for(fd.offset());
-  debug_only(id->set_is_static_field_id();)
+  DEBUG_ONLY(id->set_is_static_field_id();)
 
-  debug_only(id->verify(fd.field_holder()));
+  DEBUG_ONLY(id->verify(fd.field_holder()));
 
   ret = jfieldIDWorkaround::to_static_jfieldID(id);
   return ret;
@@ -2075,6 +2096,7 @@ JNI_ENTRY(void, jni_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fie
     JvmtiExport::jni_SetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
   id->holder()->java_mirror()->obj_field_put(id->offset(), JNIHandles::resolve(value));
+  log_debug_if_final_static_field(THREAD, "SetStaticObjectField", id->holder(), id->offset());
   HOTSPOT_JNI_SETSTATICOBJECTFIELD_RETURN();
 JNI_END
 
@@ -2096,6 +2118,7 @@ JNI_ENTRY(void, jni_SetStatic##Result##Field(JNIEnv *env, jclass clazz, jfieldID
     JvmtiExport::jni_SetField_probe(thread, nullptr, nullptr, id->holder(), fieldID, true, SigType, (jvalue *)&field_value); \
   } \
   id->holder()->java_mirror()-> Fieldname##_field_put (id->offset(), value); \
+  log_debug_if_final_static_field(THREAD, "SetStatic<Type>Field", id->holder(), id->offset()); \
   ReturnProbe;\
 JNI_END
 
@@ -2286,9 +2309,11 @@ JNI_ENTRY(jobjectArray, jni_NewObjectArray(JNIEnv *env, jsize length, jclass ele
   jobjectArray ret = nullptr;
   DT_RETURN_MARK(NewObjectArray, jobjectArray, (const jobjectArray&)ret);
   Klass* ek = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(elementClass));
-  Klass* ak = ek->array_klass(CHECK_NULL);
-  ObjArrayKlass::cast(ak)->initialize(CHECK_NULL);
-  objArrayOop result = ObjArrayKlass::cast(ak)->allocate(length, CHECK_NULL);
+
+  // Make sure bottom_klass is initialized.
+  ek->initialize(CHECK_NULL);
+  objArrayOop result = oopFactory::new_objArray(ek, length, CHECK_NULL);
+
   oop initial_value = JNIHandles::resolve(initialElement);
   if (initial_value != nullptr) {  // array already initialized with null
     for (int index = 0; index < length; index++) {
@@ -2401,7 +2426,7 @@ static char* get_bad_address() {
   static char* bad_address = nullptr;
   if (bad_address == nullptr) {
     size_t size = os::vm_allocation_granularity();
-    bad_address = os::reserve_memory(size, false, mtInternal);
+    bad_address = os::reserve_memory(size, mtInternal);
     if (bad_address != nullptr) {
       os::protect_memory(bad_address, size, os::MEM_PROT_READ,
                          /*is_committed*/false);
@@ -2807,6 +2832,10 @@ JNI_ENTRY(void*, jni_GetPrimitiveArrayCritical(JNIEnv *env, jarray array, jboole
   Handle a(thread, JNIHandles::resolve_non_null(array));
   assert(a->is_typeArray(), "just checking");
 
+  // We must defer JVM TI suspension while we have access to a Java object
+  // as it could surprise the debugger if we mutate it concurrently whilst
+  // logically suspended.
+  thread->enter_jni_deferred_suspension();
   // Pin object
   Universe::heap()->pin_object(thread, a());
 
@@ -2824,6 +2853,7 @@ JNI_ENTRY(void, jni_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, voi
   HOTSPOT_JNI_RELEASEPRIMITIVEARRAYCRITICAL_ENTRY(env, array, carray, mode);
   // Unpin object
   Universe::heap()->unpin_object(thread, JNIHandles::resolve_non_null(array));
+  thread->exit_jni_deferred_suspension();
 HOTSPOT_JNI_RELEASEPRIMITIVEARRAYCRITICAL_RETURN();
 JNI_END
 
@@ -2831,6 +2861,13 @@ JNI_END
 JNI_ENTRY(const jchar*, jni_GetStringCritical(JNIEnv *env, jstring string, jboolean *isCopy))
   HOTSPOT_JNI_GETSTRINGCRITICAL_ENTRY(env, string, (uintptr_t *) isCopy);
   oop s = JNIHandles::resolve_non_null(string);
+
+  // We must defer JVM TI suspension while we have access to a Java object.
+  // Even if we are taking a private copy we must not be considered
+  // suspended as the debugger could be mutating the string we are about
+  // to copy.
+  thread->enter_jni_deferred_suspension();
+
   jchar* ret;
   if (!java_lang_String::is_latin1(s)) {
     typeArrayHandle s_value(thread, java_lang_String::value(s));
@@ -2851,6 +2888,10 @@ JNI_ENTRY(const jchar*, jni_GetStringCritical(JNIEnv *env, jstring string, jbool
         ret[i] = ((jchar) s_value->byte_at(i)) & 0xff;
       }
       ret[s_len] = 0;
+    } else {
+      // If we return null there should not be a paired release operation
+      // so we have to cancel suspension deferral here.
+      thread->exit_jni_deferred_suspension();
     }
     if (isCopy != nullptr) *isCopy = JNI_TRUE;
   }
@@ -2867,7 +2908,7 @@ JNI_ENTRY(void, jni_ReleaseStringCritical(JNIEnv *env, jstring str, const jchar 
   if (is_latin1) {
     // For latin1 string, free jchar array allocated by earlier call to GetStringCritical.
     // This assumes that ReleaseStringCritical bookends GetStringCritical.
-    FREE_C_HEAP_ARRAY(jchar, chars);
+    FREE_C_HEAP_ARRAY(chars);
   } else {
     // StringDedup can have replaced the value array, so don't fetch the array from 's'.
     // Instead, we calculate the address based on the jchar array exposed with GetStringCritical.
@@ -2876,6 +2917,7 @@ JNI_ENTRY(void, jni_ReleaseStringCritical(JNIEnv *env, jstring str, const jchar 
     // Unpin value array
     Universe::heap()->unpin_object(thread, value);
   }
+  thread->exit_jni_deferred_suspension();
 HOTSPOT_JNI_RELEASESTRINGCRITICAL_RETURN();
 JNI_END
 
@@ -2949,7 +2991,7 @@ static bool initializeDirectBufferSupport(JNIEnv* env, JavaThread* thread) {
     return false;
   }
 
-  if (Atomic::cmpxchg(&directBufferSupportInitializeStarted, 0, 1) == 0) {
+  if (AtomicAccess::cmpxchg(&directBufferSupportInitializeStarted, 0, 1) == 0) {
     if (!lookupDirectBufferClasses(env)) {
       directBufferSupportInitializeFailed = 1;
       return false;
@@ -3100,16 +3142,21 @@ JNI_END
 
 
 JNI_ENTRY(jobject, jni_GetModule(JNIEnv* env, jclass clazz))
-  return Modules::get_module(clazz, THREAD);
+  HOTSPOT_JNI_GETMODULE_ENTRY(env, clazz);
+  jobject ret = Modules::get_module(clazz, THREAD);
+  HOTSPOT_JNI_GETMODULE_RETURN(ret);
+  return ret;
 JNI_END
 
 JNI_ENTRY(jboolean, jni_IsVirtualThread(JNIEnv* env, jobject obj))
+  HOTSPOT_JNI_ISVIRTUALTHREAD_ENTRY(env, obj);
+  jboolean ret = JNI_FALSE;
   oop thread_obj = JNIHandles::resolve_external_guard(obj);
   if (thread_obj != nullptr && thread_obj->is_a(vmClasses::BaseVirtualThread_klass())) {
-    return JNI_TRUE;
-  } else {
-    return JNI_FALSE;
+    ret = JNI_TRUE;
   }
+  HOTSPOT_JNI_ISVIRTUALTHREAD_RETURN(ret);
+  return ret;
 JNI_END
 
 
@@ -3419,7 +3466,7 @@ void copy_jni_function_table(const struct JNINativeInterface_ *new_jni_NativeInt
   intptr_t *a = (intptr_t *) jni_functions();
   intptr_t *b = (intptr_t *) new_jni_NativeInterface;
   for (uint i=0; i <  sizeof(struct JNINativeInterface_)/sizeof(void *); i++) {
-    Atomic::store(a++, *b++);
+    AtomicAccess::store(a++, *b++);
   }
 }
 
@@ -3492,6 +3539,10 @@ enum VM_Creation_State {
 
 volatile VM_Creation_State vm_created = NOT_CREATED;
 
+bool is_vm_created() {
+  return AtomicAccess::load(&vm_created) == COMPLETE;
+}
+
 // Indicate whether it is safe to recreate VM. Recreation is only
 // possible after a failed initial creation attempt in some cases.
 volatile int safe_to_recreate_vm = 1;
@@ -3535,18 +3586,18 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
   jint result = JNI_ERR;
   DT_RETURN_MARK(CreateJavaVM, jint, (const jint&)result);
 
-  // We're about to use Atomic::xchg for synchronization.  Some Zero
+  // We're about to use AtomicAccess::xchg for synchronization.  Some Zero
   // platforms use the GCC builtin __sync_lock_test_and_set for this,
   // but __sync_lock_test_and_set is not guaranteed to do what we want
   // on all architectures.  So we check it works before relying on it.
 #if defined(ZERO) && defined(ASSERT)
   {
     jint a = 0xcafebabe;
-    jint b = Atomic::xchg(&a, (jint) 0xdeadbeef);
+    jint b = AtomicAccess::xchg(&a, (jint) 0xdeadbeef);
     void *c = &a;
-    void *d = Atomic::xchg(&c, &b);
-    assert(a == (jint) 0xdeadbeef && b == (jint) 0xcafebabe, "Atomic::xchg() works");
-    assert(c == &b && d == &a, "Atomic::xchg() works");
+    void *d = AtomicAccess::xchg(&c, &b);
+    assert(a == (jint) 0xdeadbeef && b == (jint) 0xcafebabe, "AtomicAccess::xchg() works");
+    assert(c == &b && d == &a, "AtomicAccess::xchg() works");
   }
 #endif // ZERO && ASSERT
 
@@ -3557,10 +3608,10 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
   // Threads. We do an atomic compare and exchange to ensure only
   // one thread can call this method at a time
 
-  // We use Atomic::xchg rather than Atomic::add/dec since on some platforms
+  // We use AtomicAccess::xchg rather than AtomicAccess::add/dec since on some platforms
   // the add/dec implementations are dependent on whether we are running
-  // on a multiprocessor Atomic::xchg does not have this problem.
-  if (Atomic::xchg(&vm_created, IN_PROGRESS) != NOT_CREATED) {
+  // on a multiprocessor AtomicAccess::xchg does not have this problem.
+  if (AtomicAccess::xchg(&vm_created, IN_PROGRESS) != NOT_CREATED) {
     return JNI_EEXIST;   // already created, or create attempt in progress
   }
 
@@ -3569,7 +3620,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
   // cleared here. If a previous creation attempt succeeded and we then
   // destroyed that VM, we will be prevented from trying to recreate
   // the VM in the same process, as the value will still be 0.
-  if (Atomic::xchg(&safe_to_recreate_vm, 0) == 0) {
+  if (AtomicAccess::xchg(&safe_to_recreate_vm, 0) == 0) {
     return JNI_ERR;
   }
 
@@ -3593,24 +3644,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
     *vm = (JavaVM *)(&main_vm);
     *(JNIEnv**)penv = thread->jni_environment();
     // mark creation complete for other JNI ops
-    Atomic::release_store(&vm_created, COMPLETE);
-
-#if INCLUDE_JVMCI
-    if (EnableJVMCI) {
-      if (UseJVMCICompiler) {
-        // JVMCI is initialized on a CompilerThread
-        if (BootstrapJVMCI) {
-          JavaThread* THREAD = thread; // For exception macros.
-          JVMCICompiler* compiler = JVMCICompiler::instance(true, CATCH);
-          compiler->bootstrap(THREAD);
-          if (HAS_PENDING_EXCEPTION) {
-            HandleMark hm(THREAD);
-            vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
-          }
-        }
-      }
-    }
-#endif
+    AtomicAccess::release_store(&vm_created, COMPLETE);
 
     // Notify JVMTI
     if (JvmtiExport::should_post_thread_life()) {
@@ -3659,7 +3693,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
     // reset vm_created last to avoid race condition. Use OrderAccess to
     // control both compiler and architectural-based reordering.
     assert(vm_created == IN_PROGRESS, "must be");
-    Atomic::release_store(&vm_created, NOT_CREATED);
+    AtomicAccess::release_store(&vm_created, NOT_CREATED);
   }
 
   // Flush stdout and stderr before exit.
@@ -3805,6 +3839,10 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
 
   thread->cache_global_variables();
 
+  // Set the _monitor_owner_id to the next thread_id temporarily while initialization runs.
+  // Do it now before we make this thread visible in Threads::add().
+  thread->set_monitor_owner_id(ThreadIdentifier::next());
+
   // This thread will not do a safepoint check, since it has
   // not been added to the Thread list yet.
   { MutexLocker ml(Threads_lock);
@@ -3843,6 +3881,9 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     thread->smr_delete();
     return JNI_ERR;
   }
+
+  // Update the _monitor_owner_id with the tid value.
+  thread->set_monitor_owner_id(java_lang_Thread::thread_id(thread->threadObj()));
 
   // Want this inside 'attaching via jni'.
   JFR_ONLY(Jfr::on_thread_start(thread);)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import jdk.jfr.AnnotationElement;
 import jdk.jfr.Configuration;
 import jdk.jfr.EventSettings;
 import jdk.jfr.EventType;
-import jdk.jfr.FlightRecorderPermission;
 import jdk.jfr.Recording;
 import jdk.jfr.SettingDescriptor;
 import jdk.jfr.ValueDescriptor;
@@ -56,9 +55,9 @@ public abstract class PrivateAccess {
         // deadlock with FlightRecorderPermission.<clinit>
         if (instance == null) {
             // Will trigger
-            // FlightRecorderPermission.<clinit>
+            // EventSettings.<clinit>
             // which will call PrivateAccess.setPrivateAccess
-            new FlightRecorderPermission("accessFlightRecorder");
+            SecuritySupport.ensureClassIsInitialized(EventSettings.class);
         }
         return instance;
     }
@@ -96,6 +95,8 @@ public abstract class PrivateAccess {
     public abstract boolean isUnsigned(ValueDescriptor v);
 
     public abstract PlatformRecorder getPlatformRecorder();
+
+    public abstract Recording newRecording(Boolean register);
 
     public abstract EventSettings newEventSettings(EventSettingsModifier esm);
 

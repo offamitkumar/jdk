@@ -30,7 +30,7 @@
  * 4174361 4177484 4197699 4209071 4288792 4328747 4413980 4546637 4623997
  * 4685354 4655637 4683492 4080631 4080631 4167995 4340146 4639407
  * 4652815 4652830 4740554 4936355 4738710 4633646 4846659 4822110 4960642
- * 4973919 4980088 4965624 5013094 5006864 8152077 8347841
+ * 4973919 4980088 4965624 5013094 5006864 8152077 8347841 8347955
  * @library /java/text/testlib
  * @run junit CalendarRegression
  */
@@ -43,7 +43,6 @@ import java.text.DateFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -56,6 +55,7 @@ import java.util.function.Predicate;
 
 import static java.util.Calendar.*;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.fail;
@@ -78,7 +78,7 @@ public class CalendarRegression {
     public void Test4031502() {
         // This bug actually occurs on Windows NT as well, and doesn't
         // require the host zone to be set; it can be set in Java.
-        String[] ids = Arrays.stream(TimeZone.getAvailableIDs())
+        String[] ids = TimeZone.availableIDs()
                 .filter(Predicate.not(ZoneId.SHORT_IDS::containsKey))
                 .toArray(String[]::new);
         boolean bad = false;
@@ -576,10 +576,8 @@ public class CalendarRegression {
     @Test
     public void Test4100311() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         GregorianCalendar cal = (GregorianCalendar) Calendar.getInstance();
         cal.set(YEAR, 1997);
@@ -594,10 +592,8 @@ public class CalendarRegression {
     @Test
     public void Test4103271() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         SimpleDateFormat sdf = new SimpleDateFormat();
         int numYears = 40, startYear = 1997, numDays = 15;
@@ -834,10 +830,8 @@ public class CalendarRegression {
     @Test
     public void Test4114578() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         int ONE_HOUR = 60 * 60 * 1000;
         TimeZone saveZone = TimeZone.getDefault();
@@ -922,10 +916,8 @@ public class CalendarRegression {
     @Test
     public void Test4125881() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         GregorianCalendar cal = (GregorianCalendar) Calendar.getInstance();
         DateFormat fmt = new SimpleDateFormat("MMMM d, yyyy G");
@@ -948,10 +940,8 @@ public class CalendarRegression {
     @Test
     public void Test4125892() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         GregorianCalendar cal = (GregorianCalendar) Calendar.getInstance();
         DateFormat fmt = new SimpleDateFormat("MMMM d, yyyy G");
@@ -1374,10 +1364,8 @@ public class CalendarRegression {
     @Test
     public void Test4173516() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         int[][] fieldsList = {
             {1997, FEBRUARY, 1, 10, 45, 15, 900},
@@ -1853,11 +1841,10 @@ public class CalendarRegression {
     @Test
     public void Test4685354() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesAsciiDigits(locale)
-                || !TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesAsciiDigits(locale),
+                locale + " does not use ASCII digits");
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         Calendar calendar = Calendar.getInstance(Locale.US);
         DateFormat df = new SimpleDateFormat("yyyy/MM/dd", Locale.US);
@@ -1962,10 +1949,8 @@ public class CalendarRegression {
     @Test
     public void Test4655637() {
         Locale locale = Locale.getDefault();
-        if (!TestUtils.usesGregorianCalendar(locale)) {
-            System.out.println("Skipping this test because locale is " + locale);
-            return;
-        }
+        Assumptions.assumeTrue(TestUtils.usesGregorianCalendar(locale),
+                locale + " does not use a Gregorian calendar");
 
         Calendar cal = Calendar.getInstance();
         cal.setTime(new Date(1029814211523L));

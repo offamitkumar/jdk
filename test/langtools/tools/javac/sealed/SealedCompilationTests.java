@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * SealedCompilationTests
  *
  * @test
- * @bug 8246353 8273257 8294550 8347562
+ * @bug 8246353 8273257 8294550 8347562 8344706
  * @summary Negative compilation tests, and positive compilation (smoke) tests for sealed classes
  * @library /lib/combo /tools/lib
  * @modules
@@ -781,7 +781,7 @@ class SealedCompilationTests extends CompilationTestCase {
             non/**/sealed class Sub extends C {}
             """
             )) {
-            assertFail("compiler.err.expected4", s);
+            assertFail("compiler.err.class.method.or.field.expected", s);
         }
     }
 
@@ -855,12 +855,13 @@ class SealedCompilationTests extends CompilationTestCase {
 
     @Test
     void testSealedNonSealedWithOtherModifiers() {
+        // Sup must be static so Sub may be static
         String template1 =
             """
             @interface A {}
 
             class Outer {
-                sealed class Sup { }
+                static sealed class Sup { }
                 # # class Sub extends Sup {}
                 final class Sub2 extends Sub {}
             }
@@ -985,7 +986,7 @@ class SealedCompilationTests extends CompilationTestCase {
             non-sealed interface I extends A {}
             """
         )) {
-            assertFail("compiler.err.expected4", s);
+            assertFail("compiler.err.class.method.or.field.expected", s);
         }
     }
 

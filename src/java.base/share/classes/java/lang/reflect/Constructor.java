@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -240,7 +240,7 @@ public final class Constructor<T> extends Executable {
      * @since 1.5
      */
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public TypeVariable<Constructor<T>>[] getTypeParameters() {
       if (getSignature() != null) {
         return (TypeVariable<Constructor<T>>[])getGenericInfo().getTypeParameters();
@@ -354,10 +354,13 @@ public final class Constructor<T> extends Executable {
      * @jls 8.9.2 Enum Body Declarations
      */
     public String toString() {
-        return sharedToString(Modifier.constructorModifiers(),
-                              false,
-                              parameterTypes,
+        return sharedToString(parameterTypes,
                               exceptionTypes);
+    }
+
+    @Override
+    void appendModifiers(StringBuilder sb) {
+        Reflection.appendAccessControlModifiers(sb, getModifiers());
     }
 
     @Override
@@ -417,7 +420,7 @@ public final class Constructor<T> extends Executable {
      */
     @Override
     public String toGenericString() {
-        return sharedToGenericString(Modifier.constructorModifiers(), false);
+        return super.toGenericString();
     }
 
     @Override

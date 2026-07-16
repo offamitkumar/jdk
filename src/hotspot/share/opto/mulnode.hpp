@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_OPTO_MULNODE_HPP
 #define SHARE_OPTO_MULNODE_HPP
 
+#include "opto/multnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
 #include "opto/type.hpp"
@@ -32,6 +33,7 @@
 // Portions of code courtesy of Clifford Click
 
 class PhaseTransform;
+class Matcher;
 
 //------------------------------MulNode----------------------------------------
 // Classic MULTIPLY functionality.  This covers all the usual 'multiply'
@@ -82,9 +84,10 @@ public:
   virtual int min_opcode() const = 0;
 
   static MulNode* make(Node* in1, Node* in2, BasicType bt);
+  static MulNode* make_and(Node* in1, Node* in2, BasicType bt);
 
-  static bool AndIL_shift_and_mask_is_always_zero(PhaseGVN* phase, Node* shift, Node* mask, BasicType bt, bool check_reverse);
-  Node* AndIL_add_shift_and_mask(PhaseGVN* phase, BasicType bt);
+protected:
+  Node* AndIL_sum_and_mask(PhaseGVN* phase, BasicType bt);
 };
 
 //------------------------------MulINode---------------------------------------
@@ -143,6 +146,24 @@ public:
   virtual uint ideal_reg() const { return Op_RegF; }
 };
 
+//------------------------------MulHFNode---------------------------------------
+// Multiply 2 half floats
+class MulHFNode : public MulNode {
+public:
+  MulHFNode(Node* in1, Node* in2) : MulNode(in1, in2) {}
+  virtual int Opcode() const;
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+  virtual const Type* mul_ring(const Type*, const Type*) const;
+  const Type* mul_id() const { return TypeH::ONE; }
+  const Type* add_id() const { return TypeH::ZERO; }
+  int add_opcode() const { return Op_AddHF; }
+  int mul_opcode() const { return Op_MulHF; }
+  int max_opcode() const { return Op_MaxHF; }
+  int min_opcode() const { return Op_MinHF; }
+  const Type* bottom_type() const { return Type::HALF_FLOAT; }
+  virtual uint ideal_reg() const { return Op_RegF; }
+};
+
 //------------------------------MulDNode---------------------------------------
 // Multiply 2 doubles
 class MulDNode : public MulNode {
@@ -184,6 +205,31 @@ public:
   const Type *bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
   friend const Type* MulHiValue(const Type *t1, const Type *t2, const Type *bot);
+};
+
+//------------------------------MulHiLoLNode-----------------------------------
+// Lower and upper 64-bit results of a signed 64x64->128 multiply.
+class MulHiLoLNode : public BinaryMultiNode {
+protected:
+  MulHiLoLNode(Node* ctrl, Node* in1, Node* in2) : BinaryMultiNode(ctrl, in1, in2) {}
+
+public:
+  virtual int Opcode() const;
+  virtual const Type* bottom_type() const { return TypeTuple::LONG_PAIR; }
+
+  virtual Node* match(const ProjNode* proj, const Matcher* m);
+
+  static MulHiLoLNode* make(Node* mul_hi);
+};
+
+//------------------------------UMulHiLoLNode----------------------------------
+// Lower and upper 64-bit results of an unsigned 64x64->128 multiply.
+class UMulHiLoLNode : public MulHiLoLNode {
+public:
+  UMulHiLoLNode(Node* ctrl, Node* in1, Node* in2) : MulHiLoLNode(ctrl, in1, in2) {}
+  virtual int Opcode() const;
+
+  static UMulHiLoLNode* make(Node* umul_hi);
 };
 
 //------------------------------AndINode---------------------------------------
@@ -241,9 +287,13 @@ inline Node* make_and<TypeInt>(Node* a, Node* b) {
 
 class LShiftNode : public Node {
 public:
-  LShiftNode(Node *in1, Node *in2) : Node(nullptr,in1,in2) {
+  LShiftNode(Node* in1, Node* in2) : Node(nullptr,in1,in2) {
     init_class_id(Class_LShift);
   }
+
+  const Type* ValueIL(PhaseGVN* phase, BasicType bt) const;
+  Node* IdentityIL(PhaseGVN* phase, BasicType bt);
+  Node* IdealIL(PhaseGVN* phase, bool can_reshape, BasicType bt);
 
   static LShiftNode* make(Node* in1, Node* in2, BasicType bt);
 };
@@ -252,12 +302,12 @@ public:
 // Logical shift left
 class LShiftINode : public LShiftNode {
 public:
-  LShiftINode(Node *in1, Node *in2) : LShiftNode(in1,in2) {}
+  LShiftINode(Node* in1, Node* in2) : LShiftNode(in1,in2) {}
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
-  const Type *bottom_type() const { return TypeInt::INT; }
+  const Type* bottom_type() const { return TypeInt::INT; }
   virtual uint ideal_reg() const { return Op_RegI; }
 };
 
@@ -268,9 +318,9 @@ public:
   LShiftLNode(Node *in1, Node *in2) : LShiftNode(in1,in2) {}
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
-  const Type *bottom_type() const { return TypeLong::LONG; }
+  const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
 };
 
@@ -300,36 +350,56 @@ class RotateRightNode : public TypeNode {
   virtual const Type* Value(PhaseGVN* phase) const;
 };
 
+
+class RShiftNode : public Node {
+ public:
+  RShiftNode(Node* in1, Node* in2) : Node(nullptr, in1, in2) {}
+  Node* IdealIL(PhaseGVN* phase, bool can_reshape, BasicType bt);
+  Node* IdentityIL(PhaseGVN* phase, BasicType bt);
+  const Type* ValueIL(PhaseGVN* phase, BasicType bt) const;
+  static RShiftNode* make(Node* in1, Node* in2, BasicType bt);
+};
+
 //------------------------------RShiftINode------------------------------------
 // Signed shift right
-class RShiftINode : public Node {
+class RShiftINode : public RShiftNode {
 public:
-  RShiftINode( Node *in1, Node *in2 ) : Node(nullptr,in1,in2) {}
+  RShiftINode(Node* in1, Node* in2) : RShiftNode(in1, in2) {}
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
-  const Type *bottom_type() const { return TypeInt::INT; }
+
+  const Type* bottom_type() const { return TypeInt::INT; }
   virtual uint ideal_reg() const { return Op_RegI; }
 };
 
 //------------------------------RShiftLNode------------------------------------
 // Signed shift right
-class RShiftLNode : public Node {
+class RShiftLNode : public RShiftNode {
 public:
-  RShiftLNode( Node *in1, Node *in2 ) : Node(nullptr,in1,in2) {}
+  RShiftLNode(Node* in1, Node* in2) : RShiftNode(in1,in2) {}
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
+  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
+
   virtual const Type* Value(PhaseGVN* phase) const;
-  const Type *bottom_type() const { return TypeLong::LONG; }
+  const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
+};
+
+class URShiftNode : public Node {
+public:
+  URShiftNode(Node* in1, Node* in2) : Node(nullptr, in1, in2) {}
+  static URShiftNode* make(Node* in1, Node* in2, BasicType bt);
 };
 
 //------------------------------URShiftBNode-----------------------------------
 // Logical shift right
-class URShiftBNode : public Node {
+class URShiftBNode : public URShiftNode {
 public:
-  URShiftBNode( Node *in1, Node *in2 ) : Node(nullptr,in1,in2) {
+  URShiftBNode(Node* in1, Node* in2) : URShiftNode(in1,in2) {
     ShouldNotReachHere(); // only vector variant is used
   }
   virtual int Opcode() const;
@@ -337,9 +407,9 @@ public:
 
 //------------------------------URShiftSNode-----------------------------------
 // Logical shift right
-class URShiftSNode : public Node {
+class URShiftSNode : public URShiftNode {
 public:
-  URShiftSNode( Node *in1, Node *in2 ) : Node(nullptr,in1,in2) {
+  URShiftSNode(Node* in1, Node* in2) : URShiftNode(in1,in2) {
     ShouldNotReachHere(); // only vector variant is used
   }
   virtual int Opcode() const;
@@ -347,27 +417,27 @@ public:
 
 //------------------------------URShiftINode-----------------------------------
 // Logical shift right
-class URShiftINode : public Node {
+class URShiftINode : public URShiftNode {
 public:
-  URShiftINode( Node *in1, Node *in2 ) : Node(nullptr,in1,in2) {}
+  URShiftINode(Node* in1, Node* in2) : URShiftNode(in1,in2) {}
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
-  const Type *bottom_type() const { return TypeInt::INT; }
+  const Type* bottom_type() const { return TypeInt::INT; }
   virtual uint ideal_reg() const { return Op_RegI; }
 };
 
 //------------------------------URShiftLNode-----------------------------------
 // Logical shift right
-class URShiftLNode : public Node {
+class URShiftLNode : public URShiftNode {
 public:
-  URShiftLNode( Node *in1, Node *in2 ) : Node(nullptr,in1,in2) {}
+  URShiftLNode(Node* in1, Node* in2) : URShiftNode(in1,in2) {}
   virtual int Opcode() const;
   virtual Node* Identity(PhaseGVN* phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
   virtual const Type* Value(PhaseGVN* phase) const;
-  const Type *bottom_type() const { return TypeLong::LONG; }
+  const Type* bottom_type() const { return TypeLong::LONG; }
   virtual uint ideal_reg() const { return Op_RegL; }
 };
 
@@ -412,6 +482,17 @@ public:
   FmaFNode(Node* in1, Node* in2, Node* in3) : FmaNode(in1, in2, in3) {}
   virtual int Opcode() const;
   const Type* bottom_type() const { return Type::FLOAT; }
+  virtual uint ideal_reg() const { return Op_RegF; }
+  virtual const Type* Value(PhaseGVN* phase) const;
+};
+
+//------------------------------FmaHFNode-------------------------------------
+// fused-multiply-add half-precision float
+class FmaHFNode : public FmaNode {
+public:
+  FmaHFNode(Node* in1, Node* in2, Node* in3) : FmaNode(in1, in2, in3) {}
+  virtual int Opcode() const;
+  const Type* bottom_type() const { return Type::HALF_FLOAT; }
   virtual uint ideal_reg() const { return Op_RegF; }
   virtual const Type* Value(PhaseGVN* phase) const;
 };

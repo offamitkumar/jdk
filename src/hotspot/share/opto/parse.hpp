@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,6 @@ class SwitchRange;
 
 //------------------------------InlineTree-------------------------------------
 class InlineTree : public AnyObj {
-  friend class VMStructs;
-
   Compile*    C;                  // cache
   JVMState*   _caller_jvms;       // state of caller
   ciMethod*   _method;            // method being called by the caller_jvms
@@ -75,7 +73,7 @@ protected:
                             bool& should_delay);
   bool        should_inline(ciMethod* callee_method,
                             ciMethod* caller_method,
-                            int caller_bci,
+                            JVMState* caller_jvms,
                             bool& should_delay,
                             ciCallProfile& profile);
   bool        should_not_inline(ciMethod* callee_method,
@@ -87,8 +85,7 @@ protected:
                              ciMethod* caller_method,
                              int caller_bci,
                              ciCallProfile& profile);
-  void        print_inlining(ciMethod* callee_method, int caller_bci,
-                             ciMethod* caller_method, bool success) const;
+  void print_inlining(ciMethod* callee_method, JVMState* jvm, bool success) const;
 
   InlineTree* caller_tree()       const { return _caller_tree;  }
   InlineTree* callee_at(int bci, ciMethod* m) const;
@@ -359,6 +356,7 @@ class Parse : public GraphKit {
   bool          _wrote_stable;       // Did we write a @Stable field?
   bool          _wrote_fields;       // Did we write any field?
   Node*         _alloc_with_final_or_stable; // An allocation node with final or @Stable field
+  Node*         _stress_rf_hook; // StressReachabilityFences support
 
   // Variables which track Java semantics during bytecode parsing:
 
@@ -445,7 +443,7 @@ class Parse : public GraphKit {
   SafePointNode* create_entry_map();
 
   // OSR helpers
-  Node *fetch_interpreter_state(int index, BasicType bt, Node *local_addrs, Node *local_addrs_base);
+  Node *fetch_interpreter_state(int index, BasicType bt, Node* local_addrs);
   Node* check_interpreter_type(Node* l, const Type* type, SafePointNode* &bad_type_exit);
   void  load_interpreter_state(Node* osr_buf);
 
@@ -477,11 +475,12 @@ class Parse : public GraphKit {
   void merge(          int target_bci);
   // Same as plain merge, except that it allocates a new path number.
   void merge_new_path( int target_bci);
-  // Merge the current mapping into an exception handler.
-  void merge_exception(int target_bci);
+  // Push the exception oop and merge the current mapping into an exception handler.
+  void push_and_merge_exception(int target_bci, Node* ex_oop);
   // Helper: Merge the current mapping into the given basic block
   void merge_common(Block* target, int pnum);
   // Helper functions for merging individual cells.
+  Node* maybe_narrow_phi_input(Node* ctrl, Node* n, const Type* phi_type);
   PhiNode *ensure_phi(       int idx, bool nocreate = false);
   PhiNode *ensure_memory_phi(int idx, bool nocreate = false);
   // Helper to merge the current memory state into the given basic block

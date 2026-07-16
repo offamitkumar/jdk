@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import static jdk.jfr.internal.LogTag.JFR;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -56,6 +57,7 @@ import jdk.jfr.Configuration;
 import jdk.jfr.FlightRecorderListener;
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
+import jdk.jfr.internal.query.Report;
 import jdk.jfr.internal.util.Utils;
 import jdk.jfr.internal.util.ValueFormatter;
 
@@ -83,6 +85,7 @@ public final class PlatformRecording implements AutoCloseable {
     private RecordingState state = RecordingState.NEW;
     private long size;
     private final LinkedList<RepositoryChunk> chunks = new LinkedList<>();
+    private final List<Report> reports = new ArrayList<>();
     private volatile Recording recording;
     private TimerTask stopTask;
     private TimerTask startTask;
@@ -91,7 +94,6 @@ public final class PlatformRecording implements AutoCloseable {
     private long finalStartChunkNanos = Long.MIN_VALUE;
     private long startNanos = -1;
 
-    @SuppressWarnings("removal")
     PlatformRecording(PlatformRecorder recorder, long id) {
         this.id = id;
         this.recorder = recorder;
@@ -171,7 +173,10 @@ public final class PlatformRecording implements AutoCloseable {
                 dumpStopped(dest);
                 Logger.log(LogTag.JFR, LogLevel.INFO, "Wrote recording \"" + getName() + "\" (" + getId() + ") to " + dest.getRealPathText());
                 notifyIfStateChanged(newState, oldState);
-                close(); // remove if copied out
+                boolean reportOnExit = PlatformRecorder.isInShutDown() && !reports.isEmpty();
+                if (!reportOnExit) {
+                    close(); // remove if copied out, unless we are in shutdown and there are reports to report.
+                }
             } catch(IOException e) {
                 Logger.log(LogTag.JFR, LogLevel.ERROR,
                            "Unable to complete I/O operation when dumping recording \"" + getName() + "\" (" + getId() + ")");
@@ -248,9 +253,14 @@ public final class PlatformRecording implements AutoCloseable {
         }
     }
 
-    public Map<String, String> getSettings() {
+    Map<String, String> getSettings() {
+        assert Thread.holdsLock(recorder) : "Must have recorder lock when accessing recorder.settings";
+        return settings;
+    }
+
+    public Map<String, String> getSettingsCopy() {
         synchronized (recorder) {
-            return settings;
+            return new LinkedHashMap<>(settings);
         }
     }
 
@@ -348,7 +358,7 @@ public final class PlatformRecording implements AutoCloseable {
         // Recording is RUNNING, create a clone
         PlatformRecording clone = recorder.newTemporaryRecording();
         clone.setShouldWriteActiveRecordingEvent(false);
-        clone.setName(getName());
+        clone.setName(getName(), false);
         clone.setToDisk(true);
         clone.setMaxAge(getMaxAge());
         clone.setMaxSize(getMaxSize());
@@ -366,7 +376,7 @@ public final class PlatformRecording implements AutoCloseable {
             clone.setStartTime(getStartTime());
         }
         if (pathToGcRoots == null) {
-            clone.setSettings(getSettings()); // needed for old object sample
+            clone.setSettings(getSettingsCopy()); // needed for old object sample
             clone.stop(reason); // dumps to destination path here
         } else {
             // Risk of violating lock order here, since
@@ -420,7 +430,7 @@ public final class PlatformRecording implements AutoCloseable {
         }
     }
 
-    void setState(RecordingState state) {
+    public void setState(RecordingState state) {
         synchronized (recorder) {
             this.state = state;
         }
@@ -444,9 +454,11 @@ public final class PlatformRecording implements AutoCloseable {
         }
     }
 
-    public void setName(String name) {
+    public void setName(String name, boolean checkClosed) {
         synchronized (recorder) {
-            ensureNotClosed();
+            if (checkClosed) {
+                ensureNotClosed();
+            }
             this.name = name;
         }
     }
@@ -740,7 +752,14 @@ public final class PlatformRecording implements AutoCloseable {
     }
 
     private void transferChunks(WriteablePath path) throws IOException {
-        try (ChunksChannel cc = new ChunksChannel(chunks); FileChannel fc = FileChannel.open(path.getReal(), StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
+        // Before writing, wipe the file if it already exists.
+        try (ChunksChannel cc = new ChunksChannel(chunks); FileChannel fc = FileChannel.open(path.getReal(), StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING,  StandardOpenOption.CREATE)) {
+            // Mitigate races against other processes
+            FileLock l = fc.tryLock();
+            if (l == null) {
+                Logger.log(LogTag.JFR, LogLevel.INFO, "Dump operation skipped for recording \"" + name + "\" (" + id + "). File " + path.getRealPathText() + " is locked by other dump operation or activity.");
+                return;
+            }
             long bytes = cc.transferTo(fc);
             Logger.log(LogTag.JFR, LogLevel.INFO, "Transferred " + bytes + " bytes from the disk repository");
             // No need to force if no data was transferred, which avoids IOException when device is /dev/null
@@ -921,5 +940,13 @@ public final class PlatformRecording implements AutoCloseable {
                 }
             }
         }
+    }
+
+    public void addReport(Report report) {
+       reports.add(report);
+    }
+
+    public List<Report> getReports() {
+        return reports;
     }
 }

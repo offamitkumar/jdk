@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -150,14 +150,14 @@ InUseChunkStats ArenaStats::totals() const {
 }
 
 void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const {
-  streamIndentor sti(st);
   if (detailed) {
-    st->cr_indent();
+    StreamIndentor si(st, 2);
+    st->cr();
     st->print("Usage by chunk level:");
     {
-      streamIndentor sti2(st);
+      StreamIndentor si2(st, 2);
       for (chunklevel_t l = chunklevel::LOWEST_CHUNK_LEVEL; l <= chunklevel::HIGHEST_CHUNK_LEVEL; l++) {
-        st->cr_indent();
+        st->cr();
         chunklevel::print_chunk_size(st, l);
         st->print(" chunks: ");
         if (_stats[l]._num == 0) {
@@ -167,12 +167,12 @@ void ArenaStats::print_on(outputStream* st, size_t scale,  bool detailed) const 
         }
       }
 
-      st->cr_indent();
+      st->cr();
       st->print("%15s: ", "-total-");
       totals().print_on(st, scale);
     }
     if (_free_blocks_num > 0) {
-      st->cr_indent();
+      st->cr();
       st->print("deallocated: %zu blocks with ", _free_blocks_num);
       print_scaled_words(st, _free_blocks_word_size, scale);
     }
@@ -203,29 +203,27 @@ ArenaStats ClmsStats::totals() const {
 }
 
 void ClmsStats::print_on(outputStream* st, size_t scale, bool detailed) const {
-  streamIndentor sti(st);
-  st->cr_indent();
-  if (Metaspace::using_class_space()) {
-    st->print("Non-Class: ");
-  }
+  StreamIndentor si(st, 2);
+  st->cr();
+  CLASS_SPACE_ONLY(st->print("Non-Class: ");)
   _arena_stats_nonclass.print_on(st, scale, detailed);
   if (detailed) {
     st->cr();
   }
-  if (Metaspace::using_class_space()) {
-    st->cr_indent();
-    st->print("    Class: ");
-    _arena_stats_class.print_on(st, scale, detailed);
-    if (detailed) {
-      st->cr();
-    }
-    st->cr_indent();
-    st->print("     Both: ");
-    totals().print_on(st, scale, detailed);
-    if (detailed) {
-      st->cr();
-    }
+#if INCLUDE_CLASS_SPACE
+  st->cr();
+  st->print("    Class: ");
+  _arena_stats_class.print_on(st, scale, detailed);
+  if (detailed) {
+    st->cr();
   }
+  st->cr();
+  st->print("     Both: ");
+  totals().print_on(st, scale, detailed);
+  if (detailed) {
+    st->cr();
+  }
+#endif // INCLUDE_CLASS_SPACE
   st->cr();
 }
 

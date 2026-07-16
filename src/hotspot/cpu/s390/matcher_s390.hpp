@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -82,7 +82,6 @@
 
   static bool narrow_klass_use_complex_address() {
     NOT_LP64(ShouldNotCallThis());
-    assert(UseCompressedClassPointers, "only for compressed klass code");
     // TODO HS25: z port if (MatchDecodeNodes) return true;
     return false;
   }
@@ -107,9 +106,6 @@
   // piece-by-piece. Only happens when passing doubles into C code as the
   // Java calling convention forces doubles to be aligned.
   static const bool misaligned_doubles_ok = true;
-
-  // Advertise here if the CPU requires explicit rounding operations to implement strictfp mode.
-  static const bool strict_fp_requires_explicit_rounding = false;
 
   // Do floats take an entire double register or just half?
   //

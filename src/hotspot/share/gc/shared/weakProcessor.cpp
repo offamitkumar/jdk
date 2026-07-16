@@ -27,8 +27,8 @@
 #include "gc/shared/oopStorage.inline.hpp"
 #include "gc/shared/oopStorageParState.inline.hpp"
 #include "gc/shared/oopStorageSet.hpp"
-#include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/oopStorageSetParState.inline.hpp"
+#include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/weakProcessorTimes.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
@@ -72,7 +72,6 @@ void WeakProcessor::oops_do(OopClosure* closure) {
 }
 
 uint WeakProcessor::ergo_workers(uint max_workers) {
-  // Ignore ParallelRefProcEnabled; that's for j.l.r.Reference processing.
   if (ReferencesPerThread == 0) {
     // Configuration says always use all the threads.
     return max_workers;

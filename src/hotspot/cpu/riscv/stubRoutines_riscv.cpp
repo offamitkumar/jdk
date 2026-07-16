@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2014, 2025, Red Hat Inc. All rights reserved.
  * Copyright (c) 2020, 2022, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -33,20 +33,33 @@
 // Implementation of the platform-specific part of StubRoutines - for
 // a description of how to extend it, see the stubRoutines.hpp file.
 
-address StubRoutines::riscv::_zero_blocks = nullptr;
-address StubRoutines::riscv::_compare_long_string_LL = nullptr;
-address StubRoutines::riscv::_compare_long_string_UU = nullptr;
-address StubRoutines::riscv::_compare_long_string_LU = nullptr;
-address StubRoutines::riscv::_compare_long_string_UL = nullptr;
-address StubRoutines::riscv::_string_indexof_linear_ll = nullptr;
-address StubRoutines::riscv::_string_indexof_linear_uu = nullptr;
-address StubRoutines::riscv::_string_indexof_linear_ul = nullptr;
+
+// define fields for arch-specific entries
+
+#define DEFINE_ARCH_ENTRY(arch, blob_name, stub_name, field_name, getter_name) \
+  address StubRoutines:: arch :: STUB_FIELD_NAME(field_name)  = nullptr;
+
+#define DEFINE_ARCH_ENTRY_INIT(arch, blob_name, stub_name, field_name, getter_name, init_function) \
+  address StubRoutines:: arch :: STUB_FIELD_NAME(field_name)  = CAST_FROM_FN_PTR(address, init_function);
+
+#define DEFINE_ARCH_ENTRY_ARRAY(arch, blob_name, stub_name, field_name, getter_name, count) \
+  address StubRoutines:: arch :: STUB_FIELD_NAME(field_name)  [count] ;
+
+STUBGEN_ARCH_ENTRIES_DO(DEFINE_ARCH_ENTRY, DEFINE_ARCH_ENTRY_INIT, DEFINE_ARCH_ENTRY_ARRAY)
+
+#undef DEFINE_ARCH_ENTRY_ARRAY
+#undef DEFINE_ARCH_ENTRY_INIT
+#undef DEFINE_ARCH_ENTRY
 
 bool StubRoutines::riscv::_completed = false;
 
 /**
  *  crc_table[] from jdk/src/java.base/share/native/libzip/zlib/crc32.h
  */
+
+address StubRoutines::crc_table_addr()    { return (address)StubRoutines::riscv::_crc_table; }
+address StubRoutines::crc32c_table_addr() { ShouldNotCallThis(); return nullptr; }
+
 ATTRIBUTE_ALIGNED(4096) juint StubRoutines::riscv::_crc_table[] =
 {
     // Table 0
@@ -492,3 +505,9 @@ ATTRIBUTE_ALIGNED(4096) juint StubRoutines::riscv::_crc_table[] =
     0x751997d0UL, 0x00000001UL,
     0xccaa009eUL, 0x00000000UL,
 };
+
+#if INCLUDE_CDS
+// nothing to do for riscv
+void StubRoutines::init_AOTAddressTable() {
+}
+#endif // INCLUDE_CDS

@@ -23,9 +23,10 @@
  */
 
 #include "ci/ciUtilities.hpp"
-#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 // ciUtilities
 //
@@ -41,9 +42,7 @@ const char* basictype_to_str(BasicType t) {
 
 // ------------------------------------------------------------------
 // card_table_base
-CardTable::CardValue* ci_card_table_address() {
-  BarrierSet* bs = BarrierSet::barrier_set();
-  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
-  CardTable* ct = ctbs->card_table();
-  return ct->byte_map_base();
+CardTable::CardValue* ci_card_table_address_const() {
+  CardTableBarrierSet* ctbs = CardTableBarrierSet::barrier_set();
+  return ctbs->card_table_base_const();
 }

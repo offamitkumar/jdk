@@ -63,7 +63,7 @@ static void test_for_live_c_heap_block(size_t sz, ssize_t offset) {
     // NMT disabled: we should see nothing.
     test_pointer(c + offset, false, "");
   }
-  FREE_C_HEAP_ARRAY(char, c);
+  FREE_C_HEAP_ARRAY(c);
 }
 
 #ifdef LINUX
@@ -90,7 +90,7 @@ static void test_for_dead_c_heap_block(size_t sz, ssize_t offset) {
   test_pointer(c + offset, true, expected_string);
 
   hdr->revive();
-  FREE_C_HEAP_ARRAY(char, c);
+  FREE_C_HEAP_ARRAY(c);
 }
 #endif
 
@@ -113,7 +113,7 @@ TEST_VM(NMT, DISABLED_location_printing_cheap_dead_7) { test_for_dead_c_heap_blo
 #endif
 
 static void test_for_mmap(size_t sz, ssize_t offset) {
-  char* addr = os::reserve_memory(sz, false, mtTest);
+  char* addr = os::reserve_memory(sz, mtTest);
   if (MemTracker::enabled()) {
     test_pointer(addr + offset, true, "in mmap'd memory region");
   } else {

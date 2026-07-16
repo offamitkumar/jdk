@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
 #include "memory/memoryReserver.hpp"
 #include "nmt/memTracker.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -48,7 +47,8 @@ ParMarkBitMap::initialize(MemRegion covered_region)
 
   ReservedSpace rs = MemoryReserver::reserve(_reserved_byte_size,
                                              rs_align,
-                                             page_sz);
+                                             page_sz,
+                                             mtGC);
 
   if (!rs.is_reserved()) {
     // Failed to reserve memory for the bitmap,
@@ -59,7 +59,7 @@ ParMarkBitMap::initialize(MemRegion covered_region)
   os::trace_page_sizes("Mark Bitmap", raw_bytes, raw_bytes,
                        rs.base(), rs.size(), used_page_sz);
 
-  MemTracker::record_virtual_memory_tag((address)rs.base(), mtGC);
+  MemTracker::record_virtual_memory_tag(rs, mtGC);
 
   _virtual_space = new PSVirtualSpace(rs, page_sz);
 
