@@ -1835,6 +1835,14 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current)
     ObjectSynchronizer::handle_sync_on_value_based_class(obj, current);
   }
 
+  if (obj->klass()->is_inline_klass()) {
+    ResourceMark rm(current);
+    stringStream ss;
+    ss.print("Cannot synchronize on an instance of value class %s",
+             obj->klass()->external_name());
+    THROW_MSG(vmSymbols::java_lang_IdentityException(), ss.as_string());
+  }
+
   CacheSetter cache_setter(current, lock);
 
   // Used when deflation is observed. Progress here requires progress

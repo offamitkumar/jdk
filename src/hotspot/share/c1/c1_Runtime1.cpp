@@ -138,7 +138,6 @@ uint Runtime1::_throw_null_pointer_exception_count = 0;
 uint Runtime1::_throw_class_cast_exception_count = 0;
 uint Runtime1::_throw_incompatible_class_change_error_count = 0;
 uint Runtime1::_throw_illegal_monitor_state_exception_count = 0;
-uint Runtime1::_throw_identity_exception_count = 0;
 uint Runtime1::_throw_count = 0;
 
 static uint _byte_arraycopy_stub_cnt = 0;
@@ -895,13 +894,6 @@ JRT_ENTRY(void, Runtime1::throw_illegal_monitor_state_exception(JavaThread* curr
   NOT_PRODUCT(_throw_illegal_monitor_state_exception_count++;)
   ResourceMark rm(current);
   SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IllegalMonitorStateException());
-JRT_END
-
-JRT_ENTRY(void, Runtime1::throw_identity_exception(JavaThread* current, oopDesc* object))
-  NOT_PRODUCT(_throw_identity_exception_count++;)
-  ResourceMark rm(current);
-  char* message = SharedRuntime::generate_identity_exception_message(current, object->klass());
-  SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_IdentityException(), message);
 JRT_END
 
 JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock))
@@ -1715,7 +1707,6 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _throw_class_cast_exception_count:             %u:", _throw_class_cast_exception_count);
   tty->print_cr(" _throw_incompatible_class_change_error_count:  %u:", _throw_incompatible_class_change_error_count);
   tty->print_cr(" _throw_illegal_monitor_state_exception_count:  %u:", _throw_illegal_monitor_state_exception_count);
-  tty->print_cr(" _throw_identity_exception_count:               %u:", _throw_identity_exception_count);
   tty->print_cr(" _throw_count:                                  %u:", _throw_count);
 
   SharedRuntime::print_ic_miss_histogram();

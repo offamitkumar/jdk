@@ -2063,7 +2063,6 @@ void AOTCodeAddressTable::init_extrs() {
     ADD_EXTERNAL_ADDRESS(Runtime1::substitutability_check);
     ADD_EXTERNAL_ADDRESS(Runtime1::buffer_inline_args);
     ADD_EXTERNAL_ADDRESS(Runtime1::buffer_inline_args_no_receiver);
-    ADD_EXTERNAL_ADDRESS(Runtime1::throw_identity_exception);
     ADD_EXTERNAL_ADDRESS(Runtime1::throw_illegal_monitor_state_exception);
     // already added
     // ADD_EXTERNAL_ADDRESS(Thread::current);

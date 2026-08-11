@@ -2610,28 +2610,17 @@ void GraphBuilder::instance_of(int klass_index) {
 
 
 void GraphBuilder::monitorenter(Value x, int bci) {
-  bool maybe_inlinetype = false;
+#ifdef ASSERT
   if (bci == InvocationEntryBci) {
     // Called by GraphBuilder::inline_sync_entry.
-#ifdef ASSERT
     ciType* obj_type = x->declared_type();
     assert(obj_type == nullptr || !obj_type->is_inlinetype(), "inline types cannot have synchronized methods");
-#endif
-  } else {
-    // We are compiling a monitorenter bytecode
-    if (Arguments::is_valhalla_enabled()) {
-      ciType* obj_type = x->declared_type();
-      if (obj_type == nullptr || obj_type->can_be_inline_klass()) {
-        // If we're (possibly) locking on an inline type, check for markWord::always_locked_pattern
-        // and throw IMSE. (obj_type is null for Phi nodes, so let's just be conservative).
-        maybe_inlinetype = true;
-      }
-    }
   }
+#endif
 
   // save state before locking in case of deoptimization after a NullPointerException
   ValueStack* state_before = copy_state_for_exception_with_bci(bci);
-  append_with_bci(new MonitorEnter(x, state()->lock(x), state_before, maybe_inlinetype), bci);
+  append_with_bci(new MonitorEnter(x, state()->lock(x), state_before), bci);
   kill_all();
 }
 

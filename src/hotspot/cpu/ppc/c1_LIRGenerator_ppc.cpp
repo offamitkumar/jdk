@@ -352,15 +352,10 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
     info_for_exception = state_for(x);
   }
 
-  CodeStub* throw_ie_stub =
-      x->maybe_inlinetype() ?
-      new SimpleExceptionStub(StubId::c1_throw_identity_exception_id, obj.result(), state_for(x)) :
-      nullptr;
-
   // This CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expects object to be unlocked).
   CodeEmitInfo* info = state_for(x, x->state(), true);
-  monitor_enter(obj.result(), lock, hdr, scratch, x->monitor_no(), info_for_exception, info, throw_ie_stub);
+  monitor_enter(obj.result(), lock, hdr, scratch, x->monitor_no(), info_for_exception, info);
 }
 
 

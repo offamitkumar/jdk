@@ -128,7 +128,6 @@ private:
 
   static void    throw_illegal_monitor_state_exception(JavaThread* current);
   static void    new_illegal_monitor_state_exception(JavaThread* current);
-  static void    throw_identity_exception(JavaThread* current, oopDesc* obj);
 
   // Breakpoints
   static void _breakpoint(JavaThread* current, Method* method, address bcp);

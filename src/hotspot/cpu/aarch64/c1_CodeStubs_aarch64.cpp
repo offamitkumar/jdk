@@ -273,16 +273,6 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
-  if (_throw_ie_stub != nullptr) {
-    // When we come here, _obj_reg has already been checked to be non-null.
-    __ ldr(rscratch1, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
-    __ mov(rscratch2, markWord::inline_type_pattern);
-    __ andr(rscratch1, rscratch1, rscratch2);
-
-    __ cmp(rscratch1, rscratch2);
-    __ br(Assembler::EQ, *_throw_ie_stub->entry());
-  }
-
   ce->store_parameter(_obj_reg->as_register(),  1);
   ce->store_parameter(_lock_reg->as_register(), 0);
   StubId enter_id;

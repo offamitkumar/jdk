@@ -336,15 +336,6 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
-  if (_throw_ie_stub != nullptr) {
-    // When we come here, _obj_reg has already been checked to be non-null.
-    const int is_value_mask = markWord::inline_type_pattern;
-    __ ld(R0, oopDesc::mark_offset_in_bytes(), _obj_reg->as_register());
-    __ andi(R0, R0, is_value_mask);
-    __ cmpdi(CR0, R0, is_value_mask);
-    __ bc_far_optimized(Assembler::bcondCRbiIs1, __ bi0(CR0, Assembler::equal), *_throw_ie_stub->entry());
-  }
-
   address stub = Runtime1::entry_for(ce->compilation()->has_fpu_code() ? StubId::c1_monitorenter_id : StubId::c1_monitorenter_nofpu_id);
   //__ load_const_optimized(R0, stub);
   __ add_const_optimized(R0, R29_TOC, MacroAssembler::offset_to_global_toc(stub));

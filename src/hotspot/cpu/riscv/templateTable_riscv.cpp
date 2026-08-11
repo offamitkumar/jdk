@@ -4042,10 +4042,6 @@ void TemplateTable::monitorenter() {
    // check for null object
    __ null_check(x10);
 
-   Label is_inline_type;
-   __ ld(t0, Address(x10, oopDesc::mark_offset_in_bytes()));
-   __ test_markword_is_inline_type(t0, is_inline_type);
-
    const Address monitor_block_top(
          fp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
    const Address monitor_block_bot(
@@ -4145,11 +4141,6 @@ void TemplateTable::monitorenter() {
    // The bcp has already been incremented. Just need to dispatch to
    // next instruction.
    __ dispatch_next(vtos);
-
-   __ bind(is_inline_type);
-   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                     InterpreterRuntime::throw_identity_exception), x10);
-   __ should_not_reach_here();
 }
 
 void TemplateTable::monitorexit() {
@@ -4157,17 +4148,6 @@ void TemplateTable::monitorexit() {
 
   // check for null object
   __ null_check(x10);
-
-  const int is_inline_type_mask = markWord::inline_type_pattern;
-  Label has_identity;
-  __ ld(t0, Address(x10, oopDesc::mark_offset_in_bytes()));
-  __ mv(t1, is_inline_type_mask);
-  __ andr(t0, t0, t1);
-  __ bne(t0, t1, has_identity);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                    InterpreterRuntime::throw_illegal_monitor_state_exception));
-  __ should_not_reach_here();
-  __ bind(has_identity);
 
   const Address monitor_block_top(
         fp, frame::interpreter_frame_monitor_block_top_offset * wordSize);

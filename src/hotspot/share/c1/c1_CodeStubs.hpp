@@ -394,19 +394,11 @@ class MonitorAccessStub: public CodeStub {
 class MonitorEnterStub: public MonitorAccessStub {
  private:
   CodeEmitInfo* _info;
-  CodeStub* _throw_ie_stub;
-  LIR_Opr _scratch_reg;
 
  public:
-  MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info,
-                   CodeStub* throw_ie_stub = nullptr, LIR_Opr scratch_reg = LIR_OprFact::illegalOpr)
+  MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info)
     : MonitorAccessStub(obj_reg, lock_reg) {
     _info = new CodeEmitInfo(info);
-    _scratch_reg = scratch_reg;
-    _throw_ie_stub = throw_ie_stub;
-    if (_throw_ie_stub != nullptr) {
-      assert(_scratch_reg != LIR_OprFact::illegalOpr, "must be");
-    }
     FrameMap* f = Compilation::current()->frame_map();
     f->update_reserved_argument_area_size(2 * BytesPerWord);
   }
@@ -416,9 +408,6 @@ class MonitorEnterStub: public MonitorAccessStub {
   virtual void visit(LIR_OpVisitState* visitor) {
     visitor->do_input(_obj_reg);
     visitor->do_input(_lock_reg);
-    if (_scratch_reg != LIR_OprFact::illegalOpr) {
-      visitor->do_temp(_scratch_reg);
-    }
     visitor->do_slow_case(_info);
   }
 #ifndef PRODUCT

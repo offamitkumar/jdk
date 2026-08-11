@@ -629,12 +629,12 @@ void LIRGenerator::logic_op (Bytecodes::Code code, LIR_Opr result_op, LIR_Opr le
 
 
 void LIRGenerator::monitor_enter(LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no,
-                                 CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub) {
+                                 CodeEmitInfo* info_for_exception, CodeEmitInfo* info) {
   // for slow path, use debug info for state after successful locking
-  CodeStub* slow_path = new MonitorEnterStub(object, lock, info, throw_ie_stub, scratch);
+  CodeStub* slow_path = new MonitorEnterStub(object, lock, info);
   __ load_stack_address_monitor(monitor_no, lock);
   // for handling NullPointerException, use debug info representing just the lock stack before this monitorenter
-  __ lock_object(hdr, object, lock, scratch, slow_path, info_for_exception, throw_ie_stub);
+  __ lock_object(hdr, object, lock, scratch, slow_path, info_for_exception);
 }
 
 

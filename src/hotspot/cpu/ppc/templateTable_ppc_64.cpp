@@ -4321,10 +4321,6 @@ void TemplateTable::monitorenter() {
   // Null pointer exception.
   __ null_check_throw(Robj_to_lock, -1, Rscratch1);
 
-  Label is_inline_type;
-  __ ld(Rscratch1, oopDesc::mark_offset_in_bytes(), Robj_to_lock);
-  __ test_markword_is_inline_type(Rscratch1, is_inline_type);
-
   // Check if any slot is present => short cut to allocation if not.
   __ cmpld(CR0, Rcurrent_monitor, Rbot);
   __ beq(CR0, Lallocate_new);
@@ -4381,11 +4377,6 @@ void TemplateTable::monitorenter() {
 
   // The bcp has already been incremented. Just need to dispatch to next instruction.
   __ dispatch_next(vtos);
-
-  __ bind(is_inline_type);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                    InterpreterRuntime::throw_identity_exception), Robj_to_lock);
-  __ should_not_reach_here();
 }
 
 void TemplateTable::monitorexit() {
@@ -4408,12 +4399,6 @@ void TemplateTable::monitorexit() {
 
   // Null pointer check.
   __ null_check_throw(Robj_to_lock, -1, Rscratch);
-
-  const int is_inline_type_mask = markWord::inline_type_pattern;
-  __ ld(Rscratch, oopDesc::mark_offset_in_bytes(), Robj_to_lock);
-  __ andi(Rscratch, Rscratch, is_inline_type_mask);
-  __ cmpwi(CR0, Rscratch, is_inline_type_mask);
-  __ beq(CR0, Lillegal_monitor_state);
 
   // Check corner case: unbalanced monitorEnter / Exit.
   __ cmpld(CR0, Rcurrent_monitor, Rbot);

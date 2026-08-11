@@ -4489,10 +4489,6 @@ void TemplateTable::monitorenter() {
   // Check for null object.
   __ null_check(Z_tos);
 
-  // Check for inline type (Valhalla feature)
-  NearLabel is_inline_type;
-  __ z_lg(Z_R1_scratch, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
-  __ test_markword_is_inline_type(Z_R1_scratch, is_inline_type);
   const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
   NearLabel allocated;
   // Initialize entry pointer.
@@ -4571,12 +4567,6 @@ void TemplateTable::monitorenter() {
   // next instruction.
   __ dispatch_next(vtos);
 
-  // Handle inline type exception (Valhalla feature)
-  __ bind(is_inline_type);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                    InterpreterRuntime::throw_identity_exception), Z_tos);
-  __ should_not_reach_here();
-
   BLOCK_COMMENT("} monitorenter");
 }
 
@@ -4588,17 +4578,6 @@ void TemplateTable::monitorexit() {
 
   // Check for null object.
   __ null_check(Z_tos);
-
-  // Check for inline type (Valhalla feature)
-  NearLabel is_inline_type, has_identity;
-  __ z_lg(Z_R1_scratch, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
-  __ test_markword_is_inline_type(Z_R1_scratch, is_inline_type);
-  __ z_bru(has_identity);
-  __ bind(is_inline_type);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                     InterpreterRuntime::throw_illegal_monitor_state_exception));
-  __ should_not_reach_here();
-  __ bind(has_identity);
 
   NearLabel found, not_found;
   const Register Rcurr_monitor = Z_ARG2;

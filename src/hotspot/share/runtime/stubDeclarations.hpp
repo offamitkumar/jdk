@@ -151,7 +151,6 @@
   do_blob(throw_class_cast_exception)                                  \
   do_blob(throw_incompatible_class_change_error)                       \
   do_blob(throw_illegal_monitor_state_exception)                       \
-  do_blob(throw_identity_exception)                                    \
   do_blob(slow_subtype_check)                                          \
   do_blob(is_instance_of)                                              \
   do_blob(monitorenter)                                                \

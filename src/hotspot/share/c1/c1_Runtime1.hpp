@@ -74,7 +74,6 @@ public:
   static uint _throw_class_cast_exception_count;
   static uint _throw_incompatible_class_change_error_count;
   static uint _throw_illegal_monitor_state_exception_count;
-  static uint _throw_identity_exception_count;
   static uint _throw_count;
 #endif
 
@@ -121,7 +120,6 @@ public:
   static void throw_class_cast_exception(JavaThread* current, oopDesc* object);
   static void throw_incompatible_class_change_error(JavaThread* current);
   static void throw_illegal_monitor_state_exception(JavaThread* current);
-  static void throw_identity_exception(JavaThread* current, oopDesc* object);
   static void throw_array_store_exception(JavaThread* current, oopDesc* object);
 
   static void monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock);

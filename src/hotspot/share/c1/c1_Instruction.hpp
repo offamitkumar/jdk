@@ -1579,18 +1579,13 @@ BASE(AccessMonitor, StateSplit)
 
 
 LEAF(MonitorEnter, AccessMonitor)
-  bool _maybe_inlinetype;
  public:
   // creation
-  MonitorEnter(Value obj, int monitor_no, ValueStack* state_before, bool maybe_inlinetype)
+  MonitorEnter(Value obj, int monitor_no, ValueStack* state_before)
   : AccessMonitor(obj, monitor_no, state_before)
-  , _maybe_inlinetype(maybe_inlinetype)
   {
     ASSERT_VALUES
   }
-
-  // accessors
-  bool maybe_inlinetype() const                   { return _maybe_inlinetype; }
 
   // generic
   virtual bool can_trap() const                  { return true; }
