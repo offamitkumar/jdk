@@ -1016,7 +1016,6 @@ static void patch_callers_callsite(MacroAssembler *masm, int adapter_size, int t
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
   if (InlineTypePassFieldsAsArgs) {
-    assert(false, "untested: compute_total_args_passed_int");
     for (int i = 0; i < sig_extended->length(); i++) {
       BasicType bt = sig_extended->at(i)._bt;
       if (bt == T_METADATA) {
