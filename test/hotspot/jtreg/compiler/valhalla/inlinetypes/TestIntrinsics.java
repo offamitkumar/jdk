@@ -49,7 +49,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -62,7 +62,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -75,7 +75,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -88,7 +88,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -101,7 +101,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -114,7 +114,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
@@ -127,7 +127,7 @@ import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
  * @key randomness
  * @summary Test intrinsic support for value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
