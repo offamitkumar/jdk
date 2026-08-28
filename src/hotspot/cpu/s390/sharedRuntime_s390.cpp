@@ -3087,12 +3087,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Jump to the compiled code just as if compiled code was doing it.
   // load target address from method:
-  if (InlineTypePassFieldsAsArgs) {
-    fatal("implement function SharedRuntime::gen_i2c_adapter");
-    __ z_lg(Z_R1_scratch, Address(Z_method, Method::from_compiled_inline_offset()));
-  } else {
-    __ z_lg(Z_R1_scratch, Address(Z_method, Method::from_compiled_offset()));
-  }
+  __ z_lg(Z_R1_scratch, Address(Z_method, Method::from_compiled_inline_offset()));
 
   // Store method into thread->callee_target.
   // 6243940: We might end up in handle_wrong_method if
@@ -4446,13 +4441,13 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination) {
   __ z_ld (Z_FARG4, farg4_off, Z_SP);
 
   // check for pending exceptions
-  Label pending;
+  NearLabel pending;
   __ load_and_test_long(Z_R0_scratch, Address(Z_thread, Thread::pending_exception_offset()));
   __ z_brne(pending);
 
   // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
   // need to initialize the buffer and if so, call the inline class specific pack handler.
-  Label skip_pack;
+  NearLabel skip_pack;
   __ get_vm_result_oop(Z_ARG1);
   __ z_ltg(Z_R1_scratch, Address(Z_thread, JavaThread::vm_result_metadata_offset()));
   __ clear_mem(Address(Z_thread, JavaThread::vm_result_metadata_offset()), sizeof(void*));
