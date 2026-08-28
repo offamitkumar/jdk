@@ -333,10 +333,6 @@ void VM_Version::initialize() {
     warning("InlineTypePassFieldsAsArgs not supported on this CPU.");
     FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
   }
-  if (InlineTypeReturnedAsFields) {
-    warning("InlineTypeReturnedAsFields not supported on this CPU.");
-    FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
-  }
 }
 
 
