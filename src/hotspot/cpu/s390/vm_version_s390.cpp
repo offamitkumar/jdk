@@ -328,11 +328,6 @@ void VM_Version::initialize() {
   if (FLAG_IS_DEFAULT(UseUnalignedAccesses)) {
     FLAG_SET_DEFAULT(UseUnalignedAccesses, true);
   }
-
-  if (InlineTypePassFieldsAsArgs) {
-    warning("InlineTypePassFieldsAsArgs not supported on this CPU.");
-    FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
-  }
 }
 
 
