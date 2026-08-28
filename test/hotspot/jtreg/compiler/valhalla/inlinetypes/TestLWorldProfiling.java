@@ -41,7 +41,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @key randomness
  * @summary Test value class specific type profiling.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation

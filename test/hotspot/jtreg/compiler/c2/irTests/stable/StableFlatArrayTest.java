@@ -26,7 +26,7 @@
  * @bug 8372700
  * @summary Check stable flat array field folding
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "s390x")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
