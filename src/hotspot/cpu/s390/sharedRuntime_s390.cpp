@@ -35,6 +35,7 @@
 #include "interpreter/interp_masm.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_s390.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "registerSaver_s390.hpp"
@@ -4371,6 +4372,112 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 // Call here from the interpreter or compiled code to store returned
 // values to a newly allocated inline type instance.
 RuntimeStub* SharedRuntime::generate_return_value_stub(address destination) {
-  Unimplemented();
-  return nullptr;
+  StubId id = StubId::shared_store_inline_type_fields_to_buf_id;
+  const char* name = SharedRuntime::stub_name(id);
+
+  // We need to save all registers the calling convention may use so
+  // the runtime calls read or update those registers. This needs to
+  // be in sync with SharedRuntime::java_return_convention().
+  const int spill_base  = frame::z_abi_160_size;
+  const int arg1_off    = spill_base +  0;
+  const int arg2_off    = spill_base +  8;
+  const int arg3_off    = spill_base + 16;
+  const int arg4_off    = spill_base + 24;
+  const int arg5_off    = spill_base + 32;
+  const int farg1_off   = spill_base + 40;
+  const int farg2_off   = spill_base + 48;
+  const int farg3_off   = spill_base + 56;
+  const int farg4_off   = spill_base + 64;
+  const int spill_bytes = 72;
+
+  ResourceMark rm;
+  CodeBuffer buffer(name, 1000, 512);
+  MacroAssembler* masm = new MacroAssembler(&buffer);
+
+  const int frame_size_in_bytes = align_up(frame::z_abi_160_size + spill_bytes, 8);
+  const int frame_size_in_slots = frame_size_in_bytes / BytesPerInt;
+  const int frame_size_in_words = frame_size_in_bytes / wordSize;
+
+  OopMapSet* oop_maps = new OopMapSet();
+  OopMap* map = new OopMap(frame_size_in_slots, 0);
+
+  map->set_callee_saved(VMRegImpl::stack2reg(arg1_off  / BytesPerInt), Z_ARG1->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(arg2_off  / BytesPerInt), Z_ARG2->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(arg3_off  / BytesPerInt), Z_ARG3->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(arg4_off  / BytesPerInt), Z_ARG4->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(arg5_off  / BytesPerInt), Z_ARG5->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(farg1_off / BytesPerInt), Z_FARG1->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(farg2_off / BytesPerInt), Z_FARG2->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(farg3_off / BytesPerInt), Z_FARG3->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(farg4_off / BytesPerInt), Z_FARG4->as_VMReg());
+
+  address start = __ pc();
+
+  __ save_return_pc();
+  __ push_frame_abi160(spill_bytes);
+
+  __ z_stmg(Z_ARG1, Z_ARG5, arg1_off, Z_SP);
+  __ z_std(Z_FARG1, farg1_off, Z_SP);
+  __ z_std(Z_FARG2, farg2_off, Z_SP);
+  __ z_std(Z_FARG3, farg3_off, Z_SP);
+  __ z_std(Z_FARG4, farg4_off, Z_SP);
+
+  int frame_complete = __ offset();
+
+  __ get_PC(Z_R1_scratch, 0);
+  __ set_last_Java_frame(Z_SP, Z_R1_scratch);
+
+  __ z_lgr(Z_ARG2, Z_ARG1);
+  __ z_lgr(Z_ARG1, Z_thread);
+
+  __ call_VM_leaf(destination, Z_ARG1, Z_ARG2);
+  address calls_return_pc = __ last_calls_return_pc();
+
+  // Set an oopmap for the call site.
+  oop_maps->add_gc_map(calls_return_pc - start, map);
+
+  // clear last_Java_sp
+  __ reset_last_Java_frame();
+
+  __ z_lmg(Z_ARG1, Z_ARG5, arg1_off, Z_SP);
+  __ z_ld (Z_FARG1, farg1_off, Z_SP);
+  __ z_ld (Z_FARG2, farg2_off, Z_SP);
+  __ z_ld (Z_FARG3, farg3_off, Z_SP);
+  __ z_ld (Z_FARG4, farg4_off, Z_SP);
+
+  // check for pending exceptions
+  Label pending;
+  __ load_and_test_long(Z_R0_scratch, Address(Z_thread, Thread::pending_exception_offset()));
+  __ z_brne(pending);
+
+  // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+  // need to initialize the buffer and if so, call the inline class specific pack handler.
+  Label skip_pack;
+  __ get_vm_result_oop(Z_ARG1);
+  __ z_ltg(Z_R1_scratch, Address(Z_thread, JavaThread::vm_result_metadata_offset()));
+  __ clear_mem(Address(Z_thread, JavaThread::vm_result_metadata_offset()), sizeof(void*));
+  __ z_bre(skip_pack);
+  __ z_lg(Z_R1_scratch, Address(Z_R1_scratch, InlineKlass::adr_members_offset()));
+  __ z_lg(Z_R1_scratch, Address(Z_R1_scratch, InlineKlass::pack_handler_offset()));
+  __ z_basr(Z_R14, Z_R1_scratch);
+  __ z_fence();
+  __ bind(skip_pack);
+
+  __ pop_frame();
+  __ restore_return_pc();
+  __ z_br(Z_R14);
+
+  __ bind(pending);
+  __ pop_frame();
+  __ restore_return_pc();
+  __ load_const_optimized(Z_R1_scratch, StubRoutines::forward_exception_entry());
+  __ z_br(Z_R1_scratch);
+
+  // -------------
+  // make sure all code is generated
+  masm->flush();
+
+  RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &buffer, frame_complete,
+                                                     frame_size_in_words, oop_maps, false);
+  return stub;
 }
