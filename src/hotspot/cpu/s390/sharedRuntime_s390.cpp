@@ -4359,8 +4359,145 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
 }
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
-  Unimplemented();
-  return nullptr;
+  CodeBuffer buffer("inline types pack/unpack", 16 * K, 0);
+  if (buffer.blob() == nullptr) {
+    return nullptr;
+  }
+  short buffer_locs[20];
+  buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
+                                         sizeof(buffer_locs)/sizeof(relocInfo));
+
+  MacroAssembler* masm = new MacroAssembler(&buffer);
+
+  const Array<SigEntry>* sig_vk = vk->extended_sig();
+  const Array<VMRegPair>* regs  = vk->return_regs();
+
+  const Register Rresult = Z_ARG2;
+
+  int pack_fields_jobject_off = __ offset();
+  // Resolve pre-allocated buffer from JNI handle.
+  // We cannot do this in generate_call_stub() because it requires GC code to be initialized.
+  __ z_lg(Z_RET, Address(Rresult));
+  __ resolve_jobject(Z_RET, Z_R1_scratch, Z_R0_scratch);
+  __ z_stg(Z_RET, Address(Rresult));
+
+  int pack_fields_off = __ offset();
+
+  int j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG || sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    Address to(Z_RET, off);
+    if (bt == T_FLOAT) {
+      __ z_ste(r_1->as_FloatRegister(), to);
+    } else if (bt == T_DOUBLE) {
+      __ z_std(r_1->as_FloatRegister(), to);
+    } else {
+      Register val = r_1->as_Register();
+      assert_different_registers(Z_RET, val, Z_R13, Z_R1_scratch);
+      if (is_reference_type(bt)) {
+        __ z_lgr(Z_R13, Z_RET);
+        Address to_with_r13(Z_R13, off);
+        __ store_heap_oop(val, to_with_r13, Z_R1_scratch, Z_R0_scratch, Z_R13,
+                          IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      } else {
+        __ store_sized_value(val, to, type2aelembytes(bt));
+      }
+    }
+    j++;
+  }
+  assert(j == regs->length(), "missed a field?");
+  if (vk->supports_nullable_layouts()) {
+    __ z_lghi(Z_R0_scratch, 1);
+    __ store_sized_value(Z_R0_scratch, Address(Z_RET, vk->null_marker_offset()), sizeof(jbyte));
+  }
+  __ z_br(Z_R14);
+
+  int unpack_fields_off = __ offset();
+
+  NearLabel skip;
+  NearLabel not_null;
+  __ z_ltgr(Z_RET, Z_RET);
+  __ z_brne(not_null);
+
+  // Return value is null. Zero all registers because the runtime requires a canonical
+  // representation of a flat null.
+  j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG || sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    if (r_1->is_FloatRegister()) {
+      __ z_lzdr(r_1->as_FloatRegister());
+    } else {
+      __ z_xgr(r_1->as_Register(), r_1->as_Register());
+    }
+    j++;
+  }
+  __ z_bru(skip);
+  __ bind(not_null);
+
+  j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_METADATA) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG || sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    Address from(Z_RET, off);
+    if (bt == T_FLOAT) {
+      __ z_le(r_1->as_FloatRegister(), from);
+    } else if (bt == T_DOUBLE) {
+      __ z_ld(r_1->as_FloatRegister(), from);
+    } else if (bt == T_OBJECT || bt == T_ARRAY) {
+      assert_different_registers(Z_RET, r_1->as_Register());
+      __ load_heap_oop(r_1->as_Register(), from, Z_R1_scratch, Z_R0_scratch);
+    } else {
+      assert(is_java_primitive(bt), "unexpected basic type");
+      assert_different_registers(Z_RET, r_1->as_Register());
+      size_t size_in_bytes = type2aelembytes(bt);
+      __ load_sized_value(r_1->as_Register(), from, size_in_bytes, bt != T_CHAR && bt != T_BOOLEAN);
+    }
+    j++;
+  }
+  assert(j == regs->length(), "missed a field?");
+
+  __ bind(skip);
+  __ z_br(Z_R14);
+
+  __ flush();
+
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }
 
 // Call here from the interpreter or compiled code to store returned
