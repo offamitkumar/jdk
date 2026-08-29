@@ -7197,7 +7197,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
       z_llgf(tmp1, Address(klass, Klass::layout_helper_offset()));
       z_tmll(tmp1, Klass::_lh_instance_slow_path_bit);
       z_brc(bcondNotAllZero, slow_case);
-      tlab_allocate(Z_RET, tmp1, 0, tmp1, slow_case);
+      tlab_allocate(Z_RET, tmp1, 0, r0_saved, slow_case);
     } else {
       z_brul(slow_case);
     }
