@@ -51,6 +51,12 @@ inline FloatRegister as_FloatRegister() {
                                        FloatRegister::max_slots_per_register);
 }
 
+inline FloatRegister safe_as_FloatRegister() {
+  assert(is_FloatRegister(), "must be");
+  return ::as_FloatRegister((value() - ConcreteRegisterImpl::max_gpr) /
+                                       FloatRegister::max_slots_per_register);
+}
+
 inline VectorRegister as_VectorRegister() {
   assert(is_VectorRegister(), "must be");
   return ::as_VectorRegister((value() - ConcreteRegisterImpl::max_fpr) /

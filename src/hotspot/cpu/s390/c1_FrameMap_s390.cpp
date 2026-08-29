@@ -56,7 +56,7 @@ LIR_Opr FrameMap::map_to_opr(BasicType type, VMRegPair* reg, bool outgoing) {
     }
   } else if (r_1->is_FloatRegister()) {
     assert(type == T_DOUBLE || type == T_FLOAT, "wrong type");
-    FloatRegister f = r_1->as_FloatRegister();
+    FloatRegister f = r_1->safe_as_FloatRegister();
     if (type == T_FLOAT) {
       opr = as_float_opr(f);
     } else {

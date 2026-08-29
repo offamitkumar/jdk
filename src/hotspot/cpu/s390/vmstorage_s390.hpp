@@ -83,7 +83,7 @@ inline VMStorage as_VMStorage(VMReg reg, BasicType bt) {
     return as_VMStorage(reg->as_Register(), segment_mask);
   } else if (reg->is_FloatRegister()) {
     // FP regs always use double format. However, we need the correct format for loads /stores.
-    return as_VMStorage(reg->as_FloatRegister(), (bt == T_FLOAT) ? REG32_MASK : REG64_MASK);
+    return as_VMStorage(reg->safe_as_FloatRegister(), (bt == T_FLOAT) ? REG32_MASK : REG64_MASK);
   } else if (reg->is_stack()) {
     uint16_t size = 0;
     switch (bt) {

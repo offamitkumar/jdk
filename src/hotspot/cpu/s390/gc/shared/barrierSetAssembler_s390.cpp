@@ -330,7 +330,7 @@ int SaveLiveRegisters::iterate_over_register_mask(IterationAction action, int of
         }
       }
     } else if (vm_reg->is_FloatRegister()) {
-      FloatRegister fp_reg = vm_reg->as_FloatRegister();
+      FloatRegister fp_reg = vm_reg->safe_as_FloatRegister();
       // Z_R1 will not be allocated by the register allocator, see s390.ad (Float Register Classes)
       if (fp_reg->encoding() >= Z_F0->encoding() &&
           fp_reg->encoding() <= Z_F7->encoding() &&

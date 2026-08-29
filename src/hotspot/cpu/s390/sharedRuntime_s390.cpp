@@ -69,8 +69,7 @@
 #define BIND(label)        bind(label); BLOCK_COMMENT(#label ":")
 
 static inline FloatRegister safe_as_FloatRegister(VMReg r) {
-  assert(r->is_FloatRegister(), "must be");
-  return ::as_FloatRegister((r->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+  return r->safe_as_FloatRegister();
 }
 
 #define RegisterSaver_LiveIntReg(regname) \
@@ -661,7 +660,7 @@ static void save_or_restore_arg_regs(MacroAssembler* masm, bool save,
         first = noreg;
         last  = noreg;
       }
-      FloatRegister f = r_1->as_FloatRegister();
+      FloatRegister f = safe_as_FloatRegister(r_1);
       save ? __ z_std(f, st_off, Z_SP)
            : __ z_ld( f, st_off, Z_SP);
       st_off -= wordSize;
