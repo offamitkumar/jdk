@@ -57,7 +57,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   if (reset_orig_pc) {
     // Zero orig_pc slot so that deoptimisation during arg buffering is
     // detected correctly.
-    assert(sp_offset_for_orig_pc >= frame::z_abi_160_size, "sp_offset_for_orig_pc is in ABI area");
+    assert(sp_offset_for_orig_pc >= frame::z_common_abi_size, "sp_offset_for_orig_pc is in ABI area");
     assert(sp_offset_for_orig_pc < frame_size_in_bytes, "sp_offset_for_orig_pc is out of frame bounds");
     z_mvghi(sp_offset_for_orig_pc, Z_SP, 0);
   }
