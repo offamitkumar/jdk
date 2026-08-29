@@ -4339,6 +4339,9 @@ instruct loadI2L(iRegL dst, memory mem) %{
 // Load Unsigned Integer into a Long Register
 instruct loadUI2L(iRegL dst, memory mem, immL_FFFFFFFF mask) %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
+  // Reject pinned (control-dependent) loads: the LoadI is an operand subtree
+  // inside ReduceOper which asserts s->_leaf->in(0) == nullptr.
+  predicate(n->in(1)->in(1)->in(0) == nullptr);
   ins_cost(MEMORY_REF_COST);
   size(Z_DISP3_SIZE);
   format %{ "LLGF    $dst,$mem\t # zero-extend int to long" %}
@@ -8424,6 +8427,9 @@ instruct convI2L_reg_zex(iRegL dst, iRegI src, immL_32bits mask) %{
 // Zero-extend convert int to long.
 instruct convI2L_mem_zex(iRegL dst, memory src, immL_32bits mask) %{
   match(Set dst (AndL (ConvI2L (LoadI src)) mask));
+  // Reject pinned (control-dependent) loads: the LoadI is an operand subtree
+  // inside ReduceOper which asserts s->_leaf->in(0) == nullptr.
+  predicate(n->in(1)->in(1)->in(0) == nullptr);
   // Uses load_const_optmized, so size can vary.
   // TODO: s390 port size(VARIABLE_SIZE);
   format %{ "LLGF    $dst, $src \t # zero-extend int to long" %}
