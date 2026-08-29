@@ -40,6 +40,7 @@
 #include "oops/accessDecorators.hpp"
 #include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/resolvedFieldEntry.hpp"
@@ -7158,10 +7159,94 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   add2mem_64(Address(offset), DataLayout::counter_increment, r0_tmp);
 }
 
-// Unimplemented methods for inline types.
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
-   Unimplemented();
-   return 0;
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  // An inline type might be returned. If fields are in registers we
+  // need to allocate an inline type instance and initialize it with
+  // the value of the fields.
+  Label skip;
+  // We only need a new buffered inline type if a new one is not returned
+  z_tmll(Z_RET, 1);
+  z_braz(skip);
+  int call_offset = -1;
+
+  // The following code is similar to allocation code in TemplateTable::_new but has some slight differences,
+  // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
+  // allocating is not necessary if vk != nullptr, etc.
+  Label slow_case;
+  // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
+  const Register tmp1     = Z_R7;
+  const Register klass    = Z_R8;
+  const Register r0_saved = Z_R9;
+  z_lgr(r0_saved, Z_RET); // save Z_RET for slow_case since tlab_allocate may corrupt it when allocation failed
+  if (vk != nullptr) {
+    // Called from C1, where the return type is statically known.
+    load_const_optimized(klass, (intptr_t)vk->get_InlineKlass());
+    jint lh = vk->layout_helper();
+    assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+    if (UseTLAB && !Klass::layout_helper_needs_slow_path(lh)) {
+      tlab_allocate(Z_RET, noreg, lh, tmp1, slow_case);
+    } else {
+      z_brul(slow_case);
+    }
+  } else {
+    // Call from interpreter. Z_RET contains ((the InlineKlass* of the return type) | 0x01)
+    z_lgr(klass, Z_RET);
+    z_aghi(klass, -1);
+    if (UseTLAB) {
+      z_llgf(tmp1, Address(klass, Klass::layout_helper_offset()));
+      z_tmll(tmp1, Klass::_lh_instance_slow_path_bit);
+      z_brc(bcondNotAllZero, slow_case);
+      tlab_allocate(Z_RET, tmp1, 0, tmp1, slow_case);
+    } else {
+      z_brul(slow_case);
+    }
+  }
+  if (UseTLAB) {
+    // 2. Initialize buffered inline instance header
+    Register buffer_obj = Z_RET;
+    if (UseCompactObjectHeaders) {
+      z_lg(tmp1, Address(klass, Klass::prototype_header_offset()));
+      z_stg(tmp1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
+    } else {
+      load_const_optimized(tmp1, (intx)markWord::inline_type_prototype().value());
+      z_stg(tmp1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
+      store_klass_gap(noreg, buffer_obj);
+      if (vk == nullptr) {
+        // store_klass corrupts klass, so save it for later use (interpreter case only).
+        z_lgr(r0_saved, klass);
+      }
+      store_klass(klass, buffer_obj, tmp1);
+      if (vk == nullptr) {
+        z_lgr(klass, r0_saved);
+      }
+    }
+    // 3. Initialize its fields with an inline class specific handler
+    if (vk != nullptr) {
+      call_c(vk->pack_handler()); // no need for call info as this will not safepoint.
+    } else {
+      z_lg(tmp1, Address(klass, InlineKlass::adr_members_offset()));
+      z_lg(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
+      z_basr(Z_R14, tmp1);
+    }
+    z_brul(skip);
+  }
+  bind(slow_case);
+  // We failed to allocate a new inline type, fall back to a runtime
+  // call. Some oop field may be live in some registers but we can't
+  // tell. That runtime call will take care of preserving them
+  // across a GC if there's one.
+  z_lgr(Z_RET, r0_saved);
+
+  if (from_interpreter) {
+    super_call_VM_leaf(SharedRuntime::store_inline_type_fields_to_buf_entry());
+  } else {
+    call_c(SharedRuntime::store_inline_type_fields_to_buf_entry());
+    call_offset = offset();
+  }
+
+  bind(skip);
+  return call_offset;
 }
 
 bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
