@@ -1179,9 +1179,8 @@ void MachPrologNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
     // so that the barrier offset from the entry point matches the offset emitted
     // by MachVEPNode::emit() (which also calls verified_entry() → repair slot store
     // → nmethod_entry_barrier).
-    int repair_slot_off = (int)framesize
-                          - frame::metadata_words_at_top * wordSize
-                          - wordSize;
+    // The repair slot is at SP + framesize - wordSize (see c2_MacroAssembler_s390.cpp).
+    int repair_slot_off = (int)framesize - wordSize;
     __ load_const_optimized(Z_R1_scratch, (intptr_t)framesize);
     __ z_stg(Z_R1_scratch, repair_slot_off, Z_SP);
   }

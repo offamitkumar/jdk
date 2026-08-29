@@ -761,13 +761,11 @@ intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp
   assert(nm != nullptr && nm->needs_stack_repair(), "");
   // The real total frame size (including any scalarized-entry extension) was
   // stored by C2_MacroAssembler::verified_entry at:
-  //   SP + initial_framesize - metadata_words_at_top*wordSize - wordSize
+  //   SP + initial_framesize - wordSize
   // where initial_framesize = nm->frame_size() * wordSize.
   // We read it and compute the true sender SP.
   int initial_framesize = nm->frame_size() * wordSize;
-  int repair_slot_off = initial_framesize
-                        - frame::metadata_words_at_top * wordSize
-                        - wordSize;
+  int repair_slot_off = initial_framesize - wordSize;
   intptr_t real_frame_size = *(intptr_t*)((address)sp + repair_slot_off);
   assert(real_frame_size >= initial_framesize && real_frame_size <= 1000000 * wordSize,
          "invalid real frame size");
@@ -779,9 +777,7 @@ bool frame::was_augmented_on_entry(int& real_size) const {
   nmethod* nm = _cb->as_nmethod_or_null();
   if (nm != nullptr && nm->needs_stack_repair()) {
     int initial_framesize = nm->frame_size() * wordSize;
-    int repair_slot_off = initial_framesize
-                          - frame::metadata_words_at_top * wordSize
-                          - wordSize;
+    int repair_slot_off = initial_framesize - wordSize;
     intptr_t real_frame_size = *(intptr_t*)((address)_unextended_sp + repair_slot_off);
     real_size = (int)(real_frame_size / wordSize);
     return real_size != nm->frame_size();

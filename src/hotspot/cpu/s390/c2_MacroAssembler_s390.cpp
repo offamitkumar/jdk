@@ -1365,22 +1365,22 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   push_frame((unsigned int)(framesize + sp_inc));
 
   if (C->needs_stack_repair()) {
-    // Save the total frame size (including any stack extension for scalarized args)
-    // at a fixed offset from SP: SP + initial_framesize - metadata_words_at_top*wordSize - wordSize.
-    // This slot is within the initial (non-extended) frame, so remove_frame() and
-    // repair_sender_sp() can always find it using only the initial frame size.
+    // Save the total frame size (including any stack extension for scalarized args) at
+    // SP + initial_framesize - wordSize.  This is the word immediately below the caller's
+    // back-chain and the highest usable word inside this frame.  The C2 register allocator
+    // always reserves a fixed slot here (fixed_slots = orig_pc_word + repair_word), so the
+    // slot is always present regardless of frame size.
     //
     // Frame layout after push_frame(framesize + sp_inc):
-    //   method_SP + 0                        : back-chain → extension SP (or caller SP)
+    //   method_SP + 0                          : back-chain → extension SP (or caller SP)
+    //   method_SP + 8                          : return_pc (saved by save_return_pc)
     //   ...
-    //   method_SP + framesize - 16           : stack-repair slot  ← stored here
-    //   ...
-    //   method_SP + framesize + sp_inc - 8   : return_pc (saved by save_return_pc)
-    //   method_SP + framesize + sp_inc + 0   : caller's back-chain
+    //   method_SP + framesize - 16             : orig_pc slot (deopt)
+    //   method_SP + framesize - 8              : stack-repair slot  ← stored here
+    //   method_SP + framesize + sp_inc + 0     : caller's back-chain
+    //   method_SP + framesize + sp_inc + 8     : caller's return_pc
     assert((sp_inc & (StackAlignmentInBytes - 1)) == 0, "sp_inc must be aligned");
-    int repair_slot_off = (int)framesize
-                          - frame::metadata_words_at_top * wordSize
-                          - wordSize;
+    int repair_slot_off = (int)framesize - wordSize;
     load_const_optimized(Z_R1_scratch, (intptr_t)(framesize + sp_inc));
     z_stg(Z_R1_scratch, repair_slot_off, Z_SP);
   }
