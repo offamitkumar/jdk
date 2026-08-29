@@ -27,6 +27,7 @@
 #include "asm/assembler.inline.hpp"
 #include "opto/c2_MacroAssembler.hpp"
 #include "opto/intrinsicnode.hpp"
+#include "opto/output.hpp"
 #include "runtime/stubRoutines.hpp"
 
 #define BLOCK_COMMENT(str) block_comment(str)
