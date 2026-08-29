@@ -3091,12 +3091,11 @@ void LIR_Assembler::emit_updatecrc32(LIR_OpUpdateCRC32* op) {
 // Valhalla support
 
 void LIR_Assembler::check_orig_pc() {
-  Unimplemented();
+  __ z_ltg(Z_R1_scratch, frame_map()->address_for_orig_pc_addr());
 }
 
 int LIR_Assembler::store_inline_type_fields_to_buf(ciInlineKlass* vk) {
-  Unimplemented();
-  return 0;
+  return (__ store_inline_type_fields_to_buf(vk, false));
 }
 
 void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
