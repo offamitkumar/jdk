@@ -57,10 +57,8 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   if (reset_orig_pc) {
     // Zero orig_pc slot so that deoptimisation during arg buffering is
     // detected correctly.
-    //
-    // TODO (s390x): validate sp_offset_for_orig_pc against the s390x frame
-    // layout (z_abi_160 + compiler frame) once the feature is enabled.
-    ShouldNotCallThis(); // poison: remove once validated on s390x
+    assert(sp_offset_for_orig_pc >= frame::z_abi_160_size, "sp_offset_for_orig_pc is in ABI area");
+    assert(sp_offset_for_orig_pc < frame_size_in_bytes, "sp_offset_for_orig_pc is out of frame bounds");
     z_mvghi(sp_offset_for_orig_pc, Z_SP, 0);
   }
 }
@@ -97,8 +95,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   assert(InlineTypePassFieldsAsArgs, "sanity");
   // Make sure there is enough stack space for this method's activation.
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
-  ShouldNotCallThis(); // poison: remove once validated on s390x
-  untested("scalarized_entry s390x");
 
   generate_stack_overflow_check(bang_size_in_bytes);
 
