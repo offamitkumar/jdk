@@ -1303,6 +1303,11 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           VMReg r_1 = regs[next_arg_comp - ignored].first();
           VMReg r_2 = regs[next_arg_comp - ignored].second();
 
+          if (!r_1->is_valid()) {
+            assert(!r_2->is_valid(), "must be invalid");
+            continue;
+          }
+
           if (r_1->is_stack()) {
             int ld_off = (r_1->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
             if (!r_2->is_valid()) {
