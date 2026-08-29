@@ -30,7 +30,9 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "oops/inlineKlass.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "memory/universe.hpp"
@@ -1233,7 +1235,46 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
          (result->is_single_fpu() && result->as_float_reg() == Z_F0) ||
          (result->is_double_fpu() && result->as_double_reg() == Z_F0), "convention");
 
-  assert(!InlineTypeReturnedAsFields, "unimplemented");
+  if (InlineTypeReturnedAsFields) {
+    // Check if we are returning a non-null inline type and scatter its fields into registers.
+    ciType* return_type = compilation()->method()->return_type();
+    if (return_type->is_inlinetype()) {
+      ciInlineKlass* vk = return_type->as_inline_klass();
+      if (vk->can_be_returned_as_fields()) {
+        address unpack_handler = vk->unpack_handler();
+        assert(unpack_handler != nullptr, "must be");
+        emit_call_c(unpack_handler);
+        CHECK_BAILOUT();
+      }
+    } else if (return_type->is_instance_klass() && (!return_type->is_loaded() || StressCallingConvention)) {
+      NearLabel skip, not_null;
+      __ z_ltgr(Z_RET, Z_RET);
+      __ z_brne(not_null);
+      // Returned value is null: zero all return registers since they may hold oop fields.
+      __ z_xgr(Z_ARG2, Z_ARG2);
+      __ z_xgr(Z_ARG3, Z_ARG3);
+      __ z_xgr(Z_ARG4, Z_ARG4);
+      __ z_xgr(Z_ARG5, Z_ARG5);
+      __ z_brul(skip);
+      __ bind(not_null);
+
+      // Check if we are returning a non-null inline type and load its fields into registers.
+      __ test_oop_is_not_inline_type(Z_RET, Z_R1_scratch, skip, /* can_be_null= */ false);
+
+      // Load fields from a buffered value with an inline class specific handler.
+      __ load_klass(Z_R1_scratch, Z_RET);
+      __ z_lg(Z_R1_scratch, Address(Z_R1_scratch, InlineKlass::adr_members_offset()));
+      __ z_lg(Z_R1_scratch, Address(Z_R1_scratch, InlineKlass::unpack_handler_offset()));
+      // Unpack handler can be null if inline type is not scalarizable in returns.
+      __ z_ltgr(Z_R1_scratch, Z_R1_scratch);
+      __ z_bre(skip);
+      __ z_basr(Z_R14, Z_R1_scratch);
+
+      __ bind(skip);
+    }
+    // At this point, Z_RET points to the value object (for interpreter or C1 caller).
+    // The fields of the object are copied into registers (for C2 caller).
+  }
 
   __ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::polling_page_offset()));
 
