@@ -121,6 +121,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // Z_R13 is the method register expected by c1_buffer_inline_args (see
   // c1_Runtime1_s390.cpp, StubId::c1_buffer_inline_args_id handler).
   load_const_optimized(Z_R13, (intptr_t)(ces->method()));
+  align_call_far_patchable(pc());
   if (is_inline_ro_entry) {
     call_c_opt(Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id));
   } else {
