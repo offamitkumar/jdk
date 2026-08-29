@@ -133,7 +133,6 @@ static void set_guard_value_impl(nmethod* nm, int value, int bit_mask) {
   barrier1->set_guard_value(value, bit_mask);
 
   if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
-    assert(false, "untested code");
     // nmethods with scalarized arguments have multiple entry points that each have an own nmethod entry barrier
     assert(nm->verified_entry_point() != nm->verified_inline_entry_point(), "scalarized entry point not found");
     address method_body = nm->is_compiled_by_c1() ? nm->verified_inline_entry_point() : nm->verified_entry_point();
