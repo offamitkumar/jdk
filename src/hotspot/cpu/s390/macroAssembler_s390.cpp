@@ -7440,7 +7440,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       if (is_reference_type(bt)) {
         z_lgr(tmp3, val_obj);
         Address dst_with_tmp3(tmp3, off);
-        store_heap_oop(src, dst_with_tmp3, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+        store_heap_oop(src, dst_with_tmp3, tmp2, tmp1, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         store_sized_value(src, dst, size_in_bytes);
       }
