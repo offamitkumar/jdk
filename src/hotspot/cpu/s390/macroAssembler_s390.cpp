@@ -7378,7 +7378,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   Register from_reg_tmp = Z_R10;
   Register tmp1 = Z_R0_scratch;
   Register tmp2 = Z_R1_scratch;
-  Register tmp3 = Z_ARG5; // Z_R6 as tmp3
+  Register tmp3 = Z_R7;
   Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
 
   assert_different_registers(val_obj_tmp, from_reg_tmp, tmp1, tmp2, tmp3, val_array);
