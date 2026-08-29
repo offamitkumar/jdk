@@ -2186,8 +2186,34 @@ void MacroAssembler::pop_frame() {
   BLOCK_COMMENT("} pop_frame");
 }
 
-void MacroAssembler::remove_frame(int /* initial_framesize */, bool /* needs_stack_repair */) {
-  pop_frame();
+void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
+  if (needs_stack_repair) {
+    // The frame may have been extended by a scalarized-entry unpacker.
+    // The real total frame size (initial_framesize + sp_inc) was stored by
+    // C2_MacroAssembler::verified_entry at a fixed slot within the initial frame:
+    //   method_SP + initial_framesize - metadata_words_at_top*wordSize - wordSize
+    //
+    // Frame layout (method_SP = SP at method entry):
+    //   method_SP + 0                      : back-chain → extension SP (or caller SP)
+    //   ...
+    //   method_SP + initial_framesize - 16 : stack-repair slot  (stores real_frame_size)
+    //   ...
+    //   method_SP + real_frame_size - 8    : return_pc (saved by save_return_pc)
+    //   method_SP + real_frame_size + 0    : caller's back-chain
+    //
+    // Read the real (possibly extended) frame size from the stack-repair slot.
+    int repair_slot_off = initial_framesize
+                          - frame::metadata_words_at_top * wordSize
+                          - wordSize;
+    z_lg(Z_R1_scratch, repair_slot_off, Z_SP);
+    // Restore return PC: it lives at SP + real_frame_size + _z_common_abi(return_pc).
+    z_lg(Z_R14, Address(Z_SP, Z_R1_scratch, _z_common_abi(return_pc)));
+    // Pop the whole frame (including any extension) by adding the real size to SP.
+    z_agr(Z_SP, Z_R1_scratch);
+  } else {
+    // Normal case: use the known initial frame size.
+    pop_frame_restore_retPC(initial_framesize);
+  }
 }
 
 // Pop current C frame and restore return PC register (Z_R14).

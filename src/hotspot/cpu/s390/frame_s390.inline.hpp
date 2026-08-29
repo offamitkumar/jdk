@@ -402,14 +402,15 @@ inline frame frame::sender_raw(RegisterMap* map) const {
 
 inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
   assert(map != nullptr, "map must be set");
-  assert(!_cb->is_nmethod() || !_cb->as_nmethod()->needs_stack_repair(), "unsupported");
 
   nmethod* nm = _cb->as_nmethod_or_null();
-  if (nm != nullptr && nm->method()->has_scalarized_args()) {
-    Unimplemented();
-  }
 
   intptr_t* sender_sp = this->sender_sp();
+  // Repair the sender SP if this nmethod used the non-scalarized entry and
+  // extended the stack to unpack inline type arguments.
+  if (nm != nullptr && nm->needs_stack_repair()) {
+    sender_sp = repair_sender_sp(sender_sp, nullptr);
+  }
   address   sender_pc = this->sender_pc();
 
   // Now adjust the map.

@@ -749,20 +749,42 @@ intptr_t* frame::interpreter_frame_tos_at(jint offset) const {
 }
 
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
-  Unimplemented();
-  return nullptr;
+  // Check if this compiled frame has a scalarized-entry stack extension.
+  nmethod* nm = _cb->as_nmethod_or_null();
+  if (nm != nullptr && nm->needs_stack_repair()) {
+    return repair_sender_sp(nm, _unextended_sp, saved_fp_addr);
+  }
+  return sender_sp;
 }
 
 intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
   assert(nm != nullptr && nm->needs_stack_repair(), "");
-  Unimplemented();
-  return nullptr;
+  // The real total frame size (including any scalarized-entry extension) was
+  // stored by C2_MacroAssembler::verified_entry at:
+  //   SP + initial_framesize - metadata_words_at_top*wordSize - wordSize
+  // where initial_framesize = nm->frame_size() * wordSize.
+  // We read it and compute the true sender SP.
+  int initial_framesize = nm->frame_size() * wordSize;
+  int repair_slot_off = initial_framesize
+                        - frame::metadata_words_at_top * wordSize
+                        - wordSize;
+  intptr_t real_frame_size = *(intptr_t*)((address)sp + repair_slot_off);
+  assert(real_frame_size >= initial_framesize && real_frame_size <= 1000000 * wordSize,
+         "invalid real frame size");
+  return sp + real_frame_size / wordSize;
 }
 
 bool frame::was_augmented_on_entry(int& real_size) const {
   assert(is_compiled_frame(), "");
-  if (_cb->as_nmethod_or_null()->needs_stack_repair()) {
-    Unimplemented();
+  nmethod* nm = _cb->as_nmethod_or_null();
+  if (nm != nullptr && nm->needs_stack_repair()) {
+    int initial_framesize = nm->frame_size() * wordSize;
+    int repair_slot_off = initial_framesize
+                          - frame::metadata_words_at_top * wordSize
+                          - wordSize;
+    intptr_t real_frame_size = *(intptr_t*)((address)_unextended_sp + repair_slot_off);
+    real_size = (int)(real_frame_size / wordSize);
+    return real_size != nm->frame_size();
   }
   real_size = _cb->frame_size();
   return false;
