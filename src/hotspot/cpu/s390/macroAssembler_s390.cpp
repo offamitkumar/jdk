@@ -7200,9 +7200,12 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   // allocating is not necessary if vk != nullptr, etc.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
-  const Register tmp1     = Z_R7;
-  const Register klass    = Z_R8;
-  const Register r0_saved = Z_R9;
+  // Be careful not to clobber R2-R6 (inline type return fields),
+  // or interpreter-live nonvolatile registers: Z_thread(R8), Z_fp(R9),
+  // Z_esp(R7), Z_locals(R12), Z_bcp(R13).
+  const Register tmp1     = Z_R10;      // Z_tmp_1: nonvolatile, free as temp
+  const Register klass    = Z_R11;      // Z_tmp_2: nonvolatile, free as temp
+  const Register r0_saved = Z_R1_scratch; // volatile scratch; save Z_RET tagged klass
   z_lgr(r0_saved, Z_RET); // save Z_RET for slow_case since tlab_allocate may corrupt it when allocation failed
   if (vk != nullptr) {
     // Called from C1, where the return type is statically known.
@@ -7222,7 +7225,8 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
       z_llgf(tmp1, Address(klass, Klass::layout_helper_offset()));
       z_tmll(tmp1, Klass::_lh_instance_slow_path_bit);
       z_brc(bcondNotAllZero, slow_case);
-      tlab_allocate(Z_RET, tmp1, 0, r0_saved, slow_case);
+      // Use Z_R0_scratch as TLAB end register (t1) so r0_saved is not clobbered.
+      tlab_allocate(Z_RET, tmp1, 0, Z_R0_scratch, slow_case);
     } else {
       z_brul(slow_case);
     }
