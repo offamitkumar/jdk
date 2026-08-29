@@ -4378,9 +4378,11 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   // Resolve pre-allocated buffer from JNI handle.
   // We cannot do this in generate_call_stub() because it requires GC code to be initialized.
   __ z_lg(Z_RET, Address(Rresult));
-  // G1's phantom-ref barrier (hit when resolving jweak handles) forbids Z_R0
-  // as either tmp register.  Z_ARG3 (R4) is volatile and free at this point.
-  __ resolve_jobject(Z_RET, Z_R1_scratch, Z_ARG3);
+  // G1's phantom-ref barrier (triggered when resolving jweak handles) requires:
+  //   - neither tmp is Z_R0, and
+  //   - at least one tmp is non-volatile (to save Rpre_val across the runtime call).
+  // Z_R13 (R13) is non-volatile and free here; Z_R1_scratch (R1) is the other scratch.
+  __ resolve_jobject(Z_RET, Z_R1_scratch, Z_R13);
   __ z_stg(Z_RET, Address(Rresult));
 
   int pack_fields_off = __ offset();
