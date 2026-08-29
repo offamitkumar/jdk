@@ -649,6 +649,10 @@ address TemplateInterpreterGenerator::generate_return_entry_for (TosState state,
   __ restore_locals();
   __ restore_esp();
 
+  if (state == atos && InlineTypeReturnedAsFields) {
+    __ store_inline_type_fields_to_buf(nullptr, true);
+  }
+
   if (state == atos) {
     __ profile_return_type(Z_tmp_1, Z_tos, Z_tmp_2);
   }
