@@ -1660,8 +1660,8 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
     // Emit code for verified entry and save increment for stack repair on return
     __ verified_entry(ra_->C, sp_inc);
     if (Compile::current()->output()->in_scratch_emit_size()) {
-      Label dummy_verified_entry;
-      __ z_bru(dummy_verified_entry);
+      // Emit 4 bytes of nops to match the size of z_bru without using unbound labels.
+      __ z_nop(); __ z_nop();
     } else {
       __ z_bru(*_verified_entry);
     }
