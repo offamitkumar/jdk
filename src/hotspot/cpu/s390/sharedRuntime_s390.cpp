@@ -1094,7 +1094,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   int total_args_passed = compute_total_args_passed_int(sig_extended);
   assert(total_args_passed >= 0, "total_args_passed is %d", total_args_passed);
 
-  // Adapter needs some stack space
   const int adapter_size = frame::z_top_ijava_frame_abi_size +
                            align_up(total_args_passed * wordSize, frame::alignment_in_bytes);
 
@@ -1107,14 +1106,12 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  // Name some registers to be used in the following code
-  Register buf_array = Z_R11;   // Array of buffered inline types
-  Register buf_oop = Z_R12;     // Buffered inline type oop
+  Register buf_array = Z_R11;
+  Register buf_oop = Z_R12;
   Register tmp1 = Z_R0_scratch;
   Register tmp2 = Z_R1_scratch;
 
   if (InlineTypePassFieldsAsArgs) {
-    __ untested("InlineTypePassFieldsAsArgs sharedRuntime");
     // Is there an inline type argument?
     bool has_inline_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
@@ -1123,7 +1120,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     if (has_inline_argument) {
       // There is at least a value type argument: we're coming from
       // compiled code so we may not have buffers to back the value
-      // objects. Allocate the buffers here with a runtime call.
+      // objects. Allocate the buffers here with a runtime call for
+      // the value arguments that needs a buffer.
       OopMap* map = RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers);
 
       frame_complete = __ offset();
@@ -1135,9 +1133,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ load_const_optimized(Z_ARG3, (intptr_t)alloc_inline_receiver);
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_types), Z_ARG1, Z_ARG2, Z_ARG3);
 
-      // TODO: use blob-relative offset, matching the pattern in the rest of
-      // sharedRuntime_s390.cpp ("offset() - start_off")
-      oop_maps->add_gc_map((int)(__ offset() - (start - masm->code()->insts_begin())), map);
+      int start_off = (int)(start - masm->code()->insts_begin());
+      oop_maps->add_gc_map((int)(__ offset() - start_off), map);
       __ reset_last_Java_frame();
 
       RegisterSaver::restore_live_registers(masm, RegisterSaver::all_registers);
@@ -1153,30 +1150,32 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ bind(no_exception);
 
-      // TODO: matching aarch64's get_vm_result_oop(), to prevent the GC from visiting a
-      // stale oop reference in the thread-local slot.
-      __ z_lg(buf_array, Address(Z_thread, JavaThread::vm_result_oop_offset()));
-      __ clear_mem(Address(Z_thread, JavaThread::vm_result_oop_offset()), sizeof(oop));
+      __ get_vm_result_oop(buf_array);
     }
   }
 
-  // Since all args are passed on the stack, total_args_passed*wordSize is the
-  // space we need. We need ABI scratch area but we use the caller's since
-  // it has already been allocated.
   const int abi_scratch = frame::z_top_ijava_frame_abi_size;
   int extraspace = align_up(total_args_passed, 2) * wordSize + abi_scratch;
   Register sender_SP = Z_R10;
 
-  // Remember the senderSP so we can pop the interpreter arguments off of the stack.
-  // In addition, template interpreter expects initial_caller_sp in Z_R10.
   __ z_lgr(sender_SP, Z_SP);
 
-  // This should always fit in 14 bit immediate.
   __ resize_frame(-extraspace, Z_R0_scratch);
 
   int st_off = extraspace - wordSize;
 
   // Now write the args into the outgoing interpreter space
+
+  // next_arg_comp is the next argument from the compiler point of
+  // view (inline type fields are passed in registers/on the stack). In
+  // sig_extended, an inline type argument starts with: T_METADATA,
+  // followed by the types of the fields of the inline type and T_VOID
+  // to mark the end of the inline type. ignored counts the number of
+  // T_METADATA/T_VOID. next_vt_arg is the next inline type argument:
+  // used to get the buffer for that argument from the pool of buffers
+  // we allocated above and want to pass to the
+  // interpreter. next_arg_int is the next argument from the
+  // interpreter point of view (inline types are passed by reference).
   for (int next_arg_comp = 0, ignored = 0, next_vt_arg = 0, next_arg_int = 0;
        next_arg_comp < sig_extended->length(); next_arg_comp++) {
     assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
@@ -1195,15 +1194,11 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       }
 
       if (r_1->is_stack()) {
-        // The calling convention produces OptoRegs that ignore the preserve area (abi scratch).
-        // We must account for it here.
         int ld_off = (r_1->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
 
         if (!r_2->is_valid()) {
           __ z_mvc(Address(Z_SP, st_off), Address(sender_SP, ld_off), sizeof(void*));
         } else {
-          // longs are given 2 64-bit slots in the interpreter,
-          // but the data is passed in only 1 slot.
           if (bt == T_LONG || bt == T_DOUBLE) {
 #ifdef ASSERT
             __ clear_mem(Address(Z_SP, st_off), sizeof(void *));
@@ -1217,8 +1212,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         if (!r_2->is_valid()) {
           __ z_st(r, st_off, Z_SP);
         } else {
-          // longs are given 2 64-bit slots in the interpreter, but the
-          // data is passed in only 1 slot.
           if (bt == T_LONG || bt == T_DOUBLE) {
 #ifdef ASSERT
             __ clear_mem(Address(Z_SP, st_off), sizeof(void *));
@@ -1233,9 +1226,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         if (!r_2->is_valid()) {
           __ z_ste(f, st_off, Z_SP);
         } else {
-          // In 64bit, doubles are given 2 64-bit slots in the interpreter, but the
-          // data is passed in only 1 slot.
-          // One of these should get known junk...
 #ifdef ASSERT
           __ z_lzdr(Z_F1);
           __ z_std(Z_F1, st_off, Z_SP);
@@ -1247,7 +1237,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       st_off -= wordSize;
       next_arg_int++;
     } else {
-      // Handle inline type arguments
       ignored++;
       next_arg_int++;
       int vt = 1;
@@ -1275,14 +1264,12 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           }
           __ compare64_and_branch(buf_oop, (intptr_t)0, Assembler::bcondNotEqual, not_null_buffer);
 
-          // Get buffer from allocated pool
           int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
           __ z_lg(buf_oop, Address(buf_array, index));
           next_vt_arg++;
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
           if (off == -1) {
-            // Nullable inline type argument
             VMReg reg = regs[next_arg_comp - ignored].first();
             Label L_notNull;
             if (reg->is_stack()) {
@@ -1299,7 +1286,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           }
           assert(off > 0, "offset in object should be positive");
 
-          // Copy field from buffer to stack
           VMReg r_1 = regs[next_arg_comp - ignored].first();
           VMReg r_2 = regs[next_arg_comp - ignored].second();
 
@@ -1335,7 +1321,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         }
       } while (vt != 0);
 
-      // Pass the buffer to the interpreter
       __ bind(not_null_buffer);
       __ z_stg(buf_oop, Address(Z_SP, st_off));
       __ bind(L_null);
