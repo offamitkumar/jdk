@@ -4410,11 +4410,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       Register val = r_1->as_Register();
       assert_different_registers(Z_RET, val, Z_R13, Z_R1_scratch);
       if (is_reference_type(bt)) {
-        // G1 pre-barrier forbids Z_R0 as Rtmp1 or Rtmp2.  Z_ARG2 (R3) is free
-        // here — Rresult was only live in the pack_fields_jobject entry above.
+        // G1 pre-barrier forbids Z_R0 as Rtmp1 or Rtmp2.
         __ z_lgr(Z_R13, Z_RET);
         Address to_with_r13(Z_R13, off);
-        __ store_heap_oop(val, to_with_r13, Z_R1_scratch, Z_ARG2, Z_R13,
+        __ store_heap_oop(val, to_with_r13, Z_R1_scratch, Z_RET, Z_R13,
                           IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         __ store_sized_value(val, to, type2aelembytes(bt));
