@@ -1666,6 +1666,9 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
       __ z_bru(*_verified_entry);
     }
   }
+  if (ra_->C->stub_function() == nullptr) {
+    __ align(CodeEntryAlignment);
+  }
 }
 
 #if !defined(PRODUCT)
