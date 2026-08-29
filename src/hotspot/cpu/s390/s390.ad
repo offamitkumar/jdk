@@ -1173,6 +1173,19 @@ void MachPrologNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
   // 'out_preserve_stack_slots' declaration.
   __ push_frame((unsigned int)framesize/*includes JIT ABI*/);
 
+  if (C->needs_stack_repair()) {
+    // Store the total frame size at the stack-repair slot so that remove_frame()
+    // and repair_sender_sp() can find it.  Must be emitted BEFORE nmethod_entry_barrier
+    // so that the barrier offset from the entry point matches the offset emitted
+    // by MachVEPNode::emit() (which also calls verified_entry() → repair slot store
+    // → nmethod_entry_barrier).
+    int repair_slot_off = (int)framesize
+                          - frame::metadata_words_at_top * wordSize
+                          - wordSize;
+    __ load_const_optimized(Z_R1_scratch, (intptr_t)framesize);
+    __ z_stg(Z_R1_scratch, repair_slot_off, Z_SP);
+  }
+
   if (C->has_mach_constant_base_node()) {
     // NOTE: We set the table base offset here because users might be
     // emitted before MachConstantBaseNode.
