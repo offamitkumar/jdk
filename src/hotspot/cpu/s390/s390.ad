@@ -1643,7 +1643,7 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
 {
   if (!_verified) {
-    __ ic_check(1);
+    __ ic_check(CodeEntryAlignment);
   } else {
     if (ra_->C->stub_function() == nullptr) {
       // Emit the entry barrier in a temporary frame before unpacking because
