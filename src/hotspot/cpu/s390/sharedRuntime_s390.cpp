@@ -1229,8 +1229,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         }
       } else {
         assert(r_1->is_FloatRegister(), "");
+        FloatRegister f = ::as_FloatRegister((r_1->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
         if (!r_2->is_valid()) {
-          __ z_ste(r_1->as_FloatRegister(), st_off, Z_SP);
+          __ z_ste(f, st_off, Z_SP);
         } else {
           // In 64bit, doubles are given 2 64-bit slots in the interpreter, but the
           // data is passed in only 1 slot.
@@ -1240,7 +1241,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           __ z_std(Z_F1, st_off, Z_SP);
 #endif
           st_off -= wordSize;
-          __ z_std(r_1->as_FloatRegister(), st_off, Z_SP);
+          __ z_std(f, st_off, Z_SP);
         }
       }
       st_off -= wordSize;
@@ -1319,10 +1320,11 @@ static void gen_c2i_adapter(MacroAssembler *masm,
               __ z_stg(r, Address(buf_oop, off));
             }
           } else {
+            FloatRegister f = ::as_FloatRegister((r_1->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
             if (!r_2->is_valid()) {
-              __ z_ste(r_1->as_FloatRegister(), Address(buf_oop, off));
+              __ z_ste(f, Address(buf_oop, off));
             } else {
-              __ z_std(r_1->as_FloatRegister(), Address(buf_oop, off));
+              __ z_std(f, Address(buf_oop, off));
             }
           }
         }
