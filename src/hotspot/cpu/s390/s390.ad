@@ -1185,6 +1185,10 @@ void MachPrologNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
     bs->nmethod_entry_barrier(masm);
   }
 
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    __ bind(*_verified_entry);
+  }
+
   C->output()->set_frame_complete(__ offset());
 }
 int MachPrologNode::reloc() const {
