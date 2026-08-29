@@ -7330,8 +7330,8 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       }
     }
   }
-  if (progress && null_check) {
-    if (done) {
+  if (null_check) {
+    if (progress && done) {
       z_bru(L_notNull);
       bind(L_null);
       stream.reset(sig_index, to_index);
