@@ -1115,15 +1115,14 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   }
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    untested("remove_activation: InlineTypeReturnedAsFields");
     NearLabel skip, not_null;
     z_ltgr(Z_tos, Z_tos);
     z_brne(not_null);
     // Returned value is null: zero all return registers since they may hold oop fields.
-    z_lghi(Z_ARG2, 0);
-    z_lghi(Z_ARG3, 0);
-    z_lghi(Z_ARG4, 0);
-    z_lghi(Z_ARG5, 0);
+    z_xgr(Z_ARG2, Z_ARG2);
+    z_xgr(Z_ARG3, Z_ARG3);
+    z_xgr(Z_ARG4, Z_ARG4);
+    z_xgr(Z_ARG5, Z_ARG5);
     z_brul(skip);
     bind(not_null);
 
