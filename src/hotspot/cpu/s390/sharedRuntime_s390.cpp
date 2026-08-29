@@ -68,6 +68,11 @@
 #define BLOCK_COMMENT(str) __ block_comment(str)
 #define BIND(label)        bind(label); BLOCK_COMMENT(#label ":")
 
+static inline FloatRegister safe_as_FloatRegister(VMReg r) {
+  assert(r->is_FloatRegister(), "must be");
+  return ::as_FloatRegister((r->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+}
+
 #define RegisterSaver_LiveIntReg(regname) \
   { RegisterSaver::int_reg,   regname->encoding(), regname->as_VMReg() }
 
@@ -1222,7 +1227,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         }
       } else {
         assert(r_1->is_FloatRegister(), "");
-        FloatRegister f = ::as_FloatRegister((r_1->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+        FloatRegister f = safe_as_FloatRegister(r_1);
         if (!r_2->is_valid()) {
           __ z_ste(f, st_off, Z_SP);
         } else {
@@ -1311,7 +1316,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
               __ z_stg(r, Address(buf_oop, off));
             }
           } else {
-            FloatRegister f = ::as_FloatRegister((r_1->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+            FloatRegister f = safe_as_FloatRegister(r_1);
             if (!r_2->is_valid()) {
               __ z_ste(f, Address(buf_oop, off));
             } else {
@@ -1559,7 +1564,7 @@ static void float_move(MacroAssembler *masm,
       if (dst.first()->is_Register()) {
         __ mem2reg_opt(dst.first()->as_Register(), memaddr, false);
       } else {
-        __ mem2freg_opt(dst.first()->as_FloatRegister(), memaddr, false);
+        __ mem2freg_opt(safe_as_FloatRegister(dst.first()), memaddr, false);
       }
     }
   } else if (src.first()->is_Register()) {
@@ -1575,37 +1580,37 @@ static void float_move(MacroAssembler *masm,
       } else {
         if (VM_Version::has_FPSupportEnhancements()) {
           // gpr -> fpr. Exploit z10 capability of direct transfer.
-          __ z_ldgr(dst.first()->as_FloatRegister(), src.first()->as_Register());
+          __ z_ldgr(safe_as_FloatRegister(dst.first()), src.first()->as_Register());
         } else {
           // gpr -> fpr. Use work space on stack to transfer data.
           Address   stackaddr(Z_SP, workspace_offset);
 
           __ reg2mem_opt(src.first()->as_Register(), stackaddr, false);
-          __ mem2freg_opt(dst.first()->as_FloatRegister(), stackaddr, false);
+          __ mem2freg_opt(safe_as_FloatRegister(dst.first()), stackaddr, false);
         }
       }
     }
   } else {
     if (dst.first()->is_stack()) {
       // fpr -> stack
-      __ freg2mem_opt(src.first()->as_FloatRegister(),
+      __ freg2mem_opt(safe_as_FloatRegister(src.first()),
                       Address(Z_SP, reg2offset(dst.first())), false);
     } else {
       if (dst.first()->is_Register()) {
         if (VM_Version::has_FPSupportEnhancements()) {
           // fpr -> gpr.
-          __ z_lgdr(dst.first()->as_Register(), src.first()->as_FloatRegister());
+          __ z_lgdr(dst.first()->as_Register(), safe_as_FloatRegister(src.first()));
         } else {
           // fpr -> gpr. Use work space on stack to transfer data.
           Address   stackaddr(Z_SP, workspace_offset);
 
-          __ freg2mem_opt(src.first()->as_FloatRegister(), stackaddr, false);
+          __ freg2mem_opt(safe_as_FloatRegister(src.first()), stackaddr, false);
           __ mem2reg_opt(dst.first()->as_Register(), stackaddr, false);
         }
       } else {
         // fpr -> fpr
-        __ move_freg_if_needed(dst.first()->as_FloatRegister(), T_FLOAT,
-                               src.first()->as_FloatRegister(), T_FLOAT);
+        __ move_freg_if_needed(safe_as_FloatRegister(dst.first()), T_FLOAT,
+                               safe_as_FloatRegister(src.first()), T_FLOAT);
       }
     }
   }
@@ -1637,7 +1642,7 @@ static void double_move(MacroAssembler *masm,
       if (dst.first()->is_Register()) {
         __ mem2reg_opt(dst.first()->as_Register(), stackaddr);
       } else {
-        __ mem2freg_opt(dst.first()->as_FloatRegister(), stackaddr);
+        __ mem2freg_opt(safe_as_FloatRegister(dst.first()), stackaddr);
       }
     }
   } else if (src.first()->is_Register()) {
@@ -1653,37 +1658,37 @@ static void double_move(MacroAssembler *masm,
       } else {
         if (VM_Version::has_FPSupportEnhancements()) {
           // gpr -> fpr. Exploit z10 capability of direct transfer.
-          __ z_ldgr(dst.first()->as_FloatRegister(), src.first()->as_Register());
+          __ z_ldgr(safe_as_FloatRegister(dst.first()), src.first()->as_Register());
         } else {
           // gpr -> fpr. Use work space on stack to transfer data.
           Address stackaddr(Z_SP, workspace_offset);
           __ reg2mem_opt(src.first()->as_Register(), stackaddr);
-          __ mem2freg_opt(dst.first()->as_FloatRegister(), stackaddr);
+          __ mem2freg_opt(safe_as_FloatRegister(dst.first()), stackaddr);
         }
       }
     }
   } else {
     if (dst.first()->is_stack()) {
       // fpr -> stack
-      __ freg2mem_opt(src.first()->as_FloatRegister(),
+      __ freg2mem_opt(safe_as_FloatRegister(src.first()),
                       Address(Z_SP, reg2offset(dst.first())));
     } else {
       if (dst.first()->is_Register()) {
         if (VM_Version::has_FPSupportEnhancements()) {
           // fpr -> gpr. Exploit z10 capability of direct transfer.
-          __ z_lgdr(dst.first()->as_Register(), src.first()->as_FloatRegister());
+          __ z_lgdr(dst.first()->as_Register(), safe_as_FloatRegister(src.first()));
         } else {
           // fpr -> gpr. Use work space on stack to transfer data.
           Address stackaddr(Z_SP, workspace_offset);
 
-          __ freg2mem_opt(src.first()->as_FloatRegister(), stackaddr);
+          __ freg2mem_opt(safe_as_FloatRegister(src.first()), stackaddr);
           __ mem2reg_opt(dst.first()->as_Register(), stackaddr);
         }
       } else {
         // fpr -> fpr
         // In theory these overlap but the ordering is such that this is likely a nop.
-        __ move_freg_if_needed(dst.first()->as_FloatRegister(), T_DOUBLE,
-                               src.first()->as_FloatRegister(), T_DOUBLE);
+        __ move_freg_if_needed(safe_as_FloatRegister(dst.first()), T_DOUBLE,
+                               safe_as_FloatRegister(src.first()), T_DOUBLE);
       }
     }
   }
@@ -2531,14 +2536,16 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
       assert(!reg_destroyed[in_regs[jix].first()->as_Register()->encoding()], "ack!");
     } else {
       if (in_regs[jix].first()->is_FloatRegister()) {
-        assert(!freg_destroyed[in_regs[jix].first()->as_FloatRegister()->encoding()], "ack!");
+        FloatRegister f_in = safe_as_FloatRegister(in_regs[jix].first());
+        assert(!freg_destroyed[f_in->encoding()], "ack!");
       }
     }
     if (out_regs[cix].first()->is_Register()) {
       reg_destroyed[out_regs[cix].first()->as_Register()->encoding()] = true;
     } else {
       if (out_regs[cix].first()->is_FloatRegister()) {
-        freg_destroyed[out_regs[cix].first()->as_FloatRegister()->encoding()] = true;
+        FloatRegister f_out = safe_as_FloatRegister(out_regs[cix].first());
+        freg_destroyed[f_out->encoding()] = true;
       }
     }
 #endif // ASSERT
@@ -3030,12 +3037,13 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       continue;
     }
     if (r_1->is_FloatRegister()) {
+      FloatRegister f = safe_as_FloatRegister(r_1);
       if (!r_2->is_valid()) {
-        __ z_le(r_1->as_FloatRegister(), ld_offset, ld_ptr);
+        __ z_le(f, ld_offset, ld_ptr);
         ld_offset-=wordSize;
       } else {
         // Skip the unused interpreter slot.
-        __ z_ld(r_1->as_FloatRegister(), ld_offset - wordSize, ld_ptr);
+        __ z_ld(f, ld_offset - wordSize, ld_ptr);
         ld_offset -= 2 * wordSize;
       }
     } else {
@@ -4397,9 +4405,11 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     VMReg r_1 = pair.first();
     Address to(Z_RET, off);
     if (bt == T_FLOAT) {
-      __ z_ste(r_1->as_FloatRegister(), to);
+      FloatRegister f = safe_as_FloatRegister(r_1);
+      __ z_ste(f, to);
     } else if (bt == T_DOUBLE) {
-      __ z_std(r_1->as_FloatRegister(), to);
+      FloatRegister f = safe_as_FloatRegister(r_1);
+      __ z_std(f, to);
     } else {
       Register val = r_1->as_Register();
       assert_different_registers(Z_RET, val, Z_R13, Z_R1_scratch);
@@ -4447,7 +4457,8 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     VMRegPair pair = regs->at(j);
     VMReg r_1 = pair.first();
     if (r_1->is_FloatRegister()) {
-      __ z_lzdr(r_1->as_FloatRegister());
+      FloatRegister f = safe_as_FloatRegister(r_1);
+      __ z_lzdr(f);
     } else {
       __ z_xgr(r_1->as_Register(), r_1->as_Register());
     }
@@ -4474,9 +4485,11 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     VMReg r_1 = pair.first();
     Address from(Z_RET, off);
     if (bt == T_FLOAT) {
-      __ z_le(r_1->as_FloatRegister(), from);
+      FloatRegister f = safe_as_FloatRegister(r_1);
+      __ z_le(f, from);
     } else if (bt == T_DOUBLE) {
-      __ z_ld(r_1->as_FloatRegister(), from);
+      FloatRegister f = safe_as_FloatRegister(r_1);
+      __ z_ld(f, from);
     } else if (bt == T_OBJECT || bt == T_ARRAY) {
       assert_different_registers(Z_RET, r_1->as_Register());
       __ load_heap_oop(r_1->as_Register(), from, Z_R1_scratch, Z_R0_scratch);

@@ -7307,7 +7307,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (!toReg->is_FloatRegister()) {
       Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
       if (is_reference_type(bt)) {
-        load_heap_oop(dst, fromAddr);
+        load_heap_oop(dst, fromAddr, tmp1, tmp2);
       } else {
         bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
         load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
@@ -7419,7 +7419,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       }
       compare64_and_branch(val_obj, (intptr_t)0, Assembler::bcondNotEqual, L_null);
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
-      load_heap_oop(val_obj, Address(val_array, index));
+      load_heap_oop(val_obj, Address(val_array, index), tmp1, tmp2);
       continue;
     }
 
