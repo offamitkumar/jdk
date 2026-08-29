@@ -126,10 +126,6 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, stub_id);
     address start = __ pc();
 
-    if (InlineTypeReturnedAsFields) {
-      __ stop("fix T_OBJECT");
-    }
-
     Register r_arg_call_wrapper_addr   = Z_ARG1;
     Register r_arg_result_addr         = Z_ARG2;
     Register r_arg_result_type         = Z_ARG3;
@@ -381,6 +377,7 @@ class StubGenerator: public StubCodeGenerator {
       //------------------------------------------------------------------------
       BLOCK_COMMENT("process result {");
       Label firstHandler;
+      Label handle_t_object;
       int   handlerLen= 8;
 #ifdef ASSERT
       char  assertMsg[] = "check BasicType definition in globalDefinitions.hpp";
@@ -438,8 +435,13 @@ class StubGenerator: public StubCodeGenerator {
         __ align(handlerLen);
       // T_OBJECT:
         guarantee(T_OBJECT == T_LONG+1, "check BasicType definition in globalDefinitions.hpp");
-        __ z_stg(Z_RET, 0, r_arg_result_addr);
-        __ z_br(Z_R14); // Return to caller.
+        if (InlineTypeReturnedAsFields) {
+          // Branch out-of-line; the dispatch slot must stay exactly handlerLen bytes.
+          __ z_brul(handle_t_object);
+        } else {
+          __ z_stg(Z_RET, 0, r_arg_result_addr);
+          __ z_br(Z_R14); // Return to caller.
+        }
         __ align(handlerLen);
       // T_ARRAY:
         guarantee(T_ARRAY == T_OBJECT+1, "check BasicType definition in globalDefinitions.hpp");
@@ -472,6 +474,31 @@ class StubGenerator: public StubCodeGenerator {
         __ z_br(Z_R14); // Return to caller.
         __ align(handlerLen);
       BLOCK_COMMENT("} process result");
+
+      if (InlineTypeReturnedAsFields) {
+        // Out-of-line T_OBJECT handler for scalarized inline type returns.
+        __ bind(handle_t_object);
+        // Check for scalarized return value: bit 0 of Z_RET set means the callee
+        // returned an inline type as fields (scatter/gather ABI).
+        Label t_object_normal;
+        __ z_tmll(Z_RET, 1);
+        __ z_braz(t_object_normal); // bit 0 clear -> normal object pointer
+        // Scalarized inline type: bit 0 is set, Z_RET is a tagged InlineKlass*.
+        // Clear the tag bit.
+        __ z_aghi(Z_RET, -1);
+        // Load the adr_members array pointer, then the pack_handler_jobject address.
+        __ z_lg(Z_R1_scratch, Address(Z_RET, InlineKlass::adr_members_offset()));
+        __ z_lg(Z_R1_scratch, Address(Z_R1_scratch, InlineKlass::pack_handler_jobject_offset()));
+        // The pack handler convention (generate_buffered_inline_type_adapter)
+        // expects the pre-allocated buffer handle in Z_ARG2 (= r_arg_result_addr = Z_R3).
+        // r_arg_result_addr is already Z_ARG2; nothing to move.
+        // Z_R14 still holds the return address to our C caller: tail-call is safe.
+        __ z_br(Z_R1_scratch);
+        // Normal object path: store the oop and return.
+        __ bind(t_object_normal);
+        __ z_stg(Z_RET, 0, r_arg_result_addr);
+        __ z_br(Z_R14);
+      }
     }
     return start;
   }
