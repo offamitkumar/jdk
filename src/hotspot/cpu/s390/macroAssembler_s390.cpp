@@ -7371,7 +7371,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   }
 
   Register val_obj_tmp = Z_R12;
-  Register from_reg_tmp = Z_R11;
+  Register from_reg_tmp = Z_R10;
   Register tmp1 = Z_R0_scratch;
   Register tmp2 = Z_R1_scratch;
   Register tmp3 = Z_ARG5; // Z_R6 as tmp3
