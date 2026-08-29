@@ -7161,25 +7161,321 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 }
 
 bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
-  Unimplemented();
+  assert(from->is_valid() && to->is_valid(), "source and destination must be valid");
+  if (reg_state[to->value()] == reg_written) {
+    return true; // Already written
+  }
+  if (from != to && bt != T_VOID) {
+    if (reg_state[to->value()] == reg_readonly) {
+      return false; // Not yet writable
+    }
+    const int abi_bias = frame::z_common_abi_size;
+    if (from->is_reg()) {
+      if (to->is_reg()) {
+        if (from->is_FloatRegister()) {
+          FloatRegister from_f = ::as_FloatRegister((from->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+          FloatRegister to_f   = ::as_FloatRegister((to->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+          if (bt == T_DOUBLE) {
+            z_ldr(to_f, from_f);
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            z_ler(to_f, from_f);
+          }
+        } else {
+          z_lgr(to->as_Register(), from->as_Register());
+        }
+      } else {
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + abi_bias;
+        Address to_addr = Address(Z_SP, st_off);
+        if (from->is_FloatRegister()) {
+          FloatRegister from_f = ::as_FloatRegister((from->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+          if (bt == T_DOUBLE) {
+            z_std(from_f, to_addr);
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            z_ste(from_f, to_addr);
+          }
+        } else {
+          z_stg(from->as_Register(), to_addr);
+        }
+      }
+    } else {
+      Address from_addr = Address(Z_SP, from->reg2stack() * VMRegImpl::stack_slot_size + abi_bias);
+      if (to->is_reg()) {
+        if (to->is_FloatRegister()) {
+          FloatRegister to_f = ::as_FloatRegister((to->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+          if (bt == T_DOUBLE) {
+            z_ld(to_f, from_addr);
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            z_le(to_f, from_addr);
+          }
+        } else {
+          z_lg(to->as_Register(), from_addr);
+        }
+      } else {
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + abi_bias;
+        z_lg(Z_R1_scratch, from_addr);
+        z_stg(Z_R1_scratch, Address(Z_SP, st_off));
+      }
+    }
+  }
+  // Update register states
+  reg_state[from->value()] = reg_writable;
+  reg_state[to->value()] = reg_written;
+  return true;
 }
 
 bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
-                            VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
-                            RegState reg_state[]) {
-  Unimplemented();
+                                          VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
+                                          RegState reg_state[]) {
+  assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
+  assert(from->is_valid(), "source must be valid");
+  bool progress = false;
+#ifdef ASSERT
+  const int start_offset = offset();
+#endif
+
+  NearLabel L_null, L_notNull;
+  Register tmp1 = Z_R0_scratch;
+  Register tmp2 = Z_R1_scratch;
+  Register fromReg = noreg;
+  ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, true);
+  bool done = true;
+  bool mark_done = true;
+  VMReg toReg;
+  BasicType bt;
+  bool null_check = false;
+  VMReg nullCheckReg;
+  while (stream.next(nullCheckReg, bt)) {
+    if (sig->at(stream.sig_index())._offset == -1) {
+      null_check = true;
+      break;
+    }
+  }
+  stream.reset(sig_index, to_index);
+  while (stream.next(toReg, bt)) {
+    assert(toReg->is_valid(), "destination must be valid");
+    int idx = (int)toReg->value();
+    if (reg_state[idx] == reg_readonly) {
+      if (idx != from->value()) {
+        mark_done = false;
+      }
+      done = false;
+      continue;
+    } else if (reg_state[idx] == reg_written) {
+      continue;
+    }
+    assert(reg_state[idx] == reg_writable, "must be writable");
+    reg_state[idx] = reg_written;
+    progress = true;
+
+    if (fromReg == noreg) {
+      if (from->is_reg()) {
+        fromReg = from->as_Register();
+      } else {
+        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        z_lg(tmp1, Address(Z_SP, st_off));
+        fromReg = tmp1;
+      }
+      if (null_check) {
+        compare64_and_branch(fromReg, (intptr_t)0, Assembler::bcondEqual, L_null);
+      }
+    }
+    int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      assert(null_check, "Missing null check");
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        z_mvi(Address(Z_SP, st_off), 1);
+      } else {
+        z_lghi(toReg->as_Register(), 1);
+      }
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        z_stg(fromReg, Address(Z_SP, st_off));
+      } else {
+        z_lgr(toReg->as_Register(), fromReg);
+      }
+      continue;
+    }
+    assert(off > 0, "offset in object should be positive");
+    Address fromAddr = Address(fromReg, off);
+    if (!toReg->is_FloatRegister()) {
+      Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
+      if (is_reference_type(bt)) {
+        load_heap_oop(dst, fromAddr);
+      } else {
+        bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
+        load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
+      }
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        z_stg(dst, Address(Z_SP, st_off));
+      }
+    } else {
+      FloatRegister dst_f = ::as_FloatRegister((toReg->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+      if (bt == T_DOUBLE) {
+        z_ld(dst_f, fromAddr);
+      } else {
+        assert(bt == T_FLOAT, "must be float");
+        z_le(dst_f, fromAddr);
+      }
+    }
+  }
+  if (progress && null_check) {
+    if (done) {
+      z_bru(L_notNull);
+      bind(L_null);
+      stream.reset(sig_index, to_index);
+      while (stream.next(toReg, bt)) {
+        if (toReg->is_stack()) {
+          int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+          z_mvghi(Address(Z_SP, st_off), 0);
+        } else if (toReg->is_FloatRegister()) {
+          FloatRegister dst_f = ::as_FloatRegister((toReg->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+          z_lzdr(dst_f);
+        } else {
+          z_xgr(toReg->as_Register(), toReg->as_Register());
+        }
+      }
+      bind(L_notNull);
+    } else {
+      bind(L_null);
+    }
+  }
+
+  sig_index = stream.sig_index();
+  to_index = stream.regs_index();
+
+  if (mark_done && reg_state[from->value()] != reg_written) {
+    reg_state[from->value()] = reg_writable;
+  }
+  from_index--;
+  assert(progress || (start_offset == offset()), "should not emit code");
+  return done;
 }
 
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[], Register val_array) {
-  Unimplemented();
+                                        VMRegPair* from, int from_count, int& from_index, VMReg to,
+                                        RegState reg_state[], Register val_array) {
+  assert(sig->at(sig_index)._bt == T_METADATA, "should be at delimiter");
+  assert(to->is_valid(), "destination must be valid");
+
+  if (reg_state[to->value()] == reg_written) {
+    skip_unpacked_fields(sig, sig_index, from, from_count, from_index);
+    return true; // Already written
+  }
+
+  Register val_obj_tmp = Z_R12;
+  Register from_reg_tmp = Z_R11;
+  Register tmp1 = Z_R0_scratch;
+  Register tmp2 = Z_R1_scratch;
+  Register tmp3 = Z_ARG5; // Z_R6 as tmp3
+  Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
+
+  assert_different_registers(val_obj_tmp, from_reg_tmp, tmp1, tmp2, tmp3, val_array);
+
+  if (reg_state[to->value()] == reg_readonly) {
+    if (!is_reg_in_unpacked_fields(sig, sig_index, to, from, from_count, from_index)) {
+      skip_unpacked_fields(sig, sig_index, from, from_count, from_index);
+      return false; // Not yet writable
+    }
+    val_obj = val_obj_tmp;
+  }
+
+  ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
+  VMReg fromReg;
+  BasicType bt;
+  NearLabel L_null;
+  while (stream.next(fromReg, bt)) {
+    assert(fromReg->is_valid(), "source must be valid");
+    reg_state[fromReg->value()] = reg_writable;
+
+    int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      NearLabel L_notNull;
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        z_cli(Address(Z_SP, ld_off), 1);
+      } else {
+        z_tmll(fromReg->as_Register(), 1);
+      }
+      z_brc(Assembler::bcondNotZero, L_notNull);
+      z_xgr(val_obj, val_obj);
+      z_bru(L_null);
+      bind(L_notNull);
+      continue;
+    }
+    if (sig->at(stream.sig_index())._vt_oop) {
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        z_lg(val_obj, Address(Z_SP, ld_off));
+      } else {
+        z_lgr(val_obj, fromReg->as_Register());
+      }
+      compare64_and_branch(val_obj, (intptr_t)0, Assembler::bcondNotEqual, L_null);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_OBJECT);
+      load_heap_oop(val_obj, Address(val_array, index));
+      continue;
+    }
+
+    assert(off > 0, "offset in object should be positive");
+    size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
+
+    Address dst(val_obj, off);
+    if (!fromReg->is_FloatRegister()) {
+      Register src;
+      if (fromReg->is_stack()) {
+        src = from_reg_tmp;
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + frame::z_common_abi_size;
+        load_sized_value(src, Address(Z_SP, ld_off), size_in_bytes, /* is_signed */ false);
+      } else {
+        src = fromReg->as_Register();
+      }
+      assert_different_registers(dst.base(), src, tmp1, tmp2, tmp3, val_array);
+      if (is_reference_type(bt)) {
+        z_lgr(tmp3, val_obj);
+        Address dst_with_tmp3(tmp3, off);
+        store_heap_oop(src, dst_with_tmp3, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      } else {
+        store_sized_value(src, dst, size_in_bytes);
+      }
+    } else {
+      FloatRegister src_f = ::as_FloatRegister((fromReg->value() - ConcreteRegisterImpl::max_gpr) / FloatRegister::max_slots_per_register);
+      if (bt == T_DOUBLE) {
+        z_std(src_f, dst);
+      } else {
+        assert(bt == T_FLOAT, "must be float");
+        z_ste(src_f, dst);
+      }
+    }
+  }
+  bind(L_null);
+  sig_index = stream.sig_index();
+  from_index = stream.regs_index();
+
+  assert(reg_state[to->value()] == reg_writable, "must have already been read");
+  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
+  assert(success, "to register must be writable");
+  return true;
 }
 
 int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
-  Unimplemented();
+  int sp_inc = args_on_stack * VMRegImpl::stack_slot_size;
+  sp_inc = align_up(sp_inc, frame::alignment_in_bytes);
+  assert(sp_inc > 0, "sanity");
+  sp_inc += 2 * VMRegImpl::stack_slot_size;
+
+  z_lgr(Z_R1_scratch, Z_SP);
+  resize_frame(-sp_inc, Z_R0_scratch);
+  z_stg(Z_R1_scratch, 0, Z_SP);
+  return sp_inc + wordSize;
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {
-  Unimplemented();
+  return reg->is_FloatRegister() ? Z_fscratch_1->as_VMReg() : Z_R1_scratch->as_VMReg();
 }
