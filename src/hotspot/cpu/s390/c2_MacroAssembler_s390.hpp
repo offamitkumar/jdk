@@ -82,4 +82,6 @@
   unsigned int string_indexof_char(Register result, Register haystack, Register haycnt,
                                    Register needle, jchar needleChar, Register odd_reg, Register even_reg, bool is_byte);
 
+  void verified_entry(Compile* C, int sp_inc = 0);
+
 #endif // CPU_S390_C2_MACROASSEMBLER_S390_HPP

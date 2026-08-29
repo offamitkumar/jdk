@@ -2185,6 +2185,10 @@ void MacroAssembler::pop_frame() {
   BLOCK_COMMENT("} pop_frame");
 }
 
+void MacroAssembler::remove_frame(int /* initial_framesize */, bool /* needs_stack_repair */) {
+  pop_frame();
+}
+
 // Pop current C frame and restore return PC register (Z_R14).
 void MacroAssembler::pop_frame_restore_retPC(int frame_size_in_bytes) {
   BLOCK_COMMENT("pop_frame_restore_retPC:");

@@ -1336,3 +1336,35 @@ unsigned int C2_MacroAssembler::string_indexof_char(Register result, Register ha
   return offset() - block_start;
 }
 
+void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+  size_t framesize = C->output()->frame_size_in_bytes();
+  size_t bangsize  = C->output()->bang_size_in_bytes();
+
+  if (C->clinit_barrier_on_entry()) {
+    assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
+
+    Label L_skip_barrier;
+    Register klass = Z_R1_scratch;
+
+    AddressLiteral md = constant_metadata_address(C->method()->holder()->constant_encoding());
+    load_const_optimized(klass, md.value());
+    clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+    load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+    z_br(klass);
+
+    bind(L_skip_barrier);
+  }
+
+  if (C->output()->need_stack_bang(bangsize)) {
+    generate_stack_overflow_check(bangsize);
+  }
+
+  save_return_pc();
+  push_frame((unsigned int)(framesize + sp_inc));
+
+  if (C->has_mach_constant_base_node()) {
+    ConstantTable& constant_table = C->output()->constant_table();
+    constant_table.set_table_base_offset(constant_table.calculate_table_base_offset());
+  }
+}
