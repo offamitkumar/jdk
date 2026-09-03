@@ -87,9 +87,6 @@ void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
 
 // Scalarized entry point: buffers inline-type arguments, shuffles them into
 // the normal ABI layout, then falls through into the verified entry.
-//
-// NOTE: the entire body is guarded by ShouldNotCallThis() because
-// InlineTypePassFieldsAsArgs is forced off for s390x
 int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes,
                                         int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
   assert(InlineTypePassFieldsAsArgs, "sanity");
@@ -145,10 +142,36 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // register (Z_R11) before the shuffle.
   // On x86 rax is used; rax is not an argument register so it is safe there.
   z_lgr(Z_R11, Z_R2);
+
+  // pack_inline_helper uses Z_R7 (Z_esp) and Z_R12 (Z_locals) as scratch
+  // registers.  These are interpreter-live nonvolatile registers: the calling
+  // interpreter frame expects them to be preserved across the C1 call.  At
+  // this point the real C1 frame has NOT yet been built, so there is no
+  // C1-generated save/restore in place for them.
+  //
+  // Spill them into the two words immediately below Z_SP.  The stack at
+  // this point is the c2i-extended frame:
+  //   [Z_SP + 0)             callers_sp  (ABI, live)
+  //   [Z_SP + 8)             return_pc   (ABI, live – just restored above)
+  //   [Z_SP + 16 .. +16+N)   scalarized argument slots (N words)
+  //
+  // Using Z_SP-relative negative offsets (-8, -16) does NOT move Z_SP, so
+  // pack_inline_helper / unpack_inline_helper address stack argument slots
+  // with the unchanged formula:
+  //   Z_SP + frame::z_common_abi_size + reg2stack*slot_size
+  // No adjustment is needed in the helpers and no change to sp_inc.
+  // shuffle_inline_args does not safepoint, so no GC can observe the
+  // temporarily uninitialised words below Z_SP.
+  z_stg(Z_R7,  Address(Z_SP, -1 * (int)BytesPerWord));   // save Z_esp
+  z_stg(Z_R12, Address(Z_SP, -2 * (int)BytesPerWord));   // save Z_locals
+
   shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
                       args_passed_cc, args_on_stack_cc, regs_cc, // from
                       args_passed,    args_on_stack,    regs,    // to
                       0, Z_R11);
+
+  z_lg(Z_R7,  Address(Z_SP, -1 * (int)BytesPerWord));   // restore Z_esp
+  z_lg(Z_R12, Address(Z_SP, -2 * (int)BytesPerWord));   // restore Z_locals
 
   // Build the real frame.  The jump below skips the stack-bang and frame-setup
   // in verified_inline_entry (which uses a different real_frame_size).
