@@ -868,7 +868,7 @@ void TemplateTable::aaload() {
   __ profile_array_type<ArrayLoadData>(/*array=*/Z_tmp_1, Z_tmp_2, Z_ARG2);
 
   if (UseArrayFlattening) {
-    Label is_flat_array, done;
+    NearLabel is_flat_array, done;
 
     __ test_flat_array_oop(Z_tmp_1, Z_tmp_2, is_flat_array);
     // Non-flat path: normal oop load.
@@ -1186,7 +1186,7 @@ void TemplateTable::dastore() {
 void TemplateTable::aastore() {
   // stack: ..., array, index, value
   //
-  // ── Register allocation ─────────────────────────────────────────────────
+  // -- Register allocation --------------------------------------------------
   //
   //   Rvalue       Z_tos   Z_R2   value oop (stack slot 0)
   //   Rarray       Z_ARG2  Z_R3   array oop (stack slot 2)
@@ -1197,7 +1197,6 @@ void TemplateTable::aastore() {
   //   Rscratch     Z_tmp_1 Z_R10  shared scratch / tmp1 for barriers
   //   Rscratch2    Z_tmp_2 Z_R11  shared scratch / tmp2 for barriers
 
-  // TODO: step through it
   const Register Rvalue       = Z_tos;   // Z_R2
   const Register Rarray       = Z_ARG2;  // Z_R3
   const Register Rindex       = Z_ARG3;  // Z_R4  (live until LEA)
@@ -1219,7 +1218,7 @@ void TemplateTable::aastore() {
   // (*) LEA: compute element address in-place.  Rindex is dead after this.
   __ load_address(Rstore_addr, Address(Rarray, Rindex, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
 
-  // profile_multiple_element_types uses Rarray_klass as tmp3 scratch — it clobbers it.
+  // profile_multiple_element_types uses Rarray_klass as tmp3 scratch - it clobbers it.
   __ profile_array_type<ArrayStoreData>(Rarray, Rscratch, Rscratch2);
   __ profile_multiple_element_types(Rvalue, Rscratch, Rscratch2, Rarray_klass);
 
@@ -1257,14 +1256,14 @@ void TemplateTable::aastore() {
     }
     // Non-flat null-free array: throw NullPointerException.
     // test_non_null_free_array_oop branches to store_null when NOT null-free;
-    // falls through when null-free → NPE.
+    // falls through when null-free -> NPE.
     NearLabel store_null;
     __ test_non_null_free_array_oop(Rarray, Rscratch, store_null);
     __ load_absolute_address(Rscratch, Interpreter::_throw_NullPointerException_entry);
     __ z_br(Rscratch);
     __ bind(store_null);
   }
-  // Rsub_klass (Z_R6) is free scratch — value is null so its klass was never loaded.
+  // Rsub_klass (Z_R6) is free scratch - value is null so its klass was never loaded.
   do_oop_store(_masm, Address(Rstore_addr, (intptr_t)0), noreg,
                Rsub_klass, Rscratch2, Rscratch, IS_ARRAY);
   __ z_bru(done);
@@ -1280,7 +1279,7 @@ void TemplateTable::aastore() {
   if (UseArrayFlattening) {
     __ bind(is_flat_array);
     __ load_ptr(0, Rvalue);
-    __ load_ptr(2, Rscratch);                                                   // array
+    __ load_ptr(2, Rscratch); // array
     __ z_lgf(Rscratch2, Address(Z_esp, Interpreter::expr_offset_in_bytes(1))); // raw index (int)
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_store),
                Rvalue, Rscratch, Rscratch2);
@@ -2128,10 +2127,10 @@ void TemplateTable::if_acmp(Condition cc) {
     __ z_ltgr(Z_ARG5, Z_ARG5);
     __ z_brc(Assembler::bcondEqual, (cc == equal) ? not_taken : taken);
 
-    __ z_llill(Z_ARG3, markWord::inline_type_pattern);
+    __ z_llill(Z_ARG3, markWord::value_type_pattern);
     __ z_ng(Z_ARG3, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
     __ z_ng(Z_ARG3, Address(Z_ARG5, oopDesc::mark_offset_in_bytes()));
-    __ z_chi(Z_ARG3, markWord::inline_type_pattern);
+    __ z_chi(Z_ARG3, markWord::value_type_pattern);
     __ branch_optimized(Assembler::bcondNotEqual, (cc == equal) ? not_taken : taken);
 
     __ load_metadata(Z_ARG3, Z_tos);
@@ -3343,7 +3342,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (is_static) {
         Label is_nullable;
-        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_free_value_type_shift);
         __ branch_optimized(Assembler::bcondAllZero, is_nullable);
         __ null_check(Z_tos);  // FIXME JDK-8341120
         __ bind(is_nullable);
@@ -3351,10 +3350,10 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         do_oop_store(_masm, field, Z_tos,
                      oopStore_tmp1, oopStore_tmp2, oopStore_tmp3, IN_HEAP);
       } else {
-        Label null_free_reference, is_flat, rewrite_inline, done_valhalla;
+        Label null_free_reference, is_flat, rewrite_value, done_valhalla;
         __ z_tmll(flags, 1 << ResolvedFieldEntry::is_flat_shift);
         __ branch_optimized(Assembler::bcondAllOne, is_flat);
-        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
+        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_free_value_type_shift);
         __ branch_optimized(Assembler::bcondAllOne, null_free_reference);
         pop_and_check_object(obj);
         __ z_agr(fieldAddr, obj);
@@ -3365,7 +3364,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           patch_bytecode(Bytecodes::_fast_aputfield, bc_reg, patch_tmp, true, byte_no);
         }
         __ z_bru(done_valhalla);
-        // Implementation of the inline type semantic
+        // Implementation of the value type semantic
         __ bind(null_free_reference);
         __ null_check(Z_tos);  // FIXME JDK-8341120
         pop_and_check_object(obj);
@@ -3373,7 +3372,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         // Store into the field
         do_oop_store(_masm, field, Z_tos,
                      oopStore_tmp1, oopStore_tmp2, oopStore_tmp3, IN_HEAP);
-        __ z_bru(rewrite_inline);
+        __ z_bru(rewrite_value);
         __ bind(is_flat);
         pop_and_check_object(oopStore_tmp1);
         {
@@ -3387,7 +3386,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           Register flat_index = oopStore_tmp2; // Z_R1_scratch (index scratch, discarded after load)
           __ load_field_entry(flat_entry, flat_index);
           __ write_flat_field(flat_entry, off, flat_index, oopStore_tmp3, oopStore_tmp1);
-        }__ bind(rewrite_inline);
+        }__ bind(rewrite_value);
         if (do_rewrite) {
           patch_bytecode(Bytecodes::_fast_vputfield, bc_reg, patch_tmp, true, byte_no);
         }
@@ -4510,10 +4509,10 @@ void TemplateTable::monitorenter() {
   // Check for null object.
   __ null_check(Z_tos);
 
-  // Check for inline type (Valhalla feature)
-  NearLabel is_inline_type;
+  // Check for value type (Valhalla feature)
+  NearLabel is_value_type;
   __ z_lg(Z_R1_scratch, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
-  __ test_markword_is_inline_type(Z_R1_scratch, is_inline_type);
+  __ test_markword_is_value_type(Z_R1_scratch, is_value_type);
   const int entry_size = frame::interpreter_frame_monitor_size_in_bytes();
   NearLabel allocated;
   // Initialize entry pointer.
@@ -4592,8 +4591,8 @@ void TemplateTable::monitorenter() {
   // next instruction.
   __ dispatch_next(vtos);
 
-  // Handle inline type exception (Valhalla feature)
-  __ bind(is_inline_type);
+  // Handle value type exception (Valhalla feature)
+  __ bind(is_value_type);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                     InterpreterRuntime::throw_identity_exception), Z_tos);
   __ should_not_reach_here();
@@ -4610,12 +4609,12 @@ void TemplateTable::monitorexit() {
   // Check for null object.
   __ null_check(Z_tos);
 
-  // Check for inline type (Valhalla feature)
-  NearLabel is_inline_type, has_identity;
+  // Check for value type (Valhalla feature)
+  NearLabel is_value_type, has_identity;
   __ z_lg(Z_R1_scratch, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
-  __ test_markword_is_inline_type(Z_R1_scratch, is_inline_type);
+  __ test_markword_is_value_type(Z_R1_scratch, is_value_type);
   __ z_bru(has_identity);
-  __ bind(is_inline_type);
+  __ bind(is_value_type);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));
   __ should_not_reach_here();

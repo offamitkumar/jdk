@@ -33,7 +33,7 @@
 #include "interpreter/interp_masm.hpp"
 #include "memory/universe.hpp"
 #include "nativeInst_s390.hpp"
-#include "oops/inlineKlass.hpp"
+#include "oops/valueKlass.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
