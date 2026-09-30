@@ -34,10 +34,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -53,10 +49,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -76,10 +68,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -99,10 +87,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -122,10 +106,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -145,10 +125,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -168,10 +144,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -191,10 +163,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -214,10 +182,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -237,10 +201,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -261,10 +221,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -285,10 +241,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -309,10 +261,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -333,10 +281,6 @@ import jdk.test.lib.helpers.StrictInit;
  * @key randomness
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestFieldNullMarkers.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestFieldNullMarkers.java
  * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value

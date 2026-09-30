@@ -51,10 +51,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -66,10 +62,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -81,10 +73,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -96,10 +84,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -111,10 +95,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -126,10 +106,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -141,10 +117,6 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConvention.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConvention.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation

@@ -38,10 +38,6 @@ import static compiler.valhalla.valuetypes.ValueTypes.rL;
  * @key randomness
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestCallingConventionC1.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestCallingConventionC1.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation

@@ -41,10 +41,6 @@ import static compiler.valhalla.valuetypes.ValueTypes.rL;
  * @key randomness
  * @summary Various tests that are specific to C1.
  * @library /test/lib /
-<<<<<<< HEAD:test/hotspot/jtreg/compiler/valhalla/inlinetypes/TestC1.java
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64" | os.simpleArch == "s390x")
-=======
->>>>>>> master:test/hotspot/jtreg/compiler/valhalla/valuetypes/TestC1.java
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
