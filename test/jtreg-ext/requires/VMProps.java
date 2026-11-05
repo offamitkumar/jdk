@@ -509,7 +509,7 @@ public class VMProps implements Callable<Map<String, String>> {
       if ("true".equals(vmCDSSupportsAOTClassLinking()) &&
           !"true".equals(isPreviewEnabled()) &&
           !"zero".equals(vmFlavor()) &&
-          (Platform.isX64() || Platform.isAArch64() || Platform.isRISCV64())) {
+          (Platform.isX64() || Platform.isAArch64() || Platform.isRISCV64() || Platform.isS390x())) {
         return "true";
       } else {
         return "false";

@@ -812,7 +812,6 @@ void VM_Version::get_missing_features_name(void* features_set1, void* features_s
   }
 }
 
-
 void VM_Version::reset_features(bool reset) {
   if (reset) {
     for (unsigned int i = 0; i < _features_buffer_len; i++) {
