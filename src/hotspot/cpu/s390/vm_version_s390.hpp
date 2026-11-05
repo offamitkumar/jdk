@@ -417,6 +417,15 @@ class VM_Version: public Abstract_VM_Version {
   static void print_features();
   static bool is_determine_features_test_running() { return _is_determine_features_test_running; }
 
+  // AOT Code Cache support. The facility list (_features) is the cpu feature
+  // representation; a cache is usable if the runtime cpu has all facilities
+  // that were present when the cache was created.
+  static int  cpu_features_size();
+  static void store_cpu_features(void* buf);
+  static bool verify_aot_code_cache_features(void* features_buffer);
+  static void get_cpu_features_name(void* features_buffer, stringStream& ss);
+  static void get_missing_features_name(void* features_set1, void* features_set2, stringStream& ss);
+
   // Override Abstract_VM_Version implementation
   static void print_platform_virtualization_info(outputStream*);
 

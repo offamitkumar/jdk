@@ -239,7 +239,7 @@ bool AOTCodeCache::maybe_dumping_code() {
 // Initially they are called during AOT flags parsing and finalized
 // in AOTCodeCache::initialize().
 void AOTCodeCache::enable_caching() {
-#if defined(ZERO) || !(defined(AMD64) || defined(AARCH64) || defined(RISCV64))
+#if defined(ZERO) || !(defined(AMD64) || defined(AARCH64) || defined(RISCV64) || defined(S390))
   load_info_log().print_cr("AOT Code Cache is not supported on this platform");
   disable_caching();
 #else

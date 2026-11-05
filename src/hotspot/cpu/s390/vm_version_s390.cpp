@@ -774,6 +774,45 @@ void VM_Version::print_features() {
   print_features_internal("Version:");
 }
 
+int VM_Version::cpu_features_size() {
+  return sizeof(_features);
+}
+
+void VM_Version::store_cpu_features(void* buf) {
+  memcpy(buf, _features, sizeof(_features));
+}
+
+// The runtime cpu is compatible with the cache if it provides every facility
+// that was available when the cache was created.
+bool VM_Version::verify_aot_code_cache_features(void* features_buffer) {
+  unsigned long* cached = (unsigned long*)features_buffer;
+  for (unsigned int i = 0; i < _features_buffer_len; i++) {
+    if ((cached[i] & ~_features[i]) != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void VM_Version::get_cpu_features_name(void* features_buffer, stringStream& ss) {
+  unsigned long* f = (unsigned long*)features_buffer;
+  ss.print("facility bits:");
+  for (unsigned int i = 0; i < _features_buffer_len; i++) {
+    ss.print(" 0x%016lx", f[i]);
+  }
+}
+
+// Prints facility doublewords of features_set1 that are not present in features_set2.
+void VM_Version::get_missing_features_name(void* features_set1, void* features_set2, stringStream& ss) {
+  unsigned long* f1 = (unsigned long*)features_set1;
+  unsigned long* f2 = (unsigned long*)features_set2;
+  ss.print("facility bits:");
+  for (unsigned int i = 0; i < _features_buffer_len; i++) {
+    ss.print(" 0x%016lx", f1[i] & ~f2[i]);
+  }
+}
+
+
 void VM_Version::reset_features(bool reset) {
   if (reset) {
     for (unsigned int i = 0; i < _features_buffer_len; i++) {
