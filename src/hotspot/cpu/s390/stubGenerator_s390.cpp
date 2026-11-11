@@ -106,6 +106,23 @@
 class StubGenerator: public StubCodeGenerator {
  private:
 
+  // Record start/end (and secondary entries) of a generated stub for the AOT code cache.
+  // Secondary entries which are not generated on s390 are recorded as nullptr.
+  void store_stub(StubId stub_id, address start, address end,
+                  GrowableArray<address>* entries_in = nullptr,
+                  GrowableArray<address>* extras = nullptr) {
+    int entry_count = StubInfo::entry_count(stub_id);
+    if (entry_count > 1) {
+      GrowableArray<address> entries;
+      for (int i = 0; i < entry_count - 1; i++) {
+        entries.append((entries_in != nullptr && i < entries_in->length()) ? entries_in->at(i) : nullptr);
+      }
+      store_archive_data(stub_id, start, end, &entries, extras);
+    } else {
+      store_archive_data(stub_id, start, end, nullptr, extras);
+    }
+  }
+
   //----------------------------------------------------------------------
   // Call stubs are used to call Java from C.
 
@@ -476,6 +493,10 @@ class StubGenerator: public StubCodeGenerator {
         __ align(handlerLen);
       BLOCK_COMMENT("} process result");
     }
+
+    GrowableArray<address> entries;
+    entries.append(return_address);
+    store_stub(stub_id, start, __ pc(), &entries);
     return start;
   }
 
@@ -515,6 +536,7 @@ class StubGenerator: public StubCodeGenerator {
     // Continue in call stub.
     __ z_br(Z_ARG2);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -594,6 +616,7 @@ class StubGenerator: public StubCodeGenerator {
     // Jump to exception handler
     __ z_br(Z_R1 /*handler address*/);
 
+    store_stub(stub_id, start, __ pc());
     return start;
 
     #undef pending_exception_offset
@@ -647,6 +670,7 @@ class StubGenerator: public StubCodeGenerator {
     __ z_ltgr(Z_RET, Z_RET);           // Set NE flag in CR.
     __ z_br(Z_R14);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -662,14 +686,21 @@ class StubGenerator: public StubCodeGenerator {
         r_array_base   = Z_ARG5,
         r_bitmap       = Z_R10,
         r_result       = Z_R11;
+    address start = __ pc();
+    GrowableArray<address> entries;
     for (int slot = 0; slot < Klass::SECONDARY_SUPERS_TABLE_SIZE; slot++) {
-      StubRoutines::_lookup_secondary_supers_table_stubs[slot] = __ pc();
+      address slot_pc = __ pc();
+      StubRoutines::_lookup_secondary_supers_table_stubs[slot] = slot_pc;
+      if (slot > 0) {
+        entries.append(slot_pc);
+      }
       __ lookup_secondary_supers_table_const(r_sub_klass, r_super_klass,
                                              r_array_base, r_array_length, r_array_index,
                                              r_bitmap, r_result, slot);
 
       __ z_br(Z_R14);
     }
+    store_stub(stub_id, start, __ pc(), &entries);
   }
 
   // Slow path implementation for UseSecondarySupersTable.
@@ -692,6 +723,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ z_br(Z_R14);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -1332,6 +1364,7 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();  // Remember stub start address (is rtn value).
     generate_disjoint_copy(aligned, element_size, false, false);
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -1385,6 +1418,7 @@ class StubGenerator: public StubCodeGenerator {
 
     bs->arraycopy_epilogue(_masm, decorators, T_OBJECT, Z_ARG2, Z_ARG3, true);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -1440,6 +1474,7 @@ class StubGenerator: public StubCodeGenerator {
     unsigned int start_off = __ offset();  // Remember stub start address (is rtn value).
     array_overlap_test(nooverlap_target, shift); // Branch away to nooverlap_target if disjoint.
     generate_conjoint_copy(aligned, 1 << shift, false);
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -1502,6 +1537,7 @@ class StubGenerator: public StubCodeGenerator {
 
     bs->arraycopy_epilogue(_masm, decorators, T_OBJECT, Z_ARG2, Z_ARG3, true);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -1516,8 +1552,9 @@ class StubGenerator: public StubCodeGenerator {
   //    Z_ARG3   - byte value
   //
   address generate_unsafe_setmemory(address unsafe_byte_fill) {
+    StubId stub_id = StubId::stubgen_unsafe_setmemory_id;
     __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, StubId::stubgen_unsafe_setmemory_id);
+    StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();
 
     // bump this on entry, not on exit:
@@ -1530,6 +1567,7 @@ class StubGenerator: public StubCodeGenerator {
     // fill_to_memory_atomic(unsigned char*, unsigned long, unsigned char)
 
     // Mark remaining code as such which performs Unsafe accesses.
+    {
     UnsafeMemoryAccessMark umam(this, true, false);
 
     __ z_vlvgb(Z_V0, byteVal, 0);
@@ -1599,15 +1637,30 @@ class StubGenerator: public StubCodeGenerator {
 
     __ bind(finished);
     __ z_br(Z_R14);
+    // have to exit the block and destroy the UnsafeMemoryAccessMark
+    // in order to retrieve the handler end address
+    }
 
-    return __ addr_at(start_off);
+    // install saved handler addresses in extras
+    address start = __ addr_at(start_off);
+    address end   = __ pc();
+    GrowableArray<address> extras;
+    retrieve_unsafe_access_handlers(start, end, extras);
+    assert(extras.length() == 1 * UnsafeMemoryAccess::COLUMN_COUNT,
+           "incorrect handlers count %d", extras.length());
+    store_stub(stub_id, start, end, nullptr, &extras);
+
+    return start;
   }
 
   // This is common errorexit stub for UnsafeMemoryAccess.
   address generate_unsafecopy_common_error_exit() {
+    StubId stub_id = StubId::stubgen_unsafecopy_common_id;
+    StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();
     __ z_lghi(Z_RET, 0); // return 0
     __ z_br(Z_R14);
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -1943,6 +1996,7 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_AES_cipherBlock(false);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -1955,6 +2009,7 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_AES_cipherBlock(true);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -2016,6 +2071,7 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_AES_cipherBlockChaining(false);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -2028,6 +2084,7 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_AES_cipherBlockChaining(true);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -2735,6 +2792,7 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_counterMode_AES(false);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -2782,6 +2840,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ z_br(Z_R14);
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -2910,6 +2969,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     }
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -3001,6 +3061,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     }
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -3092,6 +3153,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     }
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -3154,6 +3216,7 @@ class StubGenerator: public StubCodeGenerator {
     generate_CRC_updateBytes(table, true);
     BLOCK_COMMENT("} CRC32_updateBytes");
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -3174,6 +3237,7 @@ class StubGenerator: public StubCodeGenerator {
     generate_CRC_updateBytes(table, false);
     BLOCK_COMMENT("} CRC32C_updateBytes");
 
+    store_stub(stub_id, __ addr_at(start_off), __ pc());
     return __ addr_at(start_off);
   }
 
@@ -3213,6 +3277,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ z_br(Z_R14);  // Return to caller.
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -3255,6 +3320,7 @@ class StubGenerator: public StubCodeGenerator {
     __ load_const_optimized(Z_R1_scratch, SharedRuntime::get_handle_wrong_method_stub());
     __ z_br(Z_R1_scratch);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -3386,6 +3452,7 @@ class StubGenerator: public StubCodeGenerator {
     }
     __ z_br(Z_R1_scratch);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -3433,6 +3500,7 @@ class StubGenerator: public StubCodeGenerator {
     __ z_lg(Z_R1, Address(Z_R1));
     __ z_br(Z_R1);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -3449,6 +3517,7 @@ class StubGenerator: public StubCodeGenerator {
     __ call_c(Z_R1_scratch);
     __ should_not_reach_here();
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
@@ -3473,6 +3542,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ z_br(Z_R14);
 
+    store_stub(stub_id, start, __ pc());
     return start;
   }
 
