@@ -25,6 +25,7 @@
 
 #ifdef COMPILER2
 #include "asm/macroAssembler.inline.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/vmreg.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
@@ -64,11 +65,15 @@
 // Note: the exception pc MUST be at a call (precise debug information)
 
 ExceptionBlob* OptoRuntime::generate_exception_blob() {
+  const char* name = OptoRuntime::stub_name(StubId::c2_exception_id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::C2Blob, BlobId::c2_exception_id);
+  if (blob != nullptr) {
+    return blob->as_exception_blob();
+  }
 
   // Allocate space for the code
   ResourceMark rm;
   // Setup code generation tools
-  const char* name = OptoRuntime::stub_name(StubId::c2_exception_id);
   CodeBuffer buffer(name, 2048, 1024);
   if (buffer.blob() == nullptr) {
     return nullptr;
@@ -146,5 +151,8 @@ ExceptionBlob* OptoRuntime::generate_exception_blob() {
 
   // Set exception blob.
   OopMapSet *oop_maps = nullptr;
-  return ExceptionBlob::create(&buffer, oop_maps, frame_size/wordSize);
+  ExceptionBlob* ex_blob = ExceptionBlob::create(&buffer, oop_maps, frame_size/wordSize);
+
+  AOTCodeCache::store_code_blob(*ex_blob, AOTCodeEntry::C2Blob, BlobId::c2_exception_id);
+  return ex_blob;
 }
