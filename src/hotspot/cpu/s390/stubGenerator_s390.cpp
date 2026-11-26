@@ -123,6 +123,21 @@ class StubGenerator: public StubCodeGenerator {
     }
   }
 
+  // Retrieve start (and secondary entries / extras) of a stub from the AOT code cache.
+  // Returns nullptr if the stub has to be generated.
+  address load_stub(StubId stub_id,
+                    GrowableArray<address>* entries = nullptr,
+                    GrowableArray<address>* extras = nullptr) {
+    if (StubInfo::entry_count(stub_id) > 1) {
+      if (entries == nullptr) {
+        GrowableArray<address> ignored;
+        return load_archive_data(stub_id, &ignored, extras);
+      }
+      return load_archive_data(stub_id, entries, extras);
+    }
+    return load_archive_data(stub_id, nullptr, extras);
+  }
+
   //----------------------------------------------------------------------
   // Call stubs are used to call Java from C.
 
@@ -143,8 +158,14 @@ class StubGenerator: public StubCodeGenerator {
     // or native_entry, and process result.
 
     StubId stub_id = StubId::stubgen_call_stub_id;
+    GrowableArray<address> entries;
+    address start = load_stub(stub_id, &entries);
+    if (start != nullptr) {
+      return_address = entries.at(0);
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
-    address start = __ pc();
+    start = __ pc();
 
     if (ValueTypeReturnedAsFields) {
       __ stop("fix T_OBJECT");
@@ -494,7 +515,6 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("} process result");
     }
 
-    GrowableArray<address> entries;
     entries.append(return_address);
     store_stub(stub_id, start, __ pc(), &entries);
     return start;
@@ -506,9 +526,13 @@ class StubGenerator: public StubCodeGenerator {
   // within the VM.
   address generate_catch_exception() {
     StubId stub_id = StubId::stubgen_catch_exception_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
 
-    address start = __ pc();
+    start = __ pc();
 
     //
     // Registers alive
@@ -559,8 +583,12 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_forward_exception() {
     StubId stub_id = StubId::stubgen_forward_exception_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
-    address start = __ pc();
+    start = __ pc();
 
     #define pending_exception_offset in_bytes(Thread::pending_exception_offset())
 #ifdef ASSERT
@@ -641,10 +669,14 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_partial_subtype_check() {
     StubId stub_id = StubId::stubgen_partial_subtype_check_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
     Label miss;
 
-    address start = __ pc();
+    start = __ pc();
 
     const Register Rsubklass   = Z_ARG2; // subklass
     const Register Rsuperklass = Z_ARG3; // superklass
@@ -676,6 +708,17 @@ class StubGenerator: public StubCodeGenerator {
 
   void generate_lookup_secondary_supers_table_stub() {
     StubId stub_id = StubId::stubgen_lookup_secondary_supers_table_id;
+    GrowableArray<address> entries;
+    address start = load_stub(stub_id, &entries);
+    if (start != nullptr) {
+      assert(entries.length() == Klass::SECONDARY_SUPERS_TABLE_SIZE - 1,
+             "unexpected entry count %d", entries.length());
+      StubRoutines::_lookup_secondary_supers_table_stubs[0] = start;
+      for (int slot = 1; slot < Klass::SECONDARY_SUPERS_TABLE_SIZE; slot++) {
+        StubRoutines::_lookup_secondary_supers_table_stubs[slot] = entries.at(slot - 1);
+      }
+      return;
+    }
     StubCodeMark mark(this, stub_id);
 
     const Register
@@ -686,8 +729,7 @@ class StubGenerator: public StubCodeGenerator {
         r_array_base   = Z_ARG5,
         r_bitmap       = Z_R10,
         r_result       = Z_R11;
-    address start = __ pc();
-    GrowableArray<address> entries;
+    start = __ pc();
     for (int slot = 0; slot < Klass::SECONDARY_SUPERS_TABLE_SIZE; slot++) {
       address slot_pc = __ pc();
       StubRoutines::_lookup_secondary_supers_table_stubs[slot] = slot_pc;
@@ -706,9 +748,13 @@ class StubGenerator: public StubCodeGenerator {
   // Slow path implementation for UseSecondarySupersTable.
   address generate_lookup_secondary_supers_table_slow_path_stub() {
     StubId stub_id = StubId::stubgen_lookup_secondary_supers_table_slow_path_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
 
-    address start = __ pc();
+    start = __ pc();
 
     const Register
         r_super_klass  = Z_ARG1,
@@ -1323,6 +1369,10 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_disjoint_nonoop_copy(StubId stub_id) {
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     bool aligned;
     int element_size;
     switch (stub_id) {
@@ -1369,6 +1419,10 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_disjoint_oop_copy(StubId stub_id) {
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     bool aligned;
     bool dest_uninitialized;
     switch (stub_id) {
@@ -1423,6 +1477,10 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_conjoint_nonoop_copy(StubId stub_id) {
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     bool aligned;
     int shift; // i.e. log2(element size)
     address nooverlap_target;
@@ -1479,6 +1537,10 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_conjoint_oop_copy(StubId stub_id) {
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     bool aligned;
     bool dest_uninitialized;
     address nooverlap_target;
@@ -1553,6 +1615,14 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_unsafe_setmemory(address unsafe_byte_fill) {
     StubId stub_id = StubId::stubgen_unsafe_setmemory_id;
+    GrowableArray<address> extras;
+    address cached = load_stub(stub_id, nullptr, &extras);
+    if (cached != nullptr) {
+      assert(extras.length() == 1 * UnsafeMemoryAccess::COLUMN_COUNT,
+             "unexpected extra entry count %d", extras.length());
+      register_unsafe_access_handlers(extras, 0, 1);
+      return cached;
+    }
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();
@@ -1644,7 +1714,6 @@ class StubGenerator: public StubCodeGenerator {
     // install saved handler addresses in extras
     address start = __ addr_at(start_off);
     address end   = __ pc();
-    GrowableArray<address> extras;
     retrieve_unsafe_access_handlers(start, end, extras);
     assert(extras.length() == 1 * UnsafeMemoryAccess::COLUMN_COUNT,
            "incorrect handlers count %d", extras.length());
@@ -1656,6 +1725,10 @@ class StubGenerator: public StubCodeGenerator {
   // This is common errorexit stub for UnsafeMemoryAccess.
   address generate_unsafecopy_common_error_exit() {
     StubId stub_id = StubId::stubgen_unsafecopy_common_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();
     __ z_lghi(Z_RET, 0); // return 0
@@ -1989,8 +2062,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute AES encrypt function.
   address generate_AES_encryptBlock() {
-    __ align(CodeEntryAlignment);
     StubId stub_id = StubId::stubgen_aescrypt_encryptBlock_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
+    __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -2002,8 +2079,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute AES decrypt function.
   address generate_AES_decryptBlock() {
-    __ align(CodeEntryAlignment);
     StubId stub_id = StubId::stubgen_aescrypt_decryptBlock_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
+    __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -2064,8 +2145,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute chained AES encrypt function.
   address generate_cipherBlockChaining_AES_encrypt() {
-    __ align(CodeEntryAlignment);
     StubId stub_id = StubId::stubgen_cipherBlockChaining_encryptAESCrypt_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
+    __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int   start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -2077,8 +2162,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute chained AES decrypt function.
   address generate_cipherBlockChaining_AES_decrypt() {
-    __ align(CodeEntryAlignment);
     StubId stub_id = StubId::stubgen_cipherBlockChaining_decryptAESCrypt_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
+    __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int   start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -2785,8 +2874,12 @@ class StubGenerator: public StubCodeGenerator {
   // Compute AES-CTR crypto function.
   // Encrypt or decrypt is selected via parameters. Only one stub is necessary.
   address generate_counterMode_AESCrypt() {
-    __ align(CodeEntryAlignment);
     StubId stub_id = StubId::stubgen_counterMode_AESCrypt_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
+    __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int   start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -2800,8 +2893,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute GHASH function.
   address generate_ghash_processBlocks() {
-    __ align(CodeEntryAlignment);
     StubId stub_id = StubId::stubgen_ghash_processBlocks_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
+    __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();   // Remember stub start address (is rtn value).
 
@@ -2891,6 +2988,10 @@ class StubGenerator: public StubCodeGenerator {
       break;
     default:
       ShouldNotReachHere();
+    }
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
     }
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
@@ -2986,6 +3087,10 @@ class StubGenerator: public StubCodeGenerator {
     default:
       ShouldNotReachHere();
     }
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
     unsigned int start_off = __ offset();   // Remember stub start address (is rtn value).
@@ -3077,6 +3182,10 @@ class StubGenerator: public StubCodeGenerator {
       break;
     default:
       ShouldNotReachHere();
+    }
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
     }
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, stub_id);
@@ -3202,8 +3311,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute CRC32 function.
   address generate_CRC32_updateBytes() {
+    StubId stub_id = StubId::stubgen_updateBytesCRC32_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     __ align(CodeEntryAlignment);
-    StubId stub_id =  StubId::stubgen_updateBytesCRC32_id;
     StubCodeMark mark(this, stub_id);
     unsigned int   start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -3223,8 +3336,12 @@ class StubGenerator: public StubCodeGenerator {
 
   // Compute CRC32C function.
   address generate_CRC32C_updateBytes() {
+    StubId stub_id = StubId::stubgen_updateBytesCRC32C_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     __ align(CodeEntryAlignment);
-    StubId stub_id =  StubId::stubgen_updateBytesCRC32C_id;
     StubCodeMark mark(this, stub_id);
     unsigned int   start_off = __ offset();  // Remember stub start address (is rtn value).
 
@@ -3249,8 +3366,12 @@ class StubGenerator: public StubCodeGenerator {
   //   Z_ARG4    - y length
   //   Z_ARG5    - z address
   address generate_multiplyToLen() {
+    StubId stub_id = StubId::stubgen_multiplyToLen_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     __ align(CodeEntryAlignment);
-    StubId stub_id =  StubId::stubgen_multiplyToLen_id;
     StubCodeMark mark(this, stub_id);
 
     address start = __ pc();
@@ -3282,8 +3403,12 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_method_entry_barrier() {
+    StubId stub_id = StubId::stubgen_method_entry_barrier_id;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
     __ align(CodeEntryAlignment);
-    StubId stub_id =  StubId::stubgen_method_entry_barrier_id;
     StubCodeMark mark(this, stub_id);
 
     address start = __ pc();
@@ -3326,6 +3451,10 @@ class StubGenerator: public StubCodeGenerator {
 
   address generate_cont_thaw(StubId stub_id) {
     if (!Continuations::enabled()) return nullptr;
+    address cached = load_stub(stub_id);
+    if (cached != nullptr) {
+      return cached;
+    }
 
     Continuation::thaw_kind kind;
     bool return_barrier;
@@ -3471,8 +3600,12 @@ class StubGenerator: public StubCodeGenerator {
   address generate_cont_preempt_stub() {
     if (!Continuations::enabled()) return nullptr;
     StubId stub_id = StubId::stubgen_cont_preempt_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
-    address start = __ pc();
+    start = __ pc();
 
     __ clobber_nonvolatile_registers(); // Except Z_thread
 
@@ -3507,8 +3640,12 @@ class StubGenerator: public StubCodeGenerator {
   // exception handler for upcall stubs
   address generate_upcall_stub_exception_handler() {
     StubId stub_id =  StubId::stubgen_upcall_stub_exception_handler_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
-    address start = __ pc();
+    start = __ pc();
 
     // Native caller has no idea how to handle exceptions,
     // so we just crash here. Up to callee to catch exceptions.
@@ -3526,8 +3663,12 @@ class StubGenerator: public StubCodeGenerator {
   // Z_method = Method* result
   address generate_upcall_stub_load_target() {
     StubId stub_id =  StubId::stubgen_upcall_stub_load_target_id;
+    address start = load_stub(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
     StubCodeMark mark(this, stub_id);
-    address start = __ pc();
+    start = __ pc();
 
     __ resolve_global_jobject(Z_ARG1, Z_tmp_1, Z_tmp_2);
       // Load target method from receiver
